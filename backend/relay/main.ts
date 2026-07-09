@@ -7,6 +7,7 @@ import { connectToDatabase } from './database/MongoManager.js';
 import { authenticateToken } from './auth/authenticator.js';
 import { handleLocalServerConnection, handleClientConnection } from './websocket/connectionHandlers.js';
 import { createServer } from './websocket/httpsHelper.js';
+import { handleRequest } from './http/requestHandler.js';
 
 dotenv.config();
 
@@ -31,10 +32,7 @@ if (process.env.MONGO_URI) {
 }
 
 // Create Server (HTTP or HTTPS depending on config)
-const server = createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('NetLink Relay Server is running.\n');
-});
+const server = createServer(handleRequest);
 
 const wss = new WebSocketServer({ server });
 

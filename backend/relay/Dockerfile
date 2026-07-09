@@ -15,6 +15,7 @@ COPY main.ts ./
 COPY auth/ ./auth/
 COPY database/ ./database/
 COPY websocket/ ./websocket/
+COPY http/ ./http/
 
 # Compile TS code to the "dist" directory
 RUN npx tsc --outDir dist
@@ -37,6 +38,9 @@ RUN npm ci --omit=dev
 
 # Copy the compiled JavaScript files from the builder stage
 COPY --from=builder /app/dist ./
+
+# Copy the frontend static files
+COPY frontend/ ./frontend/
 
 # Expose the relay server port
 EXPOSE 4536
