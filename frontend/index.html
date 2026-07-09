@@ -43,7 +43,7 @@
         term.write('Connecting to local proxy...\r\n');
 
         // Connect back to the same origin port
-        const socket = new WebSocket('wss://2.56.244.225:4536/client?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6Im15LWxvY2FsLXNlcnZlciIsInJvbGUiOiJzZXJ2ZXIiLCJpYXQiOjE3ODM2MTY0NjJ9.BMhGKd5x1dLbP6D2pDke8HsDkKKRK3FMPtjGODmEwF8&target=my-local-server');
+        const socket = new WebSocket('wss://87.155.145.8:4536/client?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6Im15LWxvY2FsLXNlcnZlciIsInJvbGUiOiJzZXJ2ZXIiLCJpYXQiOjE3ODM2MTY0NjJ9.BMhGKd5x1dLbP6D2pDke8HsDkKKRK3FMPtjGODmEwF8&target=my-local-server');
 
         socket.onopen = () => term.write('Connected.\r\n');
         socket.onmessage = (event) => term.write(event.data);
