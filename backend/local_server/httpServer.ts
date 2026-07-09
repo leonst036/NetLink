@@ -5,10 +5,10 @@ import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import dotenv from 'dotenv';
 
-dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 function ensureCertificates(keyPath: string, certPath: string): void {
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {

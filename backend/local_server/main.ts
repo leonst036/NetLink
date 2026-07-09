@@ -3,8 +3,13 @@ import { createHttpsServer } from './httpServer.js';
 import { handleSshConnection } from './websockets/sshHandler.js';
 import { handleRelayConnection } from './websockets/relay/relayConnector.js';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 // 1. Create HTTPS Server
 const server = createHttpsServer();
