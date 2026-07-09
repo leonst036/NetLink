@@ -25,7 +25,7 @@ export function connectToRelay(token: string): WebSocket {
     
     // Support self-signed certs in development (if REJECT_UNAUTHORIZED=false)
     const options = {
-        rejectUnauthorized: process.env.REJECT_UNAUTHORIZED !== 'false'
+        rejectUnauthorized: process.env.REJECT_UNAUTHORIZED?.trim().toLowerCase() !== 'false'
     };
 
     const ws = new WebSocket(`${relayUrl}/connect?token=${token}`, options);
@@ -52,7 +52,7 @@ export function handleRelayConnection(token: string): void {
                 
                 const relayUrl = getRelayUrl();
                 const sessionWs = new WebSocket(`${relayUrl}/connect?token=${token}&sessionId=${message.sessionId}`, {
-                    rejectUnauthorized: process.env.REJECT_UNAUTHORIZED !== 'false'
+                    rejectUnauthorized: process.env.REJECT_UNAUTHORIZED?.trim().toLowerCase() !== 'false'
                 });
                 
                 sessionWs.on('open', () => {
