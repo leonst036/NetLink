@@ -12,9 +12,9 @@ RUN npm ci
 # Copy tsconfig and source directories
 COPY tsconfig.json ./
 COPY main.ts ./
-COPY auth/ ./auth/
-COPY database/ ./database/
-COPY websocket/ ./websocket/
+COPY httpServer.ts ./
+COPY websockets/ ./websockets/
+
 
 # Compile TS code to the "dist" directory
 RUN npx tsc --outDir dist
