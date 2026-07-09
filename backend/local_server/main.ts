@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import { createHttpsServer } from './httpServer.ts';
-import { handleSshConnection } from './websockets/sshHandler.ts';
-import { handleRelayConnection } from './websockets/relay/relayConnector.ts';
+import { createHttpsServer } from './httpServer.js';
+import { handleSshConnection } from './websockets/sshHandler.js';
+import { handleRelayConnection } from './websockets/relay/relayConnector.js';
 import dotenv from 'dotenv';
 
 dotenv.config();

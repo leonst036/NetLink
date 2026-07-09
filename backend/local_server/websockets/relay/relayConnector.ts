@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { handleSshConnection } from '../sshHandler.ts';
+import { handleSshConnection } from '../sshHandler.js';
 
 /**
  * Helper to construct the relay connection URL.
