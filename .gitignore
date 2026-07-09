@@ -38,6 +38,6 @@ Thumbs.db
 result
 
 # Package locks (preserved from your previous .gitignore)
-package-lock.json
+# package-lock.json
 yarn.lock
 pnpm-lock.yaml
