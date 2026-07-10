@@ -28,6 +28,12 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('target') || 'my-local-server';
   });
+  const [servers, setServers] = useState<any[]>([]);
+  const [selectedIp, setSelectedIp] = useState('');
+  const [sshUsername, setSshUsername] = useState('');
+  const [sshPassword, setSshPassword] = useState('');
+  const [fetchingServers, setFetchingServers] = useState(false);
+
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [isConnected, setIsConnected] = useState(false);
 
@@ -90,6 +96,25 @@ function App() {
     }
     setStatus('disconnected');
     setIsConnected(false);
+  };
+
+  const fetchServers = async () => {
+    if (!target) return;
+    setFetchingServers(true);
+    try {
+      const res = await fetch(`/api/servers?target=${encodeURIComponent(target)}`);
+      const data = await res.json();
+      if (data.devices) {
+        setServers(data.devices);
+        if (data.devices.length > 0 && !selectedIp) {
+          setSelectedIp(data.devices[0].ip);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch servers', err);
+    } finally {
+      setFetchingServers(false);
+    }
   };
 
   // Connect Terminal
@@ -157,6 +182,13 @@ function App() {
       setStatus('connected');
       setIsConnected(true);
       term.write('\r\n*** Connected to Relay Server. Ready for SSH session ***\r\n\r\n');
+
+      socket.send(JSON.stringify({
+        type: 'connect',
+        ip: selectedIp || 'localhost',
+        username: sshUsername,
+        password: sshPassword
+      }));
     };
 
     socket.onmessage = (event) => {
@@ -288,28 +320,66 @@ function App() {
         </div>
 
         <div className="terminal-container-wrapper">
-          <div className="connection-config">
-            <input
-              type="text"
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              placeholder="Target device identifier (e.g. my-local-server)"
-              disabled={isConnected}
-            />
-            {isConnected ? (
-              <button className="btn-secondary" onClick={disconnectTerminal}>
-                Disconnect
+          <div className="connection-config" style={{ flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+              <input
+                type="text"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                placeholder="Target device identifier (e.g. my-local-server)"
+                disabled={isConnected}
+                style={{ flex: 1 }}
+              />
+              <button className="btn-secondary" onClick={fetchServers} disabled={fetchingServers || isConnected}>
+                {fetchingServers ? 'Scanning...' : 'Load Servers'}
               </button>
-            ) : (
-              <button 
-                className="btn-primary" 
-                style={{ width: 'auto', padding: '8px 24px', margin: 0, boxShadow: 'none' }}
-                onClick={connectTerminal}
-                disabled={status === 'connecting'}
+            </div>
+            
+            <div style={{ display: 'flex', gap: '10px', width: '100%', alignItems: 'center' }}>
+              <select 
+                value={selectedIp} 
+                onChange={(e) => setSelectedIp(e.target.value)}
+                disabled={isConnected || servers.length === 0}
+                style={{ flex: 1, padding: '10px', borderRadius: '6px', background: '#0f172a', color: 'white', border: '1px solid #334155' }}
               >
-                {status === 'connecting' ? 'Connecting...' : 'Connect'}
-              </button>
-            )}
+                <option value="">Select a Server...</option>
+                {servers.map((s, idx) => (
+                  <option key={idx} value={s.ip}>{s.ip} {s.hostname ? `(${s.hostname})` : ''}</option>
+                ))}
+              </select>
+
+              <input
+                type="text"
+                value={sshUsername}
+                onChange={(e) => setSshUsername(e.target.value)}
+                placeholder="SSH Username"
+                disabled={isConnected}
+                style={{ width: '120px' }}
+              />
+              <input
+                type="password"
+                value={sshPassword}
+                onChange={(e) => setSshPassword(e.target.value)}
+                placeholder="SSH Password"
+                disabled={isConnected}
+                style={{ width: '120px' }}
+              />
+              
+              {isConnected ? (
+                <button className="btn-secondary" onClick={disconnectTerminal}>
+                  Disconnect
+                </button>
+              ) : (
+                <button 
+                  className="btn-primary" 
+                  style={{ width: 'auto', padding: '8px 24px', margin: 0, boxShadow: 'none' }}
+                  onClick={connectTerminal}
+                  disabled={status === 'connecting' || !selectedIp || !sshUsername}
+                >
+                  {status === 'connecting' ? 'Connecting...' : 'Connect'}
+                </button>
+              )}
+            </div>
           </div>
           <div id="terminal-container" ref={terminalRef}></div>
         </div>

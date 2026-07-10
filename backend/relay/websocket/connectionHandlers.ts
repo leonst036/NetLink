@@ -2,6 +2,7 @@ import { WebSocket } from 'ws';
 import { 
     controlConnections, 
     pendingSessions, 
+    serverDevices,
     bridgeSockets 
 } from './connectionManager.js';
 
@@ -31,9 +32,22 @@ export function handleLocalServerConnection(
 
         console.log(`Registered local server connection: ${identifier}`);
 
+        ws.on('message', (data: any) => {
+            try {
+                const message = JSON.parse(data.toString());
+                if (message.type === 'server_list' && Array.isArray(message.devices)) {
+                    console.log(`Received ${message.devices.length} devices from local server: ${identifier}`);
+                    serverDevices.set(identifier, message.devices);
+                }
+            } catch (err) {
+                // Ignore parse errors on control channel
+            }
+        });
+
         ws.on('close', () => {
             console.log(`Local server disconnected: ${identifier}`);
             controlConnections.delete(identifier);
+            serverDevices.delete(identifier);
         });
     }
 }

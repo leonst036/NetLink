@@ -1,5 +1,6 @@
 import { WebSocket } from 'ws';
 import { handleSshConnection } from '../sshHandler.js';
+import { runNetworkScan } from '../../network/scanner.js';
 
 /**
  * Helper to construct the relay connection URL.
@@ -40,8 +41,17 @@ export function handleRelayConnection(token: string): void {
     console.log('Connecting to NetLink relay server...');
     const controlWs = connectToRelay(token);
 
-    controlWs.on('open', () => {
+    controlWs.on('open', async () => {
         console.log('Successfully connected to relay server control channel.');
+        // Run network scan and send the results
+        try {
+            const devices = await runNetworkScan();
+            if (controlWs.readyState === WebSocket.OPEN) {
+                controlWs.send(JSON.stringify({ type: 'server_list', devices }));
+            }
+        } catch (err) {
+            console.error('Error running network scan:', err);
+        }
     });
 
     controlWs.on('message', (data: any) => {
