@@ -5,9 +5,6 @@ dotenv.config();
 
 export function handleSshConnection(ws: WebSocket): void {
     console.log('Client connected. Waiting for SSH credentials...');
-    
-    // Signal the client that the backend bridge is ready to receive credentials
-    ws.send(JSON.stringify({ type: 'ready_for_credentials' }));
 
     const onMessage = (message: any) => {
         try {
