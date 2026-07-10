@@ -182,16 +182,24 @@ function App() {
       setStatus('connected');
       setIsConnected(true);
       term.write('\r\n*** Connected to Relay Server. Ready for SSH session ***\r\n\r\n');
-
-      socket.send(JSON.stringify({
-        type: 'connect',
-        ip: selectedIp || 'localhost',
-        username: sshUsername,
-        password: sshPassword
-      }));
     };
 
     socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'ready_for_credentials') {
+          socket.send(JSON.stringify({
+            type: 'connect',
+            ip: selectedIp || 'localhost',
+            username: sshUsername,
+            password: sshPassword
+          }));
+          return;
+        }
+      } catch (err) {
+        // Not a JSON control message, treat as terminal output
+      }
+      
       term.write(event.data);
     };
 

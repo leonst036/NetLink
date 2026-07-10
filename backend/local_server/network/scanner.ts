@@ -140,6 +140,11 @@ export async function runNetworkScan(): Promise<Device[]> {
     const workers = Array.from({ length: numWorkers }, () => worker());
     await Promise.all(workers);
 
+    // Sort devices by IP address numerically
+    foundDevices.sort((a, b) => {
+        return ipLib.toLong(a.ip) - ipLib.toLong(b.ip);
+    });
+
     console.log('\nNetwork scan completed successfully.');
     return foundDevices;
 }
