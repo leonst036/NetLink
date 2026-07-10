@@ -184,10 +184,18 @@ function App() {
       term.write('\r\n*** Connected to Relay Server. Ready for SSH session ***\r\n\r\n');
     };
 
-    socket.onmessage = (event) => {
+    socket.onmessage = async (event) => {
+      let textData = event.data;
+      if (event.data instanceof Blob) {
+        textData = await event.data.text();
+      } else if (event.data instanceof ArrayBuffer) {
+        textData = new TextDecoder().decode(event.data);
+      }
+
       try {
-        const data = JSON.parse(event.data);
+        const data = JSON.parse(textData);
         if (data.type === 'ready_for_credentials') {
+          term.write('\r\n[System] Backend connected. Authenticating...\r\n');
           socket.send(JSON.stringify({
             type: 'connect',
             ip: selectedIp || 'localhost',
@@ -200,7 +208,7 @@ function App() {
         // Not a JSON control message, treat as terminal output
       }
       
-      term.write(event.data);
+      term.write(textData);
     };
 
     socket.onclose = (event) => {

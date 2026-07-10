@@ -12,9 +12,15 @@ export function handleSshConnection(ws: WebSocket): void {
     const onMessage = (message: any) => {
         try {
             const data = JSON.parse(message.toString());
-            if (data.type === 'connect' && data.ip && data.username) {
-                ws.removeListener('message', onMessage);
-                startSsh(ws, data.ip, data.username, data.password || '');
+            if (data.type === 'connect') {
+                if (data.ip && data.username) {
+                    console.log(`Valid credentials received for ${data.username}@${data.ip}, starting SSH...`);
+                    ws.removeListener('message', onMessage);
+                    startSsh(ws, data.ip, data.username, data.password || '');
+                } else {
+                    console.warn('Received connect payload but missing ip or username:', data);
+                    ws.send('\r\n[Backend] Error: Missing IP or Username in connection payload\r\n');
+                }
             }
         } catch (err) {
             // Ignore non-JSON messages while waiting
