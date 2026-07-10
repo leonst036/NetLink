@@ -81,18 +81,32 @@ async function scanDevice(ip: string): Promise<Device | null> {
  * Main function that coordinates the automatic subnet detection and the network scan.
  */
 export async function runNetworkScan(): Promise<Device[]> {
-    const networkDetails = getLocalNetworkDetails();
+    let subnet;
 
-    if (!networkDetails) {
-        console.error('Error: Could not automatically detect local network interfaces.');
-        return [];
+    if (process.env.SCAN_CIDR) {
+        try {
+            subnet = ipLib.cidrSubnet(process.env.SCAN_CIDR);
+            console.log(`Using manually configured scan subnet: ${process.env.SCAN_CIDR}`);
+        } catch (err) {
+            console.error(`Invalid SCAN_CIDR provided: ${process.env.SCAN_CIDR}`);
+            return [];
+        }
+    } else {
+        const networkDetails = getLocalNetworkDetails();
+
+        if (!networkDetails) {
+            console.error('Error: Could not automatically detect local network interfaces.');
+            return [];
+        }
+
+        // Calculate subnet range (e.g., 192.168.1.0/24)
+        subnet = ipLib.subnet(networkDetails.address, networkDetails.netmask);
+
+        console.log(`Detected IP: ${networkDetails.address}`);
+        console.log(`Subnet Mask: ${networkDetails.netmask}`);
+        console.log(`(Note: If this is a Docker subnet like 172.x.x.x, consider setting SCAN_CIDR or using network_mode: 'host')`);
     }
 
-    // Calculate subnet range (e.g., 192.168.1.0/24)
-    const subnet = ipLib.subnet(networkDetails.address, networkDetails.netmask);
-
-    console.log(`Your IP: ${networkDetails.address}`);
-    console.log(`Subnet Mask: ${networkDetails.netmask}`);
     console.log(`Scanning subnet range: ${subnet.firstAddress} to ${subnet.lastAddress}\n`);
     console.log('Starting ping-based scan (this may take a moment)...');
 
