@@ -5,7 +5,6 @@ dotenv.config();
 
 export function handleSshConnection(ws: WebSocket): void {
     console.log('Client connected. Waiting for SSH credentials...');
-
     const onMessage = (message: any) => {
         try {
             const data = JSON.parse(message.toString());
@@ -13,7 +12,13 @@ export function handleSshConnection(ws: WebSocket): void {
                 if (data.ip && data.username) {
                     console.log(`Valid credentials received for ${data.username}@${data.ip}, starting SSH...`);
                     ws.removeListener('message', onMessage);
-                    startSsh(ws, data.ip, data.username, data.password || '');
+                    try {
+                        startSsh(ws, data.ip, data.username, data.password || '');
+                    } catch (err: any) {
+                        console.error('Error starting SSH:', err);
+                        ws.send(`\r\n[Backend] Error starting SSH: ${err.message}\r\n`);
+                        ws.close();
+                    }
                 } else {
                     console.warn('Received connect payload but missing ip or username:', data);
                     ws.send('\r\n[Backend] Error: Missing IP or Username in connection payload\r\n');
