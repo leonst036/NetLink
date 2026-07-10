@@ -4,7 +4,25 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export function handleSshConnection(ws: WebSocket): void {
-    console.log('Client connected. Initiating SSH session...');
+    console.log('Client connected. Waiting for SSH credentials...');
+
+    const onMessage = (message: any) => {
+        try {
+            const data = JSON.parse(message.toString());
+            if (data.type === 'connect' && data.ip && data.username) {
+                ws.removeListener('message', onMessage);
+                startSsh(ws, data.ip, data.username, data.password || '');
+            }
+        } catch (err) {
+            // Ignore non-JSON messages while waiting
+        }
+    };
+
+    ws.on('message', onMessage);
+}
+
+function startSsh(ws: WebSocket, host: string, username: string, password: string): void {
+    console.log(`Initiating SSH session to ${host} as ${username}...`);
     const ssh = new SSHClient();
 
     ssh.on('ready', () => {
@@ -15,7 +33,7 @@ export function handleSshConnection(ws: WebSocket): void {
             }
             stream.on('data', (data: Buffer) => ws.send(data.toString('utf-8')));
             stream.on('close', () => ws.close());
-            ws.on('message', (message: string) => stream.write(message));
+            ws.on('message', (message: any) => stream.write(message));
         });
     });
 
@@ -24,12 +42,11 @@ export function handleSshConnection(ws: WebSocket): void {
         ws.close();
     });
 
-    // TODO: Add JWT authentication to authenticate the SSH connection
     ssh.connect({
-        host: process.env.SSH_HOST || 'localhost',
-        port: Number(process.env.SSH_PORT || 22),
-        username: process.env.SSH_USERNAME || 'NetLink',
-        password: process.env.SSH_PASSWORD || 'NetLink123'
+        host,
+        port: 22,
+        username,
+        password
     });
 
     ws.on('close', () => {

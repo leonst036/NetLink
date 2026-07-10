@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, URL } from 'url';
 import { handleLogin } from '../auth/login.js';
+import { serverDevices } from '../websocket/connectionManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,20 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     // Login API route
     if (pathname === '/api/login' || pathname === '/login') {
         handleLogin(req, res);
+        return;
+    }
+
+    // Get servers API route
+    if (pathname === '/api/servers') {
+        const target = parsedUrl.searchParams.get('target');
+        if (!target) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'target parameter required' }));
+            return;
+        }
+        const devices = serverDevices.get(target) || [];
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ devices }));
         return;
     }
     

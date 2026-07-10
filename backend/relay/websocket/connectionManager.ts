@@ -3,6 +3,7 @@ import { WebSocket } from 'ws';
 // Maps to manage active connections and routing
 export const controlConnections = new Map<string, WebSocket>();
 export const pendingSessions = new Map<string, WebSocket>(); // Key: sessionId, Value: Client WebSocket
+export const serverDevices = new Map<string, any[]>(); // Key: identifier, Value: Array of devices
 
 /**
  * Bridges two WebSockets together, forwarding all traffic in both directions.
