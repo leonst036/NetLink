@@ -46,8 +46,10 @@ export function handleLocalServerConnection(
 
         ws.on('close', () => {
             console.log(`Local server disconnected: ${identifier}`);
-            controlConnections.delete(identifier);
-            serverDevices.delete(identifier);
+            if (controlConnections.get(identifier) === ws) {
+                controlConnections.delete(identifier);
+                serverDevices.delete(identifier);
+            }
         });
     }
 }
