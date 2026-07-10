@@ -1,8 +1,6 @@
 import * as os from 'os';
 import ipLib from 'ip';
 
-
-
 /**
  * Gets the current machine's local IPv4 and subnet mask.
  */
@@ -27,6 +25,27 @@ function getLocalNetworkDetails(): { address: string; netmask: string } | null {
 }
 
 import { exec } from 'child_process';
+import * as dns from 'dns';
+
+export interface Device {
+    ip: string;
+    hostname?: string | undefined;
+}
+
+/**
+ * Performs a reverse DNS lookup to find the hostname for an IP address.
+ */
+function reverseDns(ip: string): Promise<string | undefined> {
+    return new Promise((resolve) => {
+        dns.reverse(ip, (err, hostnames) => {
+            if (err || !hostnames || hostnames.length === 0) {
+                resolve(undefined);
+            } else {
+                resolve(hostnames[0]);
+            }
+        });
+    });
+}
 
 function pingHost(ip: string): Promise<boolean> {
     return new Promise((resolve) => {
@@ -46,24 +65,27 @@ function pingHost(ip: string): Promise<boolean> {
 }
 
 /**
- * Scans a single IP address by pinging it.
+ * Scans a single IP address by pinging it and resolving its hostname if active.
  */
-async function scanDevice(ip: string): Promise<void> {
+async function scanDevice(ip: string): Promise<Device | null> {
     const isAlive = await pingHost(ip);
     if (isAlive) {
-        console.log(`[FOUND] Host: ${ip} is active`);
+        const hostname = await reverseDns(ip);
+        console.log(`[FOUND] Host: ${ip}${hostname ? ` (${hostname})` : ''} is active`);
+        return { ip, hostname };
     }
+    return null;
 }
 
 /**
  * Main function that coordinates the automatic subnet detection and the network scan.
  */
-async function runNetworkScan(): Promise<void> {
+export async function runNetworkScan(): Promise<Device[]> {
     const networkDetails = getLocalNetworkDetails();
 
     if (!networkDetails) {
         console.error('Error: Could not automatically detect local network interfaces.');
-        return;
+        return [];
     }
 
     // Calculate subnet range (e.g., 192.168.1.0/24)
@@ -78,31 +100,32 @@ async function runNetworkScan(): Promise<void> {
     const startLong = ipLib.toLong(subnet.firstAddress);
     const endLong = ipLib.toLong(subnet.lastAddress);
 
-    const CONCURRENCY_LIMIT = 20;
-    const activePromises: Promise<void>[] = [];
-
-    // Loop through all available host IPs in the subnet with limited concurrency
+    const ips: string[] = [];
     for (let currentLong = startLong; currentLong <= endLong; currentLong++) {
-        const currentIp = ipLib.fromLong(currentLong);
+        ips.push(ipLib.fromLong(currentLong));
+    }
 
-        const p = scanDevice(currentIp).then(() => {
-            const index = activePromises.indexOf(p);
-            if (index > -1) {
-                activePromises.splice(index, 1);
+    const CONCURRENCY_LIMIT = 20;
+    const foundDevices: Device[] = [];
+    let ipIndex = 0;
+
+    async function worker() {
+        while (ipIndex < ips.length) {
+            const ip = ips[ipIndex++];
+            if (ip !== undefined) {
+                const device = await scanDevice(ip);
+                if (device) {
+                    foundDevices.push(device);
+                }
             }
-        });
-        activePromises.push(p);
-
-        if (activePromises.length >= CONCURRENCY_LIMIT) {
-            await Promise.race(activePromises);
         }
     }
 
-    // Execute remaining scans
-    await Promise.all(activePromises);
+    // Start workers
+    const numWorkers = Math.min(CONCURRENCY_LIMIT, ips.length);
+    const workers = Array.from({ length: numWorkers }, () => worker());
+    await Promise.all(workers);
 
     console.log('\nNetwork scan completed successfully.');
+    return foundDevices;
 }
-
-// Start the scanner
-runNetworkScan();
