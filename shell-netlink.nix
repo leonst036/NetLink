@@ -7,6 +7,7 @@ pkgs.mkShell {
     pkgs.python3
     pkgs.nodejs_22
     pkgs.openssl
+    pkgs.net-tools
   ];
 
   shellHook = ''
@@ -17,6 +18,7 @@ pkgs.mkShell {
     echo "  - Python: $(python3 --version)"
     echo "  - Node.js: $(node --version)"
     echo "  - NPM: $(npm --version)"
+    echo "  - Arp: $(arp --version)"
     echo "================================================="
   '';
 }
