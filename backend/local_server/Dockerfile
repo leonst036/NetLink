@@ -14,6 +14,7 @@ COPY tsconfig.json ./
 COPY main.ts ./
 COPY httpServer.ts ./
 COPY websockets/ ./websockets/
+COPY network/ ./network/
 
 
 # Compile TS code to the "dist" directory
