@@ -50,12 +50,10 @@
         // Connect back to the same origin host and protocol dynamically
         const isSecure = window.location.protocol === 'https:';
         const protocol = isSecure ? 'wss:' : 'ws:';
-        let host = window.location.host;
-
-        // If served from a local file or not via HTTP/HTTPS, fallback to the hardcoded relay host
-        if (!host || window.location.protocol.indexOf('http') !== 0) {
-            host = '87.155.145.8:4536';
-        }
+        
+        // Since WebSocket runs on port 4536, dynamically use hostname with WebSocket port
+        const wsPort = '4536';
+        let host = window.location.hostname ? `${window.location.hostname}:${wsPort}` : `87.155.145.8:${wsPort}`;
 
         const socketUrl = `${protocol}//${host}/client?token=${token}&target=${target}`;
 

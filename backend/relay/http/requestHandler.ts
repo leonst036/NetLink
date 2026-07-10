@@ -2,6 +2,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, URL } from 'url';
+import { handleLogin } from '../auth/login.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,22 +27,30 @@ if (!frontendPath) {
 if (!frontendPath) {
     frontendPath = path.join(__dirname, '../../frontend');
 }
+if (fs.existsSync(path.join(frontendPath, 'dist'))) {
+    frontendPath = path.join(frontendPath, 'dist');
+}
 console.log(`[HTTP Server] Serving frontend files from: ${frontendPath}`);
 
 /**
  * Handles incoming HTTP requests to serve frontend files and support basic health checks.
  */
 export function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
+    const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    const pathname = parsedUrl.pathname;
+
     // Health check route
-    if (req.url === '/health') {
+    if (pathname === '/health') {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('NetLink Relay Server is running.\n');
         return;
     }
 
-    // Resolve static file path
-    const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-    let pathname = parsedUrl.pathname;
+    // Login API route
+    if (pathname === '/api/login' || pathname === '/login') {
+        handleLogin(req, res);
+        return;
+    }
     
     // Normalize pathname to prevent directory traversal
     const safeSuffix = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
