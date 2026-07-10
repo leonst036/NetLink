@@ -20,6 +20,14 @@ COPY http/ ./http/
 # Compile TS code to the "dist" directory
 RUN npx tsc --outDir dist
 
+# Copy frontend dependency manifests and install dependencies
+COPY frontend/package*.json ./frontend/
+RUN npm ci --prefix ./frontend
+
+# Copy frontend source files and build
+COPY frontend/ ./frontend/
+RUN npm run build --prefix ./frontend
+
 # Stage 2: Clean production runtime image
 FROM node:22-alpine AS runner
 
@@ -39,11 +47,11 @@ RUN npm ci --omit=dev
 # Copy the compiled JavaScript files from the builder stage
 COPY --from=builder /app/dist ./
 
-# Copy the frontend static files
-COPY frontend/ ./frontend/
+# Copy the frontend built files
+COPY --from=builder /app/frontend/dist ./frontend/dist
 
-# Expose the relay server port
-EXPOSE 4536
+# Expose the relay server ports
+EXPOSE 4535 4536
 
 # Run the compiled application
 CMD ["node", "main.js"]

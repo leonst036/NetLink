@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
-export async function GenerateToken(payload: object, secretKey: string) {
-    const token = jwt.sign(payload, secretKey);
+export async function GenerateToken(payload: object, secretKey: string, options?: jwt.SignOptions) {
+    const token = jwt.sign(payload, secretKey, options);
     return token;
 }
 

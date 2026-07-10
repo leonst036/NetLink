@@ -3,7 +3,7 @@ import http from 'http';
 import { URL } from 'url';
 import dotenv from 'dotenv';
 import * as mongoDB from 'mongodb';
-import { connectToDatabase } from './database/MongoManager.js';
+import { initializeDatabase } from './database/MongoManager.js';
 import { authenticateToken } from './auth/authenticator.js';
 import { handleLocalServerConnection, handleClientConnection } from './websocket/connectionHandlers.js';
 import { createServer } from './websocket/httpsHelper.js';
@@ -11,30 +11,24 @@ import { handleRequest } from './http/requestHandler.js';
 
 dotenv.config();
 
-const PORT = Number(process.env.PORT || 4536);
+const HTTP_PORT = Number(process.env.HTTP_PORT || 4535);
+const WS_PORT = Number(process.env.WS_PORT || 4536);
 let mongoClient: mongoDB.MongoClient | null = null;
 
-// Start database connection if MONGO_URI is set
-if (process.env.MONGO_URI) {
-    try {
-        const result = await connectToDatabase(process.env.MONGO_URI);
-        if (result instanceof mongoDB.MongoClient) {
-            mongoClient = result;
-            console.log('Successfully connected to MongoDB database.');
-        } else {
-            console.warn('MongoDB connection returned an error, running in memory-only auth mode:', result);
-        }
-    } catch (error) {
-        console.error('Failed to connect to MongoDB, running in memory-only auth mode:', error);
-    }
-} else {
-    console.log('MONGO_URI is not set. Running in memory-only auth mode.');
-}
+// Initialize MongoDB database connection
+mongoClient = await initializeDatabase();
 
-// Create Server (HTTP or HTTPS depending on config)
-const server = createServer(handleRequest);
+// Create HTTP(S) Server for serving the web app (frontend and health check)
+const httpServer = createServer(handleRequest);
 
-const wss = new WebSocketServer({ server });
+// Create separate HTTP(S) Server for WebSockets to run on a dedicated port
+const wsServer = createServer((req, res) => {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    res.end('Upgrade Required (WebSocket connections only)\n');
+});
+
+// Attach WebSocketServer to the dedicated wsServer
+const wss = new WebSocketServer({ server: wsServer });
 
 wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
     try {
@@ -75,6 +69,10 @@ wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
     }
 });
 
-server.listen(PORT, () => {
-    console.log(`Relay server started on port ${PORT}`);
+httpServer.listen(HTTP_PORT, () => {
+    console.log(`HTTP Relay server started on port ${HTTP_PORT}`);
+});
+
+wsServer.listen(WS_PORT, () => {
+    console.log(`WebSocket Relay server started on port ${WS_PORT}`);
 });
