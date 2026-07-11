@@ -72,9 +72,8 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
         const client = getMongoClient();
         if (client) {
             try {
-                const db = client.db('NetLink');
-                const usersCollection = db.collection('users');
-                const user = await usersCollection.findOne({ username });
+                const { CheckUser } = await import('../database/MongoManager.js');
+                const user = await CheckUser(client, username);
                 if (user && user.password === password) {
                     isAuthenticated = true;
                 }

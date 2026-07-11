@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
-import { User, Monitor, Info, Shield, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Monitor, Info, Shield, ChevronRight, Key, Plus, Trash2, Save } from 'lucide-react';
 
-type TabId = 'general' | 'appearance' | 'security' | 'about';
+type TabId = 'general' | 'appearance' | 'logins' | 'security' | 'about';
 
-export default function SettingsApp() {
+interface SettingsAppProps {
+  token: string;
+}
+
+export default function SettingsApp({ token }: SettingsAppProps) {
   const [activeTab, setActiveTab] = useState<TabId>('general');
 
   // Load functional settings from localStorage
@@ -20,9 +24,68 @@ export default function SettingsApp() {
   const tabs = [
     { id: 'general', label: 'General', icon: <User size={18} /> },
     { id: 'appearance', label: 'Appearance', icon: <Monitor size={18} /> },
+    { id: 'logins', label: 'Server Logins', icon: <Key size={18} /> },
     { id: 'security', label: 'Security', icon: <Shield size={18} /> },
     { id: 'about', label: 'About NetLink', icon: <Info size={18} /> },
   ];
+
+  const [logins, setLogins] = useState<any[]>([]);
+  const [editingLogin, setEditingLogin] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'logins') {
+      fetchLogins();
+    }
+  }, [activeTab]);
+
+  const fetchLogins = async () => {
+    try {
+      const res = await fetch('/api/server-logins', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.logins) {
+        setLogins(data.logins);
+      }
+    } catch (err) {
+      console.error('Failed to fetch logins', err);
+    }
+  };
+
+  const saveLogin = async () => {
+    if (!editingLogin) return;
+    try {
+      const res = await fetch('/api/server-logins', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(editingLogin)
+      });
+      if (res.ok) {
+        setEditingLogin(null);
+        fetchLogins();
+      }
+    } catch (err) {
+      console.error('Failed to save login', err);
+    }
+  };
+
+  const deleteLogin = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this login?')) return;
+    try {
+      const res = await fetch(`/api/server-logins?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchLogins();
+      }
+    } catch (err) {
+      console.error('Failed to delete login', err);
+    }
+  };
 
   return (
     <div style={{
@@ -187,6 +250,83 @@ export default function SettingsApp() {
             </div>
           )}
 
+
+          {activeTab === 'logins' && (
+            <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 24px 0' }}>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: 0, color: '#f8fafc' }}>Server Logins</h3>
+                <button
+                  onClick={() => setEditingLogin({ id: '', name: 'New Server', ip: '', port: '22', loginUsername: 'root', password: '', type: 'ssh' })}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: '#38bdf8', color: '#0f172a', border: 'none',
+                    padding: '8px 12px', borderRadius: '6px', cursor: 'pointer',
+                    fontSize: '0.85rem', fontWeight: 600
+                  }}
+                >
+                  <Plus size={16} /> Add Login
+                </button>
+              </div>
+
+              {editingLogin ? (
+                <SettingSection title="Edit Server Login">
+                  <SettingRow label="Name">
+                    <input type="text" value={editingLogin.name} onChange={e => setEditingLogin({...editingLogin, name: e.target.value})} style={inputStyle} placeholder="My Server" />
+                  </SettingRow>
+                  <SettingRow label="IP Address">
+                    <input type="text" value={editingLogin.ip} onChange={e => setEditingLogin({...editingLogin, ip: e.target.value})} style={inputStyle} placeholder="192.168.1.1" />
+                  </SettingRow>
+                  <SettingRow label="Port">
+                    <input type="text" value={editingLogin.port} onChange={e => setEditingLogin({...editingLogin, port: e.target.value})} style={inputStyle} placeholder="22" />
+                  </SettingRow>
+                  <SettingRow label="Username">
+                    <input type="text" value={editingLogin.loginUsername} onChange={e => setEditingLogin({...editingLogin, loginUsername: e.target.value})} style={inputStyle} placeholder="root" />
+                  </SettingRow>
+                  <SettingRow label="Password">
+                    <input type="password" value={editingLogin.password} onChange={e => setEditingLogin({...editingLogin, password: e.target.value})} style={inputStyle} placeholder="password" />
+                  </SettingRow>
+                  <SettingRow label="Protocol">
+                    <select value={editingLogin.type} onChange={e => setEditingLogin({...editingLogin, type: e.target.value})} style={selectStyle}>
+                      <option value="ssh">SSH</option>
+                      <option value="vnc">VNC</option>
+                      <option value="sftp">SFTP</option>
+                    </select>
+                  </SettingRow>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                    <button onClick={saveLogin} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#10b981', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>
+                      <Save size={16} /> Save
+                    </button>
+                    <button onClick={() => setEditingLogin(null)} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </SettingSection>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {logins.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '32px', color: '#64748b', background: 'rgba(30, 41, 59, 0.3)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                      No saved logins yet. Click "Add Login" to create one.
+                    </div>
+                  ) : (
+                    logins.map(login => (
+                      <div key={login.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '12px' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '1.05rem', marginBottom: '4px' }}>{login.name} <span style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', borderRadius: '4px', marginLeft: '8px', verticalAlign: 'middle', textTransform: 'uppercase' }}>{login.type}</span></div>
+                          <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{login.loginUsername}@{login.ip}:{login.port}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => setEditingLogin(login)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>Edit</button>
+                          <button onClick={() => deleteLogin(login.id)} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
 
           {activeTab === 'security' && (

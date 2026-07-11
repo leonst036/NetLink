@@ -10,6 +10,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     const [selectedIp, setSelectedIp] = useState(initialIp || '');
     const [vncPort, setVncPort] = useState('5900');
     const [vncPassword, setVncPassword] = useState('');
+    const [savedLogins, setSavedLogins] = useState<any[]>([]);
     const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
     const [isConnected, setIsConnected] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -88,9 +89,39 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     useEffect(() => {
         return () => disconnectVnc();
     }, []);
+
+    // Fetch saved logins
+    useEffect(() => {
+        fetch('/api/server-logins', { headers: { 'Authorization': `Bearer ${token}` } })
+            .then(res => res.json())
+            .then(data => {
+                if (data.logins) {
+                    setSavedLogins(data.logins.filter((l: any) => l.type === 'vnc'));
+                }
+            })
+            .catch(err => console.error('Failed to fetch logins', err));
+    }, [token]);
+
+    const applyLogin = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const login = savedLogins.find(l => l.id === e.target.value);
+        if (login) {
+            setSelectedIp(login.ip);
+            setVncPort(login.port || '5900');
+            setVncPassword(login.password);
+        }
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#050811' }}>
             <div style={{ padding: '10px', background: 'rgba(15, 23, 42, 0.9)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                {savedLogins.length > 0 && (
+                    <select onChange={applyLogin} defaultValue="" disabled={isConnected} style={{...inputStyle, width: 'auto'}}>
+                        <option value="" disabled>Saved Logins...</option>
+                        {savedLogins.map(l => (
+                            <option key={l.id} value={l.id}>{l.name} ({l.ip})</option>
+                        ))}
+                    </select>
+                )}
                 <input
                     type="text"
                     value={selectedIp}

@@ -25,6 +25,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const [selectedIp, setSelectedIp] = useState(initialIp || '');
   const [username, setUsername] = useState('root');
   const [password, setPassword] = useState('');
+  const [savedLogins, setSavedLogins] = useState<any[]>([]);
 
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [statusMessage, setStatusMessage] = useState('');
@@ -333,6 +334,27 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     };
   }, []);
 
+  // Fetch saved logins
+  useEffect(() => {
+    fetch('/api/server-logins', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => {
+        if (data.logins) {
+          setSavedLogins(data.logins.filter((l: any) => l.type === 'sftp'));
+        }
+      })
+      .catch(err => console.error('Failed to fetch logins', err));
+  }, [token]);
+
+  const applyLogin = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const login = savedLogins.find(l => l.id === e.target.value);
+    if (login) {
+      setSelectedIp(login.ip);
+      setUsername(login.loginUsername);
+      setPassword(login.password);
+    }
+  };
+
   const navigateTo = (path: string, pushToHistory = true) => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
     setAppError(null);
@@ -424,6 +446,35 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {savedLogins.length > 0 && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: '6px' }}>
+                    Saved Logins
+                  </label>
+                  <select
+                    onChange={applyLogin}
+                    defaultValue=""
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      appearance: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="" disabled>Select a saved server...</option>
+                    {savedLogins.map(l => (
+                      <option key={l.id} value={l.id}>{l.name} ({l.ip})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: '6px' }}>
                   Target IP / Hostname
