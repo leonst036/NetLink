@@ -35,6 +35,8 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         class VncWebSocket extends OriginalWebSocket {
             private _onmessage: ((this: WebSocket, ev: MessageEvent) => any) | null = null;
             private _messageListeners: any[] = [];
+            private _isBackendReady = false;
+            private _sendBuffer: any[] = [];
             
             constructor(url: string | URL, protocols?: string | string[]) {
                 super(url, protocols);
@@ -47,9 +49,17 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                         text = e.data;
                     }
 
-                    if (text.includes('ready_for_credentials')) {
+                    if (!this._isBackendReady && text.includes('ready_for_credentials')) {
                         // Backend is ready, send the VNC connect payload
-                        this.send(JSON.stringify({ type: 'connect_vnc', ip: selectedIp, port: parseInt(vncPort, 10) || 5900 }));
+                        super.send(JSON.stringify({ type: 'connect_vnc', ip: selectedIp, port: parseInt(vncPort, 10) || 5900 }));
+                        return; // Hide this message from noVNC
+                    }
+
+                    if (!this._isBackendReady && text.includes('vnc_started')) {
+                        this._isBackendReady = true;
+                        // Flush the buffered noVNC handshake messages
+                        this._sendBuffer.forEach(data => super.send(data));
+                        this._sendBuffer = [];
                         return; // Hide this message from noVNC
                     }
 
@@ -59,6 +69,14 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     }
                     this._messageListeners.forEach(listener => listener.call(this, e));
                 });
+            }
+
+            send(data: string | ArrayBuffer | SharedArrayBuffer | Blob | ArrayBufferView) {
+                if (!this._isBackendReady) {
+                    this._sendBuffer.push(data);
+                } else {
+                    super.send(data);
+                }
             }
 
             set onmessage(listener: ((this: WebSocket, ev: MessageEvent) => any) | null) {
