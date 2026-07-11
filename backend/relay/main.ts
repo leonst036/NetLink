@@ -28,7 +28,13 @@ const wsServer = createServer((req, res) => {
 });
 
 // Attach WebSocketServer to the dedicated wsServer
-const wss = new WebSocketServer({ server: wsServer });
+const wss = new WebSocketServer({ 
+    server: wsServer,
+    handleProtocols: (protocols) => {
+        // Echo back the first requested protocol, or false to reject
+        return Array.from(protocols)[0] || false;
+    }
+});
 
 wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
     try {
