@@ -2,6 +2,7 @@ import { WebSocket } from 'ws';
 import { Client as SSHClient } from 'ssh2';
 import dotenv from 'dotenv';
 import { startVnc } from './vncHandler.js';  // ToDo: Refactor this. Why is it even in the sshHandler?
+import { connectToSftp, listDirectory, disconnectSftp } from '../network/file/sftpHandler.js';
 dotenv.config();
 
 export function handleSshConnection(ws: WebSocket): void {
@@ -33,6 +34,16 @@ export function handleSshConnection(ws: WebSocket): void {
                     startVnc(ws, data.ip, port);
                 } else {
                     console.warn('Received VNC connect payload but missing IP');
+                    ws.close();
+                }
+            }
+            else if (data.type === 'connect_sftp') { // SFTP connection
+                if (data.ip && data.username) {
+                    console.log(`SFTP request received for ${data.username}@${data.ip}, starting SFTP session...`);
+                    ws.removeListener('message', onMessage);
+                    startSftp(ws, data.ip, data.username, data.password || '');
+                } else {
+                    console.warn('Received SFTP connect payload but missing IP or Username');
                     ws.close();
                 }
             }
@@ -75,4 +86,38 @@ function startSsh(ws: WebSocket, host: string, username: string, password: strin
     ws.on('close', () => {
         ssh.end();
     });
+}
+
+async function startSftp(ws: WebSocket, host: string, username: string, password: string): Promise<void> {
+    console.log(`Initiating SFTP session to ${host} as ${username}...`);
+    try {
+        const sftp = await connectToSftp(ws, {
+            host,
+            port: 22,
+            username,
+            password
+        });
+
+        const onSftpMessage = async (message: any) => {
+            try {
+                const data = JSON.parse(message.toString());
+                if (data.type === 'list') {
+                    await listDirectory(ws, sftp, data.path || '.');
+                } else if (data.type === 'disconnect') {
+                    await disconnectSftp(ws, sftp);
+                }
+            } catch (err) {
+                // Ignore parse/handler errors
+            }
+        };
+
+        ws.on('message', onSftpMessage);
+
+        ws.on('close', () => {
+            sftp.end().catch(() => {});
+        });
+    } catch (err: any) {
+        console.error('Failed to initialize SFTP connection:', err);
+        ws.close();
+    }
 }

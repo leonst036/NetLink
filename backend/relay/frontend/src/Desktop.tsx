@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import Window from './Window';
-import TerminalApp from './TerminalApp';
-import NetworkGraph from './NetworkGraph';
-import VncApp from './VncApp';
-import { Terminal, Network, LogOut, Search, Monitor } from 'lucide-react';
+import TerminalApp from './apps/TerminalApp';
+import NetworkGraph from './apps/NetworkGraph';
+import VncApp from './apps/VncApp';
+import FileApp from './apps/FileApp';
+import { Terminal, Network, LogOut, Search, Monitor, Folder } from 'lucide-react';
 
 interface DesktopProps {
   token: string;
@@ -34,10 +35,17 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
   const [terminals, setTerminals] = useState<TerminalInstance[]>([]);
 
   const [vncWindows, setVncWindows] = useState<{ id: string; ip: string; isMinimized: boolean }[]>([]);
+  const [sftpWindows, setSftpWindows] = useState<{ id: string; ip: string; isMinimized: boolean }[]>([]);
 
   const openVnc = (ip: string) => {
     const id = `vnc-${ip}-${Date.now()}`;
     setVncWindows(prev => [...prev, { id, ip, isMinimized: false }]);
+    bringToFront(id);
+  };
+
+  const openSftp = (ip: string) => {
+    const id = `sftp-${ip}-${Date.now()}`;
+    setSftpWindows(prev => [...prev, { id, ip, isMinimized: false }]);
     bringToFront(id);
   };
 
@@ -70,6 +78,8 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
       setTerminals(prev => prev.map(t => t.id === windowName ? { ...t, isMinimized: false } : t));
     } else if (windowName.startsWith('vnc-')) {
       setVncWindows(prev => prev.map(v => v.id === windowName ? { ...v, isMinimized: false } : v));
+    } else if (windowName.startsWith('sftp-')) {
+      setSftpWindows(prev => prev.map(s => s.id === windowName ? { ...s, isMinimized: false } : s));
     }
   };
 
@@ -149,6 +159,7 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
                   servers={servers}
                   onNodeClick={(ip) => openTerminal(ip)}
                   onVncClick={(ip) => openVnc(ip)}
+                  onSftpClick={(ip) => openSftp(ip)}
                   token={token}
                   target={target}
                 />
@@ -192,6 +203,25 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
             defaultSize={{ width: 800, height: 600 }}
           >
             <VncApp token={token} target={target} initialIp={vnc.ip} />
+          </Window>
+        ))}
+
+        {/* SFTP Windows */}
+        {sftpWindows.map(sftp => (
+          <Window
+            key={sftp.id}
+            id={sftp.id}
+            title={`NetLink SFTP - ${sftp.ip}`}
+            icon={<Folder size={14} color="#fb923c" />}
+            isActive={activeWindow === sftp.id}
+            isMinimized={sftp.isMinimized}
+            onMinimize={() => setSftpWindows(prev => prev.map(s => s.id === sftp.id ? { ...s, isMinimized: true } : s))}
+            onFocus={() => bringToFront(sftp.id)}
+            onClose={() => setSftpWindows(prev => prev.filter(s => s.id !== sftp.id))}
+            defaultPosition={{ x: 250, y: 250 }}
+            defaultSize={{ width: 800, height: 500 }}
+          >
+            <FileApp token={token} target={target} initialIp={sftp.ip} />
           </Window>
         ))}
       </div>
@@ -240,8 +270,16 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
           onClick={() => openTerminal('')}
         />
 
+        {/* Launcher for SFTP */}
+        <DockIcon
+          icon={<Folder size={24} color="#fb923c" />}
+          label="New SFTP Client"
+          isOpen={false}
+          onClick={() => openSftp('')}
+        />
+
         {/* Divider for Running Apps */}
-        {(terminals.length > 0 || vncWindows.length > 0) && (
+        {(terminals.length > 0 || vncWindows.length > 0 || sftpWindows.length > 0) && (
           <div style={{ width: '1px', background: 'rgba(255,255,255,0.2)', height: '24px' }} />
         )}
 
@@ -282,6 +320,27 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
                 setVncWindows(prev => prev.map(v => v.id === vnc.id ? { ...v, isMinimized: true } : v));
               } else {
                 bringToFront(vnc.id);
+              }
+            }}
+          />
+        ))}
+
+        {/* Running SFTP Connections */}
+        {sftpWindows.map(sftp => (
+          <DockIcon
+            key={sftp.id}
+            icon={<Folder size={24} color="#fb923c" />}
+            label={`SFTP: ${sftp.ip}`}
+            isOpen={activeWindow === sftp.id && !sftp.isMinimized}
+            isMinimized={sftp.isMinimized}
+            onClick={() => {
+              if (sftp.isMinimized) {
+                setSftpWindows(prev => prev.map(s => s.id === sftp.id ? { ...s, isMinimized: false } : s));
+                bringToFront(sftp.id);
+              } else if (activeWindow === sftp.id) {
+                setSftpWindows(prev => prev.map(s => s.id === sftp.id ? { ...s, isMinimized: true } : s));
+              } else {
+                bringToFront(sftp.id);
               }
             }}
           />
