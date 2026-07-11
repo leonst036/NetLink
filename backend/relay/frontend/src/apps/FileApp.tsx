@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Folder, File, ArrowLeft, RefreshCw, HardDrive, ShieldAlert } from 'lucide-react';
+import { Folder, File, ArrowLeft, RefreshCw, HardDrive, ShieldAlert, Upload, Download } from 'lucide-react';
 
 interface FileAppProps {
   token: string;
@@ -25,14 +25,70 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const [selectedIp, setSelectedIp] = useState(initialIp || '');
   const [username, setUsername] = useState('root');
   const [password, setPassword] = useState('');
-  
+
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [statusMessage, setStatusMessage] = useState('');
   const [files, setFiles] = useState<FileItem[]>([]);
   const [currentPath, setCurrentPath] = useState('/');
   const [history, setHistory] = useState<string[]>([]);
-  
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   const socketRef = useRef<WebSocket | null>(null);
+  const downloadChunksRef = useRef<Blob[]>([]);
+  const downloadFileNameRef = useRef<string>('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadFileRef = useRef<File | null>(null);
+  const uploadOffsetRef = useRef<number>(0);
+
+  const triggerDownload = (fileName: string) => {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+    const fullPath = currentPath === '/' ? `/${fileName}` : `${currentPath}/${fileName}`;
+    downloadFileNameRef.current = fileName;
+    downloadChunksRef.current = [];
+    socketRef.current.send(JSON.stringify({ type: 'download', path: fullPath }));
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+
+    uploadFileRef.current = file;
+    uploadOffsetRef.current = 0;
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const remotePath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
+    socketRef.current.send(JSON.stringify({ type: 'upload', path: remotePath }));
+  };
+
+  const sendNextChunk = () => {
+    const file = uploadFileRef.current;
+    if (!file || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+
+    const offset = uploadOffsetRef.current;
+    if (offset >= file.size) {
+      socketRef.current.send(JSON.stringify({ type: 'uploadEnd' }));
+      return;
+    }
+
+    const chunkSize = 64 * 1024; // 64KB
+    const slice = file.slice(offset, offset + chunkSize);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const arrayBuffer = e.target?.result as ArrayBuffer;
+      if (!arrayBuffer) return;
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
+      socketRef.current?.send(JSON.stringify({ type: 'uploadChunk', data: base64 }));
+      uploadOffsetRef.current += bytes.byteLength;
+    };
+    reader.readAsArrayBuffer(slice);
+  };
 
   const connectSftp = () => {
     if (!token) return;
@@ -75,13 +131,13 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             username,
             password
           }));
-        } 
+        }
         else if (data.type === 'connected') {
           setStatus('connected');
           setStatusMessage('');
           // Load root / initial directory
           socket.send(JSON.stringify({ type: 'list', path: '/' }));
-        } 
+        }
         else if (data.type === 'fileList') {
           // Sort folders first, then files
           const sortedList = (data.data as FileItem[]).sort((a, b) => {
@@ -90,10 +146,52 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             return a.name.localeCompare(b.name);
           });
           setFiles(sortedList);
-        } 
+        }
         else if (data.type === 'error') {
           setStatus('disconnected');
           setStatusMessage(typeof data.message === 'string' ? data.message : JSON.stringify(data.message));
+          setIsUploading(false);
+          setUploadProgress(null);
+        }
+        else if (data.type === 'fileDataDownload') {
+          if (typeof data.data === 'string') {
+            const binaryString = atob(data.data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            downloadChunksRef.current.push(new Blob([bytes]));
+          }
+        }
+        else if (data.type === 'fileEnd') {
+          const blob = new Blob(downloadChunksRef.current, { type: 'application/octet-stream' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = downloadFileNameRef.current || 'download';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          downloadChunksRef.current = [];
+          downloadFileNameRef.current = '';
+        }
+        else if (data.type === 'uploadReady') {
+          sendNextChunk();
+        }
+        else if (data.type === 'uploadAck') {
+          const file = uploadFileRef.current;
+          if (file) {
+            setUploadProgress(Math.min(100, Math.round((uploadOffsetRef.current / file.size) * 100)));
+          }
+          sendNextChunk();
+        }
+        else if (data.type === 'uploadSuccess') {
+          setIsUploading(false);
+          setUploadProgress(null);
+          uploadFileRef.current = null;
+          uploadOffsetRef.current = 0;
+          refreshList();
         }
       } catch (err) {
         console.error('Error handling WebSocket message:', err);
@@ -103,6 +201,8 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     socket.onclose = (event) => {
       setStatus('disconnected');
       setFiles([]);
+      setIsUploading(false);
+      setUploadProgress(null);
       if (event.code !== 1000 && event.code !== 1005) {
         setStatusMessage(`Connection lost (Code: ${event.code})`);
       }
@@ -133,7 +233,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
 
   const navigateTo = (path: string, pushToHistory = true) => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
-    
+
     let targetPath = path;
     // Handle relative pathing
     if (path === '..') {
@@ -145,7 +245,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     if (pushToHistory) {
       setHistory(prev => [...prev, currentPath]);
     }
-    
+
     setCurrentPath(targetPath);
     socketRef.current.send(JSON.stringify({ type: 'list', path: targetPath }));
   };
@@ -210,7 +310,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                 <Folder size={28} color="#fb923c" />
               </div>
             </div>
-            
+
             <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: 600, textAlign: 'center', color: '#f8fafc' }}>
               SFTP File Client
             </h3>
@@ -348,7 +448,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
       {/* Main File Explorer View */}
       {status === 'connected' && (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          
+
           {/* Action Header / Breadcrumb */}
           <div style={{
             display: 'flex',
@@ -413,6 +513,36 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
               <span>{currentPath}</span>
             </div>
 
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+              disabled={isUploading}
+            />
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: isUploading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: isUploading ? 0.5 : 1
+              }}
+            >
+              <Upload size={14} />
+              <span>{isUploading ? `Uploading ${uploadProgress}%` : 'Upload'}</span>
+            </button>
+
             <button
               onClick={disconnectSftp}
               style={{
@@ -430,6 +560,39 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             </button>
           </div>
 
+          {/* Upload Progress Bar */}
+          {isUploading && uploadProgress !== null && (
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.6)',
+              padding: '8px 16px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', minWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Uploading: {uploadFileRef.current?.name}
+              </div>
+              <div style={{
+                flex: 1,
+                height: '6px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '3px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${uploadProgress}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #38bdf8, #0ea5e9)',
+                  transition: 'width 0.1s'
+                }} />
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', minWidth: '40px', textAlign: 'right' }}>
+                {uploadProgress}%
+              </div>
+            </div>
+          )}
+
           {/* Files List Panel */}
           <div style={{
             flex: 1,
@@ -442,6 +605,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                   <th style={{ padding: '8px 12px', fontWeight: 600 }}>Name</th>
                   <th style={{ padding: '8px 12px', fontWeight: 600 }}>Size</th>
                   <th style={{ padding: '8px 12px', fontWeight: 600 }}>Permissions</th>
+                  <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -462,6 +626,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                     </td>
                     <td style={{ padding: '10px 12px', color: '#64748b' }}>--</td>
                     <td style={{ padding: '10px 12px', color: '#64748b' }}>--</td>
+                    <td style={{ padding: '10px 12px', color: '#64748b' }}></td>
                   </tr>
                 )}
 
@@ -470,9 +635,9 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                   return (
                     <tr
                       key={file.name}
-                      onClick={() => isDir ? navigateTo(`${currentPath === '/' ? '' : currentPath}/${file.name}`) : null}
+                      onClick={() => isDir ? navigateTo(`${currentPath === '/' ? '' : currentPath}/${file.name}`) : triggerDownload(file.name)}
                       style={{
-                        cursor: isDir ? 'pointer' : 'default',
+                        cursor: 'pointer',
                         borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
                         transition: 'background 0.15s'
                       }}
@@ -498,13 +663,46 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                       <td style={{ padding: '10px 12px', color: '#64748b', fontFamily: 'monospace' }}>
                         {file.rights ? `${file.type}${file.rights.user}${file.rights.group}${file.rights.other}` : '--'}
                       </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                        {!isDir && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              triggerDownload(file.name);
+                            }}
+                            title="Download File"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#94a3b8',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              borderRadius: '4px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'color 0.2s, background 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = '#38bdf8';
+                              e.currentTarget.style.background = 'rgba(56, 189, 248, 0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = '#94a3b8';
+                              e.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            <Download size={14} />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
 
                 {files.length === 0 && (
                   <tr>
-                    <td colSpan={3} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                    <td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
                       This folder is empty.
                     </td>
                   </tr>
@@ -514,7 +712,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           </div>
         </div>
       )}
-      
+
       {/* Spin Animation Keyframe */}
       <style>{`
         @keyframes spin {
