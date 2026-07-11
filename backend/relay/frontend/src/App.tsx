@@ -1,18 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import 'xterm/css/xterm.css';
-import NetworkGraph from './NetworkGraph';
+import { useState } from 'react';
+import Desktop from './Desktop';
+import './App.css'; // ensure global styles remain intact if needed
 
 function App() {
   // Authentication State
   const [token, setToken] = useState<string | null>(() => {
-    // Check URL params first, then localStorage
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
     if (urlToken) {
       localStorage.setItem('netlink_token', urlToken);
-      // Clean url token to avoid exposing it
       window.history.replaceState({}, document.title, window.location.pathname);
       return urlToken;
     }
@@ -24,25 +20,10 @@ function App() {
   const [loginError, setLoginError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Terminal & Connection State
   const [target, setTarget] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('target') || 'my-local-server';
   });
-  const [servers, setServers] = useState<any[]>([]);
-  const [selectedIp, setSelectedIp] = useState('');
-  const [sshUsername, setSshUsername] = useState('');
-  const [sshPassword, setSshPassword] = useState('');
-  const [fetchingServers, setFetchingServers] = useState(false);
-  const [isTerminalVisible, setIsTerminalVisible] = useState(false);
-
-  const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
-  const [isConnected, setIsConnected] = useState(false);
-
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<WebSocket | null>(null);
-  const termRef = useRef<Terminal | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
 
   // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
@@ -76,197 +57,22 @@ function App() {
     }
   };
 
-  // Handle Logout
   const handleLogout = () => {
-    disconnectTerminal();
     localStorage.removeItem('netlink_token');
     setToken(null);
     setUsername('');
     setPassword('');
   };
 
-  // Disconnect Terminal
-  const disconnectTerminal = () => {
-    if (socketRef.current) {
-      socketRef.current.close();
-      socketRef.current = null;
-    }
-    if (termRef.current) {
-      termRef.current.write('\r\n[Disconnected from server]\r\n');
-      termRef.current.dispose();
-      termRef.current = null;
-    }
-    setStatus('disconnected');
-    setIsConnected(false);
-  };
-
-  const fetchServers = async () => {
-    if (!target) return;
-    setFetchingServers(true);
-    try {
-      const res = await fetch(`/api/servers?target=${encodeURIComponent(target)}`);
-      const data = await res.json();
-      if (data.devices) {
-        setServers(data.devices);
-        if (data.devices.length > 0 && !selectedIp) {
-          setSelectedIp(data.devices[0].ip);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch servers', err);
-    } finally {
-      setFetchingServers(false);
-    }
-  };
-
-  // Connect Terminal
-  const connectTerminal = () => {
-    if (!token || !terminalRef.current) return;
-
-    // Clean up any existing connection
-    if (socketRef.current) {
-      socketRef.current.close();
-    }
-    if (termRef.current) {
-      termRef.current.dispose();
-    }
-
-    setStatus('connecting');
-
-    // Create Terminal Instance
-    const term = new Terminal({
-      cursorBlink: true,
-      fontFamily: '"Fira Code", Menlo, Monaco, Consolas, monospace',
-      fontSize: 14,
-      theme: {
-        background: '#050811',
-        foreground: '#f8fafc',
-        cursor: '#3a86ff',
-        black: '#000000',
-        red: '#ef4444',
-        green: '#10b981',
-        yellow: '#f59e0b',
-        blue: '#3b82f6',
-        magenta: '#818cf8',
-        cyan: '#06b6d4',
-        white: '#f8fafc',
-      },
-    });
-
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-
-    term.open(terminalRef.current);
-    fitAddon.fit();
-
-    termRef.current = term;
-    fitAddonRef.current = fitAddon;
-
-    term.write('Connecting to NetLink Relay Server...\r\n');
-
-    // WebSocket URL Configuration
-    const isSecure = window.location.protocol === 'https:';
-    const protocol = isSecure ? 'wss:' : 'ws:';
-    const wsPort = '4536';
-    const host = window.location.hostname
-      ? `${window.location.hostname}:${wsPort}`
-      : `localhost:${wsPort}`;
-
-    const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
-
-    term.write(`Target Endpoint: ${target}\r\n`);
-    term.write(`Relay Server URL: ${socketUrl}\r\n\r\n`);
-
-    const socket = new WebSocket(socketUrl);
-    socketRef.current = socket;
-
-    socket.onopen = () => {
-      setStatus('connected');
-      setIsConnected(true);
-      term.write('\r\n*** Connected to Relay Server. Ready for SSH session ***\r\n\r\n');
-    };
-
-    socket.onmessage = async (event) => {
-      let textData = event.data;
-      if (event.data instanceof Blob) {
-        textData = await event.data.text();
-      } else if (event.data instanceof ArrayBuffer) {
-        textData = new TextDecoder().decode(event.data);
-      }
-
-      try {
-        const data = JSON.parse(textData);
-        if (data.type === 'ready_for_credentials') {
-          term.write('\r\n[System] Backend connected. Authenticating...\r\n');
-          socket.send(JSON.stringify({
-            type: 'connect',
-            ip: selectedIp || 'localhost',
-            username: sshUsername,
-            password: sshPassword
-          }));
-          return;
-        }
-      } catch (err) {
-        // Not a JSON control message, treat as terminal output
-      }
-      
-      term.write(textData);
-    };
-
-    socket.onclose = (event) => {
-      setStatus('disconnected');
-      setIsConnected(false);
-      term.write(`\r\nConnection closed. Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}\r\n`);
-    };
-
-    socket.onerror = () => {
-      setStatus('disconnected');
-      setIsConnected(false);
-      term.write('\r\nWebSocket Error. Please verify server connection and credentials.\r\n');
-    };
-
-    term.onData((data) => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(data);
-      }
-    });
-  };
-
-  // Handle Resizing
-  useEffect(() => {
-    const handleResize = () => {
-      if (fitAddonRef.current) {
-        try {
-          fitAddonRef.current.fit();
-        } catch (err) {
-          // Ignore dimensions errors on hidden elements
-        }
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (socketRef.current) socketRef.current.close();
-      if (termRef.current) termRef.current.dispose();
-    };
-  }, []);
-
-  // Render Login Page
+  // Render Login Page if not authenticated
   if (!token) {
     return (
-      <>
+      <div style={{ display: 'flex', width: '100vw', minHeight: '100vh', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
         <div className="bg-glow"></div>
         <div className="bg-glow-2"></div>
         <div className="glass-card">
           <h1 className="logo-title">NetLink</h1>
-          <p className="subtitle">Secure SSH Gateway Tunnel</p>
+          <p className="subtitle">Secure OS Environment</p>
 
           {loginError && <div className="alert-error">{loginError}</div>}
 
@@ -298,135 +104,31 @@ function App() {
                 disabled={loading}
               />
             </div>
+            
+            <div className="form-group">
+              <label className="form-label" htmlFor="target">Target Node</label>
+              <input
+                className="form-input"
+                id="target"
+                type="text"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                placeholder="Target identifier"
+                disabled={loading}
+              />
+            </div>
 
             <button className="btn-primary" type="submit" disabled={loading}>
               {loading ? 'Authenticating...' : 'Sign In'}
             </button>
           </form>
         </div>
-      </>
+      </div>
     );
   }
 
-  // Render Terminal View
-  return (
-    <>
-      <div className="bg-glow"></div>
-      <div className="bg-glow-2"></div>
-      
-      <div className="terminal-layout">
-        <div className="terminal-header">
-          <div className="header-left">
-            <div className="window-dots">
-              <span className="dot red"></span>
-              <span className="dot yellow"></span>
-              <span className="dot green"></span>
-            </div>
-            <div className="status-info">
-              <span className={`status-dot ${status}`}></span>
-              <span style={{ textTransform: 'capitalize' }}>{status}</span>
-            </div>
-          </div>
-
-          <div className="header-center">
-            NetLink SSH Terminal
-          </div>
-
-          <div className="header-right">
-            <button className="btn-logout" onClick={handleLogout}>Log Out</button>
-          </div>
-        </div>
-
-        <div className="terminal-container-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          {!isTerminalVisible && (
-            <div className="topology-view">
-              <div className="connection-config" style={{ marginBottom: '15px' }}>
-                <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-                  <input
-                    type="text"
-                    value={target}
-                    onChange={(e) => setTarget(e.target.value)}
-                    placeholder="Target device identifier (e.g. my-local-server)"
-                    disabled={fetchingServers || isConnected}
-                    style={{ flex: 1 }}
-                  />
-                  <button className="btn-secondary" onClick={fetchServers} disabled={fetchingServers || isConnected}>
-                    {fetchingServers ? 'Scanning...' : 'Scan Network'}
-                  </button>
-                </div>
-              </div>
-              
-              {servers.length > 0 ? (
-                <NetworkGraph 
-                  servers={servers} 
-                  onNodeClick={(ip) => {
-                    setSelectedIp(ip);
-                    setIsTerminalVisible(true);
-                  }} 
-                />
-              ) : (
-                <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', background: '#0f172a', borderRadius: '8px', border: '1px solid #334155' }}>
-                  No devices found. Click "Scan Network" to discover active nodes.
-                </div>
-              )}
-            </div>
-          )}
-
-          <div style={{ display: isTerminalVisible ? 'block' : 'none', flex: 1 }}>
-            <div className="connection-config" style={{ marginBottom: '15px' }}>
-              <div style={{ display: 'flex', gap: '10px', width: '100%', alignItems: 'center' }}>
-                <button 
-                  className="btn-secondary" 
-                  onClick={() => setIsTerminalVisible(false)}
-                  disabled={isConnected}
-                >
-                  ← Back to Topology
-                </button>
-                
-                <div style={{ flex: 1, padding: '10px', borderRadius: '6px', background: '#0f172a', color: '#38bdf8', border: '1px solid #334155', fontWeight: 'bold' }}>
-                  Target: {selectedIp}
-                </div>
-
-                <input
-                  type="text"
-                  value={sshUsername}
-                  onChange={(e) => setSshUsername(e.target.value)}
-                  placeholder="SSH Username"
-                  disabled={isConnected}
-                  style={{ width: '120px' }}
-                />
-                <input
-                  type="password"
-                  value={sshPassword}
-                  onChange={(e) => setSshPassword(e.target.value)}
-                  placeholder="SSH Password"
-                  disabled={isConnected}
-                  style={{ width: '120px' }}
-                />
-                
-                {isConnected ? (
-                  <button className="btn-secondary" onClick={disconnectTerminal}>
-                    Disconnect
-                  </button>
-                ) : (
-                  <button 
-                    className="btn-primary" 
-                    style={{ width: 'auto', padding: '8px 24px', margin: 0, boxShadow: 'none' }}
-                    onClick={connectTerminal}
-                    disabled={status === 'connecting' || !selectedIp || !sshUsername}
-                  >
-                    {status === 'connecting' ? 'Connecting...' : 'Connect'}
-                  </button>
-                )}
-              </div>
-            </div>
-            <div id="terminal-container" ref={terminalRef}></div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+  // Render Desktop Environment
+  return <Desktop token={token} onLogout={handleLogout} target={target} />;
 }
 
 export default App;
