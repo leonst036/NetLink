@@ -4,7 +4,8 @@ import TerminalApp from './apps/TerminalApp';
 import NetworkGraph from './apps/NetworkGraph';
 import VncApp from './apps/VncApp';
 import FileApp from './apps/FileApp';
-import { Terminal, Network, LogOut, Search, Monitor, Folder } from 'lucide-react';
+import SettingsApp from './apps/SettingsApp';
+import { Terminal, Network, LogOut, Search, Monitor, Folder, Settings } from 'lucide-react';
 
 interface DesktopProps {
   token: string;
@@ -26,6 +27,7 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
   const [activeWindow, setActiveWindow] = useState<string | null>('graph');
 
   const [graphWindow, setGraphWindow] = useState({ isOpen: true, isMinimized: false, zIndex: 1 });
+  const [settingsWindow, setSettingsWindow] = useState({ isOpen: false, isMinimized: false, zIndex: 1 });
 
   interface TerminalInstance {
     id: string;
@@ -74,6 +76,8 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
     // Un-minimize if it was minimized
     if (windowName === 'graph') {
       setGraphWindow(w => w.isMinimized ? { ...w, isMinimized: false } : w);
+    } else if (windowName === 'settings') {
+      setSettingsWindow(w => w.isMinimized ? { ...w, isMinimized: false } : w);
     } else if (windowName.startsWith('terminal-')) {
       setTerminals(prev => prev.map(t => t.id === windowName ? { ...t, isMinimized: false } : t));
     } else if (windowName.startsWith('vnc-')) {
@@ -165,6 +169,23 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
                 />
               </div>
             </div>
+          </Window>
+        )}
+
+        {settingsWindow.isOpen && (
+          <Window
+            id="settings"
+            title="System Settings"
+            icon={<Settings size={14} color="#94a3b8" />}
+            isActive={activeWindow === 'settings'}
+            isMinimized={settingsWindow.isMinimized}
+            onMinimize={() => setSettingsWindow(w => ({ ...w, isMinimized: true }))}
+            onFocus={() => bringToFront('settings')}
+            onClose={() => setSettingsWindow(w => ({ ...w, isOpen: false }))}
+            defaultPosition={{ x: 100, y: 100 }}
+            defaultSize={{ width: 840, height: 600 }}
+          >
+            <SettingsApp />
           </Window>
         )}
 
@@ -276,6 +297,26 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
           label="New SFTP Client"
           isOpen={false}
           onClick={() => openSftp('')}
+        />
+
+        <DockIcon
+          icon={<Settings size={24} color="#94a3b8" />}
+          label="Settings"
+          isOpen={settingsWindow.isOpen}
+          isMinimized={settingsWindow.isOpen && settingsWindow.isMinimized}
+          onClick={() => {
+            if (!settingsWindow.isOpen) {
+              setSettingsWindow({ isOpen: true, isMinimized: false, zIndex: 1 });
+              bringToFront('settings');
+            } else if (settingsWindow.isMinimized) {
+              setSettingsWindow(w => ({ ...w, isMinimized: false }));
+              bringToFront('settings');
+            } else if (activeWindow === 'settings') {
+              setSettingsWindow(w => ({ ...w, isMinimized: true }));
+            } else {
+              bringToFront('settings');
+            }
+          }}
         />
 
         {/* Divider for Running Apps */}
