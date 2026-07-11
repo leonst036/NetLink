@@ -16,10 +16,14 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
 
   // Window states
   const [activeWindow, setActiveWindow] = useState<string | null>('graph');
-  
+
   const [graphWindow, setGraphWindow] = useState({ isOpen: true, zIndex: 1 });
-  const [termWindow, setTermWindow] = useState({ isOpen: false, zIndex: 0 });
-  const [selectedIpForTerm, setSelectedIpForTerm] = useState('');
+  interface TerminalInstance {
+    id: string;
+    ip: string;
+  }
+  const [terminals, setTerminals] = useState<TerminalInstance[]>([]);
+
 
   const fetchServers = async () => {
     setIsScanning(true);
@@ -46,10 +50,10 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
   };
 
   const openTerminal = (ip: string) => {
-    setSelectedIpForTerm(ip);
-    setTermWindow({ isOpen: true, zIndex: 2 });
-    setActiveWindow('terminal');
-  };
+    const newID = `terminal-${Date.now()}`;
+    setTerminals(prev => [...prev, { id: newID, ip }])
+    setActiveWindow(newID);
+  }
 
   return (
     <div style={{
@@ -106,8 +110,8 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
           >
             <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#020617' }}>
               <div style={{ padding: '10px', display: 'flex', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <button 
-                  onClick={fetchServers} 
+                <button
+                  onClick={fetchServers}
                   disabled={isScanning}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#3b82f6', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}
                 >
@@ -153,23 +157,20 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
         zIndex: 9999,
         boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
       }}>
-        <DockIcon 
-          icon={<Network size={24} color="#38bdf8" />} 
-          label="Topology Explorer" 
+        <DockIcon
+          icon={<Network size={24} color="#38bdf8" />}
+          label="Topology Explorer"
           isOpen={graphWindow.isOpen}
           onClick={() => {
             setGraphWindow(w => ({ ...w, isOpen: true }));
             bringToFront('graph');
           }}
         />
-        <DockIcon 
-          icon={<Terminal size={24} color="#a78bfa" />} 
-          label="SSH Terminal" 
-          isOpen={termWindow.isOpen}
-          onClick={() => {
-            setTermWindow(w => ({ ...w, isOpen: true }));
-            bringToFront('terminal');
-          }}
+        <DockIcon
+          icon={<Terminal size={24} color="#a78bfa" />}
+          label="New SSH Terminal"
+          isOpen={terminals.length > 0}
+          onClick={() => openTerminal('')}
         />
       </div>
     </div>
@@ -178,7 +179,7 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
 
 function DockIcon({ icon, label, onClick, isOpen }: { icon: React.ReactNode; label: string; onClick: () => void; isOpen: boolean }) {
   return (
-    <div 
+    <div
       onClick={onClick}
       style={{
         width: '48px',

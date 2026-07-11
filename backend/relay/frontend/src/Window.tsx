@@ -41,8 +41,8 @@ export default function Window({
         flexDirection: 'column',
         borderRadius: '12px',
         overflow: 'hidden',
-        boxShadow: isActive 
-          ? '0 0 30px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.1)' 
+        boxShadow: isActive
+          ? '0 0 30px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.1)'
           : '0 10px 20px rgba(0,0,0,0.5)',
         background: 'rgba(15, 23, 42, 0.95)',
         backdropFilter: 'blur(10px)',
@@ -51,7 +51,7 @@ export default function Window({
       }}
     >
       {/* Window Header */}
-      <div 
+      <div
         className="window-handle"
         style={{
           height: '40px',
@@ -69,11 +69,11 @@ export default function Window({
           {icon}
           <span>{title}</span>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '10px' }}>
           <button style={btnStyle} title="Minimize"><Minus size={14} /></button>
           <button style={btnStyle} title="Maximize"><Maximize2 size={12} /></button>
-          <button onClick={onClose} style={{...btnStyle, color: '#ef4444'}} title="Close"><X size={14} /></button>
+          <button onClick={onClose} style={{ ...btnStyle, color: '#ef4444' }} title="Close"><X size={14} /></button>
         </div>
       </div>
 
