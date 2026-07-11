@@ -220,7 +220,7 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
             defaultPosition={{ x: 100, y: 100 }}
             defaultSize={{ width: 840, height: 600 }}
           >
-            <SettingsApp />
+            <SettingsApp token={token} />
           </Window>
         )}
 

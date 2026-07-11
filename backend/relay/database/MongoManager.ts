@@ -51,3 +51,36 @@ export async function CheckToken(client: mongoDB.MongoClient, token: string) {
     const result = await collection.findOne({ token });
     return result;
 }
+
+export async function CheckUser(client: mongoDB.MongoClient, username: string) {
+    return client.db("NetLink").collection("users").findOne({ username });
+}
+
+export async function GetTopology(client: mongoDB.MongoClient, username: string, target: string) {
+    return client.db("NetLink").collection("network_data").findOne({ username, target });
+}
+
+export async function SaveTopology(client: mongoDB.MongoClient, username: string, target: string, nodes: any, edges: any, nicknames: any) {
+    return client.db("NetLink").collection("network_data").updateOne(
+        { username, target },
+        { $set: { nodes, edges, nicknames, updatedAt: new Date() } },
+        { upsert: true }
+    );
+}
+
+export async function GetServerLogins(client: mongoDB.MongoClient, username: string) {
+    return client.db("NetLink").collection("server_logins").find({ username }).toArray();
+}
+
+export async function SaveServerLogin(client: mongoDB.MongoClient, username: string, loginData: any) {
+    const { id, name, ip, port, loginUsername, password, type } = loginData;
+    return client.db("NetLink").collection("server_logins").updateOne(
+        { username, id },
+        { $set: { name, ip, port, loginUsername, password, type, updatedAt: new Date() } },
+        { upsert: true }
+    );
+}
+
+export async function DeleteServerLogin(client: mongoDB.MongoClient, username: string, id: string) {
+    return client.db("NetLink").collection("server_logins").deleteOne({ username, id });
+}

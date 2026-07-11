@@ -13,6 +13,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   const [selectedIp, setSelectedIp] = useState(initialIp || '');
   const [sshUsername, setSshUsername] = useState('');
   const [sshPassword, setSshPassword] = useState('');
+  const [savedLogins, setSavedLogins] = useState<any[]>([]);
   
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [isConnected, setIsConnected] = useState(false);
@@ -162,9 +163,38 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     }
   }, [initialIp, isConnected]);
 
+  // Fetch saved logins
+  useEffect(() => {
+    fetch('/api/server-logins', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => {
+        if (data.logins) {
+          setSavedLogins(data.logins.filter((l: any) => l.type === 'ssh'));
+        }
+      })
+      .catch(err => console.error('Failed to fetch logins', err));
+  }, [token]);
+
+  const applyLogin = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const login = savedLogins.find(l => l.id === e.target.value);
+    if (login) {
+      setSelectedIp(login.ip);
+      setSshUsername(login.loginUsername);
+      setSshPassword(login.password);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#050811' }}>
       <div style={{ padding: '10px', background: 'rgba(15, 23, 42, 0.9)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: '10px', alignItems: 'center' }}>
+        {savedLogins.length > 0 && (
+          <select onChange={applyLogin} defaultValue="" disabled={isConnected} style={{...inputStyle, width: 'auto'}}>
+            <option value="" disabled>Saved Logins...</option>
+            {savedLogins.map(l => (
+              <option key={l.id} value={l.id}>{l.name} ({l.ip})</option>
+            ))}
+          </select>
+        )}
         <input
           type="text"
           value={selectedIp}

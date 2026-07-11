@@ -90,16 +90,16 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
 
         authenticateToken(token || null, mongoClient).then((decoded) => {
             const username = decoded.username || decoded.sub;
-            const db = mongoClient.db('NetLink');
-            const collection = db.collection('network_data');
 
             if (req.method === 'GET') {
-                collection.findOne({ username, target }).then(data => {
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify(data || { nodes: [], edges: [], nicknames: {} }));
-                }).catch(err => {
-                    res.writeHead(500, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Failed to fetch topology' }));
+                import('../database/MongoManager.js').then(({ GetTopology }) => {
+                    GetTopology(mongoClient, username, target).then(data => {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify(data || { nodes: [], edges: [], nicknames: {} }));
+                    }).catch(err => {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Failed to fetch topology' }));
+                    });
                 });
             } else if (req.method === 'POST') {
                 let body = '';
@@ -107,21 +107,93 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
                 req.on('end', () => {
                     try {
                         const { nodes, edges, nicknames } = JSON.parse(body);
-                        collection.updateOne(
-                            { username, target },
-                            { $set: { nodes, edges, nicknames, updatedAt: new Date() } },
-                            { upsert: true }
-                        ).then(() => {
-                            res.writeHead(200, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ success: true }));
-                        }).catch(err => {
-                            res.writeHead(500, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ error: 'Failed to save topology' }));
+                        import('../database/MongoManager.js').then(({ SaveTopology }) => {
+                            SaveTopology(mongoClient, username, target, nodes, edges, nicknames).then(() => {
+                                res.writeHead(200, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ success: true }));
+                            }).catch(err => {
+                                res.writeHead(500, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ error: 'Failed to save topology' }));
+                            });
                         });
                     } catch (e) {
                         res.writeHead(400, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ error: 'Invalid JSON' }));
                     }
+                });
+            } else {
+                res.writeHead(405, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Method not allowed' }));
+            }
+        }).catch((err) => {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Unauthorized', details: err.message }));
+        });
+        return;
+    }
+
+    // Server Logins API routes
+    if (pathname === '/api/server-logins') {
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.split(' ')[1] || parsedUrl.searchParams.get('token');
+
+        const mongoClient = getMongoClient();
+        if (!mongoClient) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Database not available' }));
+            return;
+        }
+
+        authenticateToken(token || null, mongoClient).then((decoded) => {
+            const username = decoded.username || decoded.sub;
+
+            if (req.method === 'GET') {
+                import('../database/MongoManager.js').then(({ GetServerLogins }) => {
+                    GetServerLogins(mongoClient, username).then(logins => {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ logins }));
+                    }).catch(err => {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Failed to fetch logins' }));
+                    });
+                });
+            } else if (req.method === 'POST') {
+                let body = '';
+                req.on('data', chunk => { body += chunk.toString(); });
+                req.on('end', () => {
+                    try {
+                        const parsedBody = JSON.parse(body);
+                        if (!parsedBody.id) parsedBody.id = Date.now().toString();
+                        
+                        import('../database/MongoManager.js').then(({ SaveServerLogin }) => {
+                            SaveServerLogin(mongoClient, username, parsedBody).then(() => {
+                                res.writeHead(200, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ success: true, id: parsedBody.id }));
+                            }).catch(err => {
+                                res.writeHead(500, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ error: 'Failed to save login' }));
+                            });
+                        });
+                    } catch (e) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                    }
+                });
+            } else if (req.method === 'DELETE') {
+                const id = parsedUrl.searchParams.get('id');
+                if (!id) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'id parameter required for deletion' }));
+                    return;
+                }
+                import('../database/MongoManager.js').then(({ DeleteServerLogin }) => {
+                    DeleteServerLogin(mongoClient, username, id).then(() => {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true }));
+                    }).catch(err => {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Failed to delete login' }));
+                    });
                 });
             } else {
                 res.writeHead(405, { 'Content-Type': 'application/json' });
