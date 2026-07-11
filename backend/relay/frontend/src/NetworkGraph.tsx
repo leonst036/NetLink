@@ -15,7 +15,7 @@ import type {
   NodeChange,
   EdgeChange
 } from '@xyflow/react';
-import { Save, Plus, Search, Server as ServerIcon, Settings2 } from 'lucide-react';
+import { Save, Plus, Search, Server as ServerIcon, Settings2, Pencil } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 
 interface ServerData {
@@ -38,6 +38,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
   const [search, setSearch] = useState('');
   const [nicknames, setNicknames] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Load Topology
   useEffect(() => {
@@ -52,12 +53,24 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
 
           // extract nicknames from nodes
           const loadedNicknames: Record<string, string> = {};
-          data.nodes.forEach((n: Node) => {
+          const updatedNodes = data.nodes.map((n: Node) => {
             if (n.data?.nickname) {
               loadedNicknames[n.id] = n.data.nickname as string;
+              return { ...n, data: { ...n.data, label: n.data.nickname || n.id } };
             }
+            if (n.id !== 'relay' && !n.id.startsWith('switch-')) {
+              return { ...n, data: { ...n.data, label: n.id } };
+            }
+            return n;
           });
-          setNicknames(loadedNicknames);
+          setNodes(updatedNodes);
+
+          if (data.nicknames && Object.keys(data.nicknames).length > 0) {
+            // Prefer the nicknames dictionary from the top-level
+            setNicknames({ ...loadedNicknames, ...data.nicknames });
+          } else {
+            setNicknames(loadedNicknames);
+          }
         } else {
           // Default empty or just the relay server node
           setNodes([{
@@ -73,19 +86,69 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
 
   // Handlers for React Flow
   const onNodesChange = useCallback(
-    (changes: NodeChange<Node>[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
+    (changes: NodeChange<Node>[]) => {
+      if (!isEditMode) {
+        const allowed = changes.filter(c => c.type === 'select');
+        if (allowed.length > 0) setNodes((nds) => applyNodeChanges(allowed, nds));
+        return;
+      }
+      setNodes((nds) => applyNodeChanges(changes, nds));
+    },
+    [isEditMode]
   );
+  
   const onEdgesChange = useCallback(
-    (changes: EdgeChange<Edge>[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
+    (changes: EdgeChange<Edge>[]) => {
+      if (!isEditMode) {
+        const allowed = changes.filter(c => c.type === 'select');
+        if (allowed.length > 0) setEdges((eds) => applyEdgeChanges(allowed, eds));
+        return;
+      }
+      setEdges((eds) => applyEdgeChanges(changes, eds));
+    },
+    [isEditMode]
   );
+  
   const onConnect = useCallback(
     (params: Edge | Connection) => {
+      if (!isEditMode) return;
       const edge = { ...params, animated: true, style: { stroke: '#94a3b8', strokeWidth: 2 } } as Edge;
       setEdges((eds) => addEdge(edge, eds));
     },
-    []
+    [isEditMode]
+  );
+
+  const onNodeDoubleClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      if (!isEditMode) return;
+      if (node.id === 'relay') return;
+
+      if (node.id.startsWith('switch-')) {
+        const newName = window.prompt('Enter new name for switch/router:', node.data.label as string);
+        if (newName !== null && newName.trim() !== '') {
+          setNodes((nds) =>
+            nds.map((n) => (n.id === node.id ? { ...n, data: { ...n.data, label: newName.trim() } } : n))
+          );
+        }
+      } else {
+        const currentNick = nicknames[node.id] || node.data.nickname || '';
+        const newName = window.prompt('Enter nickname for device:', currentNick as string);
+        if (newName !== null) {
+          const trimmedName = newName.trim();
+          setNicknames(prev => ({ ...prev, [node.id]: trimmedName }));
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id === node.id) {
+                const finalName = trimmedName || n.id;
+                return { ...n, data: { ...n.data, nickname: trimmedName, label: finalName } };
+              }
+              return n;
+            })
+          );
+        }
+      }
+    },
+    [isEditMode, nicknames]
   );
 
   const handleNodeClick = useCallback(
@@ -106,7 +169,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ nodes, edges })
+        body: JSON.stringify({ nodes, edges, nicknames })
       });
       alert('Topology saved successfully!');
     } catch (err) {
@@ -121,11 +184,12 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
       alert('Device is already in the graph.');
       return;
     }
-    const nickname = nicknames[server.ip] || server.hostname || 'Device';
+    const nickname = nicknames[server.ip] || server.hostname || '';
+    const label = nickname || server.ip;
     const newNode: Node = {
       id: server.ip,
       position: { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 },
-      data: { label: `${nickname}\n${server.ip}`, nickname },
+      data: { label, nickname },
       style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #475569', borderRadius: '8px', padding: '10px' }
     };
     setNodes(nds => [...nds, newNode]);
@@ -143,7 +207,9 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
   };
 
   const filteredServers = servers.filter(s =>
-    s.ip.includes(search) || (s.hostname || '').toLowerCase().includes(search.toLowerCase())
+    s.ip.includes(search) || 
+    (s.hostname || '').toLowerCase().includes(search.toLowerCase()) ||
+    (nicknames[s.ip] || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -175,31 +241,35 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
                 <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#38bdf8' }}>{server.ip}</div>
                 <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>{server.hostname || 'Unknown Host'}</div>
 
-                <input
-                  type="text"
-                  placeholder="Nickname..."
-                  value={nicknames[server.ip] || ''}
-                  onChange={e => {
-                    const newVal = e.target.value;
-                    setNicknames(prev => ({ ...prev, [server.ip]: newVal }));
-                    // Update node label if it's already in the graph
-                    setNodes(nds => nds.map(n => {
-                      if (n.id === server.ip) {
-                        return { ...n, data: { ...n.data, nickname: newVal, label: `${newVal || server.hostname || 'Device'}\n${server.ip}` } };
-                      }
-                      return n;
-                    }));
-                  }}
-                  style={{ width: '100%', padding: '6px', background: 'rgba(0,0,0,0.2)', border: '1px solid #334155', borderRadius: '4px', color: 'white', fontSize: '0.8rem', marginBottom: '8px' }}
-                />
+                {isEditMode && (
+                  <>
+                    <input
+                      type="text"
+                      placeholder="Nickname..."
+                      value={nicknames[server.ip] || ''}
+                      onChange={e => {
+                        const newVal = e.target.value;
+                        setNicknames(prev => ({ ...prev, [server.ip]: newVal }));
+                        // Update node label if it's already in the graph
+                        setNodes(nds => nds.map(n => {
+                          if (n.id === server.ip) {
+                            return { ...n, data: { ...n.data, nickname: newVal, label: newVal || server.ip } };
+                          }
+                          return n;
+                        }));
+                      }}
+                      style={{ width: '100%', padding: '6px', background: 'rgba(0,0,0,0.2)', border: '1px solid #334155', borderRadius: '4px', color: 'white', fontSize: '0.8rem', marginBottom: '8px' }}
+                    />
 
-                <button
-                  onClick={() => addDeviceToGraph(server)}
-                  disabled={inGraph}
-                  style={{ width: '100%', padding: '6px', background: inGraph ? '#1e293b' : '#3b82f6', color: inGraph ? '#64748b' : 'white', border: 'none', borderRadius: '4px', cursor: inGraph ? 'not-allowed' : 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                >
-                  {inGraph ? 'In Graph' : <><Plus size={14} /> Add to Graph</>}
-                </button>
+                    <button
+                      onClick={() => addDeviceToGraph(server)}
+                      disabled={inGraph}
+                      style={{ width: '100%', padding: '6px', background: inGraph ? '#1e293b' : '#3b82f6', color: inGraph ? '#64748b' : 'white', border: 'none', borderRadius: '4px', cursor: inGraph ? 'not-allowed' : 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                    >
+                      {inGraph ? 'In Graph' : <><Plus size={14} /> Add to Graph</>}
+                    </button>
+                  </>
+                )}
 
                 {/* Quick Connect Buttons */}
                 <div style={{ display: 'flex', gap: '5px', marginTop: '8px' }}>
@@ -226,13 +296,28 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
       {/* Main Graph Area */}
       <div style={{ flex: 1, position: 'relative' }}>
         {/* Toolbar */}
-        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, display: 'flex', gap: '10px' }}>
-          <button onClick={addSwitch} style={toolbarBtnStyle} title="Add Switch / Router Node">
-            <Settings2 size={16} /> Add Switch
+        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button 
+            onClick={() => setIsEditMode(!isEditMode)} 
+            style={{ ...toolbarBtnStyle, background: isEditMode ? '#3b82f6' : '#1e293b', borderColor: isEditMode ? '#2563eb' : '#475569' }} 
+            title="Toggle Edit Mode"
+          >
+            <Pencil size={16} /> {isEditMode ? 'Exit Edit Mode' : 'Edit Mode'}
           </button>
-          <button onClick={saveTopology} disabled={isSaving} style={{ ...toolbarBtnStyle, background: '#10b981', borderColor: '#059669', color: '#022c22' }} title="Save Topology to DB">
-            <Save size={16} /> {isSaving ? 'Saving...' : 'Save Topology'}
-          </button>
+          
+          {isEditMode && (
+            <>
+              <button onClick={addSwitch} style={toolbarBtnStyle} title="Add Switch / Router Node">
+                <Settings2 size={16} /> Add Switch
+              </button>
+              <button onClick={saveTopology} disabled={isSaving} style={{ ...toolbarBtnStyle, background: '#10b981', borderColor: '#059669', color: '#022c22' }} title="Save Topology to DB">
+                <Save size={16} /> {isSaving ? 'Saving...' : 'Save Topology'}
+              </button>
+              <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginLeft: '10px', background: 'rgba(15, 23, 42, 0.8)', padding: '6px 12px', borderRadius: '6px' }}>
+                Double-click to rename. Select and press Backspace to delete.
+              </div>
+            </>
+          )}
         </div>
 
         <ReactFlow
@@ -242,6 +327,11 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={handleNodeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
+          nodesDraggable={isEditMode}
+          nodesConnectable={isEditMode}
+          elementsSelectable={true}
+          edgesFocusable={isEditMode}
           fitView
         >
           <Controls />

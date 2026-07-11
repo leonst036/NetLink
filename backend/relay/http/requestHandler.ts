@@ -91,12 +91,12 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         authenticateToken(token || null, mongoClient).then((decoded) => {
             const username = decoded.username || decoded.sub;
             const db = mongoClient.db('NetLink');
-            const collection = db.collection('topologies');
+            const collection = db.collection('network_data');
 
             if (req.method === 'GET') {
-                collection.findOne({ username, target }).then(topology => {
+                collection.findOne({ username, target }).then(data => {
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify(topology || { nodes: [], edges: [] }));
+                    res.end(JSON.stringify(data || { nodes: [], edges: [], nicknames: {} }));
                 }).catch(err => {
                     res.writeHead(500, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Failed to fetch topology' }));
@@ -106,10 +106,10 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
                 req.on('data', chunk => { body += chunk.toString(); });
                 req.on('end', () => {
                     try {
-                        const { nodes, edges } = JSON.parse(body);
+                        const { nodes, edges, nicknames } = JSON.parse(body);
                         collection.updateOne(
                             { username, target },
-                            { $set: { nodes, edges, updatedAt: new Date() } },
+                            { $set: { nodes, edges, nicknames, updatedAt: new Date() } },
                             { upsert: true }
                         ).then(() => {
                             res.writeHead(200, { 'Content-Type': 'application/json' });
