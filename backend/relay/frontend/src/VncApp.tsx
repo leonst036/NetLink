@@ -31,12 +31,44 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
         const OriginalWebSocket = window.WebSocket;
         class VncWebSocket extends OriginalWebSocket {
+            private messageListeners: any[] = [];
+            
             constructor(url: string | URL, protocols?: string | string[]) {
                 super(url, protocols);
-                this.addEventListener('open', () => {
-                    // Inform backend that this is a VNC stream
-                    this.send(JSON.stringify({ type: 'connect_vnc', ip: selectedIp }));
+
+                super.addEventListener('message', (e) => {
+                    let text = '';
+                    if (e.data instanceof ArrayBuffer) {
+                        text = new TextDecoder().decode(e.data);
+                    } else if (typeof e.data === 'string') {
+                        text = e.data;
+                    }
+
+                    if (text.includes('ready_for_credentials')) {
+                        // Backend is ready, send the VNC connect payload
+                        this.send(JSON.stringify({ type: 'connect_vnc', ip: selectedIp }));
+                        return; // Hide this message from noVNC
+                    }
+
+                    // Forward all other messages to noVNC
+                    this.messageListeners.forEach(listener => listener(e));
                 });
+            }
+
+            addEventListener(type: string, listener: any, options?: any) {
+                if (type === 'message') {
+                    this.messageListeners.push(listener);
+                } else {
+                    super.addEventListener(type, listener, options);
+                }
+            }
+
+            removeEventListener(type: string, listener: any, options?: any) {
+                if (type === 'message') {
+                    this.messageListeners = this.messageListeners.filter(l => l !== listener);
+                } else {
+                    super.removeEventListener(type, listener, options);
+                }
             }
         }
         // @ts-ignore
