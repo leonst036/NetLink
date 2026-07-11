@@ -9,6 +9,7 @@ interface VncAppProps {
 export default function VncApp({ token, target, initialIp }: VncAppProps) {
     const [selectedIp, setSelectedIp] = useState(initialIp || '');
     const [vncPort, setVncPort] = useState('5900');
+    const [vncPassword, setVncPassword] = useState('');
     const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
     const [isConnected, setIsConnected] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -77,7 +78,8 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
 
         // Initialize noVNC
         const rfb = new RFB(containerRef.current, socketUrl, {
-            wsProtocols: ['binary']
+            wsProtocols: ['binary'],
+            credentials: { password: vncPassword }
         });
         // restore WebSocket
         window.WebSocket = OriginalWebSocket;
@@ -114,6 +116,14 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     placeholder="Port"
                     disabled={isConnected}
                     style={{...inputStyle, width: '70px'}}
+                />
+                <input
+                    type="password"
+                    value={vncPassword}
+                    onChange={(e) => setVncPassword(e.target.value)}
+                    placeholder="Password"
+                    disabled={isConnected}
+                    style={{...inputStyle, width: '100px'}}
                 />
                 {isConnected ? (
                     <button style={btnDisconnectStyle} onClick={disconnectVnc}>Disconnect</button>
