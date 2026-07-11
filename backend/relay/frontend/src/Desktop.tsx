@@ -23,6 +23,32 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
     return () => clearInterval(timer);
   }, []);
 
+  const [settings, setSettings] = useState({
+    username: localStorage.getItem('netlink_username') || 'Admin',
+    wallpaper: localStorage.getItem('netlink_wallpaper') || 'default',
+  });
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setSettings({
+        username: localStorage.getItem('netlink_username') || 'Admin',
+        wallpaper: localStorage.getItem('netlink_wallpaper') || 'default',
+      });
+    };
+    window.addEventListener('settingsChange', handleSettingsChange);
+    return () => window.removeEventListener('settingsChange', handleSettingsChange);
+  }, []);
+
+  const getBackgroundStyle = () => {
+    switch (settings.wallpaper) {
+      case 'wp1': return 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)';
+      case 'wp2': return 'linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)';
+      case 'wp3': return 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)';
+      case 'solid': return '#090d1a';
+      default: return 'url("https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop") center/cover no-repeat';
+    }
+  };
+
   // Window states
   const [activeWindow, setActiveWindow] = useState<string | null>('graph');
 
@@ -97,7 +123,7 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
     <div style={{
       width: '100vw',
       height: '100vh',
-      background: 'url("https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop") center/cover no-repeat',
+      background: getBackgroundStyle(),
       position: 'relative',
       overflow: 'hidden',
       display: 'flex',
@@ -124,6 +150,7 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ fontWeight: 'bold' }}>NetLink OS</span>
           <span>Target: {target}</span>
+          <span style={{ color: '#38bdf8' }}>{settings.username}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span>{currentTime.toLocaleTimeString()}</span>
