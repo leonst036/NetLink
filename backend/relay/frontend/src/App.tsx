@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
+import NetworkGraph from './NetworkGraph';
 
 function App() {
   // Authentication State
@@ -33,6 +34,7 @@ function App() {
   const [sshUsername, setSshUsername] = useState('');
   const [sshPassword, setSshPassword] = useState('');
   const [fetchingServers, setFetchingServers] = useState(false);
+  const [isTerminalVisible, setIsTerminalVisible] = useState(false);
 
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [isConnected, setIsConnected] = useState(false);
@@ -335,69 +337,92 @@ function App() {
           </div>
         </div>
 
-        <div className="terminal-container-wrapper">
-          <div className="connection-config" style={{ flexWrap: 'wrap', gap: '10px' }}>
-            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-              <input
-                type="text"
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-                placeholder="Target device identifier (e.g. my-local-server)"
-                disabled={isConnected}
-                style={{ flex: 1 }}
-              />
-              <button className="btn-secondary" onClick={fetchServers} disabled={fetchingServers || isConnected}>
-                {fetchingServers ? 'Scanning...' : 'Load Servers'}
-              </button>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '10px', width: '100%', alignItems: 'center' }}>
-              <select 
-                value={selectedIp} 
-                onChange={(e) => setSelectedIp(e.target.value)}
-                disabled={isConnected || servers.length === 0}
-                style={{ flex: 1, padding: '10px', borderRadius: '6px', background: '#0f172a', color: 'white', border: '1px solid #334155' }}
-              >
-                <option value="">Select a Server...</option>
-                {servers.map((s, idx) => (
-                  <option key={idx} value={s.ip}>{s.ip} {s.hostname ? `(${s.hostname})` : ''}</option>
-                ))}
-              </select>
-
-              <input
-                type="text"
-                value={sshUsername}
-                onChange={(e) => setSshUsername(e.target.value)}
-                placeholder="SSH Username"
-                disabled={isConnected}
-                style={{ width: '120px' }}
-              />
-              <input
-                type="password"
-                value={sshPassword}
-                onChange={(e) => setSshPassword(e.target.value)}
-                placeholder="SSH Password"
-                disabled={isConnected}
-                style={{ width: '120px' }}
-              />
+        <div className="terminal-container-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {!isTerminalVisible && (
+            <div className="topology-view">
+              <div className="connection-config" style={{ marginBottom: '15px' }}>
+                <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                  <input
+                    type="text"
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                    placeholder="Target device identifier (e.g. my-local-server)"
+                    disabled={fetchingServers || isConnected}
+                    style={{ flex: 1 }}
+                  />
+                  <button className="btn-secondary" onClick={fetchServers} disabled={fetchingServers || isConnected}>
+                    {fetchingServers ? 'Scanning...' : 'Scan Network'}
+                  </button>
+                </div>
+              </div>
               
-              {isConnected ? (
-                <button className="btn-secondary" onClick={disconnectTerminal}>
-                  Disconnect
-                </button>
+              {servers.length > 0 ? (
+                <NetworkGraph 
+                  servers={servers} 
+                  onNodeClick={(ip) => {
+                    setSelectedIp(ip);
+                    setIsTerminalVisible(true);
+                  }} 
+                />
               ) : (
-                <button 
-                  className="btn-primary" 
-                  style={{ width: 'auto', padding: '8px 24px', margin: 0, boxShadow: 'none' }}
-                  onClick={connectTerminal}
-                  disabled={status === 'connecting' || !selectedIp || !sshUsername}
-                >
-                  {status === 'connecting' ? 'Connecting...' : 'Connect'}
-                </button>
+                <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', background: '#0f172a', borderRadius: '8px', border: '1px solid #334155' }}>
+                  No devices found. Click "Scan Network" to discover active nodes.
+                </div>
               )}
             </div>
+          )}
+
+          <div style={{ display: isTerminalVisible ? 'block' : 'none', flex: 1 }}>
+            <div className="connection-config" style={{ marginBottom: '15px' }}>
+              <div style={{ display: 'flex', gap: '10px', width: '100%', alignItems: 'center' }}>
+                <button 
+                  className="btn-secondary" 
+                  onClick={() => setIsTerminalVisible(false)}
+                  disabled={isConnected}
+                >
+                  ← Back to Topology
+                </button>
+                
+                <div style={{ flex: 1, padding: '10px', borderRadius: '6px', background: '#0f172a', color: '#38bdf8', border: '1px solid #334155', fontWeight: 'bold' }}>
+                  Target: {selectedIp}
+                </div>
+
+                <input
+                  type="text"
+                  value={sshUsername}
+                  onChange={(e) => setSshUsername(e.target.value)}
+                  placeholder="SSH Username"
+                  disabled={isConnected}
+                  style={{ width: '120px' }}
+                />
+                <input
+                  type="password"
+                  value={sshPassword}
+                  onChange={(e) => setSshPassword(e.target.value)}
+                  placeholder="SSH Password"
+                  disabled={isConnected}
+                  style={{ width: '120px' }}
+                />
+                
+                {isConnected ? (
+                  <button className="btn-secondary" onClick={disconnectTerminal}>
+                    Disconnect
+                  </button>
+                ) : (
+                  <button 
+                    className="btn-primary" 
+                    style={{ width: 'auto', padding: '8px 24px', margin: 0, boxShadow: 'none' }}
+                    onClick={connectTerminal}
+                    disabled={status === 'connecting' || !selectedIp || !sshUsername}
+                  >
+                    {status === 'connecting' ? 'Connecting...' : 'Connect'}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div id="terminal-container" ref={terminalRef}></div>
           </div>
-          <div id="terminal-container" ref={terminalRef}></div>
         </div>
       </div>
     </>

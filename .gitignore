@@ -37,7 +37,6 @@ Thumbs.db
 .direnv/
 result
 
-# Package locks (preserved from your previous .gitignore)
 # package-lock.json
 yarn.lock
 pnpm-lock.yaml
