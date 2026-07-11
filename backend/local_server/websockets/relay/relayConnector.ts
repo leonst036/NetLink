@@ -40,9 +40,17 @@ export function connectToRelay(token: string): WebSocket {
 export function handleRelayConnection(token: string): void {
     console.log('Connecting to NetLink relay server...');
     const controlWs = connectToRelay(token);
+    let pingInterval: NodeJS.Timeout;
 
     controlWs.on('open', async () => {
         console.log('Successfully connected to relay server control channel.');
+        
+        // Keep-alive ping to prevent reverse proxies (e.g. Traefik/Nginx) from dropping idle connections
+        pingInterval = setInterval(() => {
+            if (controlWs.readyState === WebSocket.OPEN) {
+                controlWs.ping();
+            }
+        }, 30000);
         // Run network scan and send the results
         try {
             const devices = await runNetworkScan();
@@ -80,6 +88,7 @@ export function handleRelayConnection(token: string): void {
     });
 
     controlWs.on('close', () => {
+        clearInterval(pingInterval);
         console.warn('Relay control connection closed. Attempting to reconnect in 5 seconds...');
         setTimeout(() => {
             handleRelayConnection(token);

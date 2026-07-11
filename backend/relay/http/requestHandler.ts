@@ -68,13 +68,13 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         res.end(JSON.stringify({ devices }));
         return;
     }
-    
+
     // Topology API routes
     if (pathname === '/api/topology') {
         const authHeader = req.headers.authorization;
         const token = authHeader?.split(' ')[1] || parsedUrl.searchParams.get('token');
         const target = parsedUrl.searchParams.get('target');
-        
+
         if (!target) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'target parameter required' }));
@@ -133,7 +133,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         });
         return;
     }
-    
+
     // Normalize pathname to prevent directory traversal
     const safeSuffix = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     let filePath = path.join(frontendPath, safeSuffix);
