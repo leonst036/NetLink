@@ -154,9 +154,13 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           setUploadProgress(null);
         }
         else if (data.type === 'fileDataDownload') {
-          if (data.data && data.data.type === 'Buffer' && Array.isArray(data.data.data)) {
-            const byteArray = new Uint8Array(data.data.data);
-            downloadChunksRef.current.push(new Blob([byteArray]));
+          if (typeof data.data === 'string') {
+            const binaryString = atob(data.data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            downloadChunksRef.current.push(new Blob([bytes]));
           }
         }
         else if (data.type === 'fileEnd') {

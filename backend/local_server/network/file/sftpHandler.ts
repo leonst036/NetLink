@@ -49,7 +49,7 @@ export function downloadFile(ws: WebSocket, sftp: SftpClient, path: string) {
 
         stream.on('data', (chunk: Buffer) => {
             stream.pause();
-            ws.send(JSON.stringify({ type: 'fileDataDownload', data: chunk }), (err) => {
+            ws.send(JSON.stringify({ type: 'fileDataDownload', data: chunk.toString('base64') }), (err) => {
                 if (err) {
                     stream.destroy(err);
                     return;
