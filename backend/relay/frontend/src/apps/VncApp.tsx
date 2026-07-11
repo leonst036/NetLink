@@ -68,11 +68,12 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
             }
         });
 
-        // Initialize noVNC with our patched WebSocket instance
         const rfb = new RFB(containerRef.current, ws, {
             credentials: { password: vncPassword }
         });
 
+        rfb.scaleViewport = true;
+        rfb.resizeSession = true;
 
         rfb.addEventListener('connect', () => {
             setStatus('connected');
