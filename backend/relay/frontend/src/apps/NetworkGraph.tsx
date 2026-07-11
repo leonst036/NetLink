@@ -27,11 +27,12 @@ interface NetworkGraphProps {
   servers: ServerData[];
   onNodeClick: (ip: string) => void;
   onVncClick: (ip: string) => void;
+  onSftpClick: (ip: string) => void;
   token: string;
   target: string;
 }
 
-export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, target }: NetworkGraphProps) {
+export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpClick, token, target }: NetworkGraphProps) {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
@@ -310,6 +311,12 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
                   >
                     VNC
                   </button>
+                  <button
+                    onClick={() => onSftpClick(server.ip)}
+                    style={{ flex: 1, padding: '4px', background: 'rgba(251, 146, 60, 0.1)', color: '#fb923c', border: '1px solid rgba(251, 146, 60, 0.3)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
+                  >
+                    SFTP
+                  </button>
                 </div>
               </div>
             );
@@ -402,6 +409,12 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
                   style={{ flex: 1, padding: '10px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}
                 >
                   VNC
+                </button>
+                <button
+                  onClick={() => { onSftpClick(selectedDevice); setSelectedDevice(null); }}
+                  style={{ flex: 1, padding: '10px', background: 'rgba(251, 146, 60, 0.1)', color: '#fb923c', border: '1px solid rgba(251, 146, 60, 0.3)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}
+                >
+                  SFTP
                 </button>
               </div>
             </div>
