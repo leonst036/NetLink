@@ -1,15 +1,25 @@
 import React, { useState } from 'react';
-import { User, Monitor, Wifi, Info, Shield, ChevronRight } from 'lucide-react';
+import { User, Monitor, Info, Shield, ChevronRight } from 'lucide-react';
 
-type TabId = 'general' | 'appearance' | 'network' | 'security' | 'about';
+type TabId = 'general' | 'appearance' | 'security' | 'about';
 
 export default function SettingsApp() {
   const [activeTab, setActiveTab] = useState<TabId>('general');
 
+  // Load functional settings from localStorage
+  const [username, setUsername] = useState(() => localStorage.getItem('netlink_username') || 'Admin');
+  const [wallpaper, setWallpaper] = useState(() => localStorage.getItem('netlink_wallpaper') || 'default');
+  const [theme, setTheme] = useState(() => localStorage.getItem('netlink_theme') || 'Dark');
+
+  const updateSetting = (key: string, value: string, setter: (val: string) => void) => {
+    setter(value);
+    localStorage.setItem(key, value);
+    window.dispatchEvent(new Event('settingsChange'));
+  };
+
   const tabs = [
     { id: 'general', label: 'General', icon: <User size={18} /> },
     { id: 'appearance', label: 'Appearance', icon: <Monitor size={18} /> },
-    { id: 'network', label: 'Network & API', icon: <Wifi size={18} /> },
     { id: 'security', label: 'Security', icon: <Shield size={18} /> },
     { id: 'about', label: 'About NetLink', icon: <Info size={18} /> },
   ];
@@ -94,7 +104,12 @@ export default function SettingsApp() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <SettingSection title="User Profile">
                   <SettingRow label="Username">
-                    <input type="text" defaultValue="Admin" style={inputStyle} />
+                    <input 
+                      type="text" 
+                      value={username} 
+                      onChange={(e) => updateSetting('netlink_username', e.target.value, setUsername)} 
+                      style={inputStyle} 
+                    />
                   </SettingRow>
                   <SettingRow label="Language">
                     <select style={selectStyle}>
@@ -121,19 +136,40 @@ export default function SettingsApp() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <SettingSection title="Theme">
                   <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                    <ThemeCard name="Dark" active={true} color="#0f172a" />
-                    <ThemeCard name="Light" active={false} color="#f8fafc" textColor="#0f172a" />
-                    <ThemeCard name="Hacker" active={false} color="#000000" accent="#22c55e" />
+                    <div onClick={() => updateSetting('netlink_theme', 'Dark', setTheme)}>
+                      <ThemeCard name="Dark" active={theme === 'Dark'} color="#0f172a" />
+                    </div>
+                    <div onClick={() => updateSetting('netlink_theme', 'Light', setTheme)}>
+                      <ThemeCard name="Light" active={theme === 'Light'} color="#f8fafc" textColor="#0f172a" />
+                    </div>
+                    <div onClick={() => updateSetting('netlink_theme', 'Hacker', setTheme)}>
+                      <ThemeCard name="Hacker" active={theme === 'Hacker'} color="#000000" accent="#22c55e" />
+                    </div>
                   </div>
                 </SettingSection>
 
                 <SettingSection title="Wallpaper">
                   <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '12px' }}>
-                    <div style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', border: '2px solid #38bdf8' }} />
-                    <div style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)' }} />
-                    <div style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)' }} />
-                    <div style={{ ...wallpaperThumbStyle, background: '#090d1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', border: '1px dashed rgba(255,255,255,0.2)' }}>
-                      + Custom
+                    <div 
+                      onClick={() => updateSetting('netlink_wallpaper', 'default', setWallpaper)}
+                      style={{ ...wallpaperThumbStyle, background: 'url("https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=200&auto=format&fit=crop") center/cover', border: wallpaper === 'default' ? '2px solid #38bdf8' : 'none' }} 
+                    />
+                    <div 
+                      onClick={() => updateSetting('netlink_wallpaper', 'wp1', setWallpaper)}
+                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', border: wallpaper === 'wp1' ? '2px solid #38bdf8' : 'none' }} 
+                    />
+                    <div 
+                      onClick={() => updateSetting('netlink_wallpaper', 'wp2', setWallpaper)}
+                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)', border: wallpaper === 'wp2' ? '2px solid #38bdf8' : 'none' }} 
+                    />
+                    <div 
+                      onClick={() => updateSetting('netlink_wallpaper', 'wp3', setWallpaper)}
+                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)', border: wallpaper === 'wp3' ? '2px solid #38bdf8' : 'none' }} 
+                    />
+                    <div 
+                      onClick={() => updateSetting('netlink_wallpaper', 'solid', setWallpaper)}
+                      style={{ ...wallpaperThumbStyle, background: '#090d1a', border: wallpaper === 'solid' ? '2px solid #38bdf8' : '1px dashed rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                      Solid
                     </div>
                   </div>
                 </SettingSection>
@@ -151,33 +187,7 @@ export default function SettingsApp() {
             </div>
           )}
 
-          {activeTab === 'network' && (
-            <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 24px 0', color: '#f8fafc' }}>Network & API</h3>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <SettingSection title="Relay Server Configuration">
-                  <SettingRow label="Default Host">
-                    <input type="text" defaultValue="localhost" style={inputStyle} />
-                  </SettingRow>
-                  <SettingRow label="WebSocket Port">
-                    <input type="number" defaultValue={4536} style={inputStyle} />
-                  </SettingRow>
-                </SettingSection>
 
-                <SettingSection title="Connection Defaults">
-                  <SettingRow label="Default SSH Port">
-                    <input type="number" defaultValue={22} style={inputStyle} />
-                  </SettingRow>
-                  <SettingRow label="Default VNC Port">
-                    <input type="number" defaultValue={5900} style={inputStyle} />
-                  </SettingRow>
-                  <SettingToggle label="Auto-connect on startup" defaultChecked={false} />
-                  <SettingToggle label="Use secure WebSocket (wss://)" defaultChecked={true} />
-                </SettingSection>
-              </div>
-            </div>
-          )}
 
           {activeTab === 'security' && (
             <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
