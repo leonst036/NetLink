@@ -27,9 +27,10 @@ export function handleSshConnection(ws: WebSocket): void {
             }
             else if (data.type === 'connect_vnc') { // VNC connection
                 if (data.ip) {
-                    console.log(`VNC request received for ${data.ip}, starting VNC proxy...`);
+                    const port = data.port || 5900;
+                    console.log(`VNC request received for ${data.ip}:${port}, starting VNC proxy...`);
                     ws.removeListener('message', onMessage);
-                    startVnc(ws, data.ip, 5900);
+                    startVnc(ws, data.ip, port);
                 } else {
                     console.warn('Received VNC connect payload but missing IP');
                     ws.close();
