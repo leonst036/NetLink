@@ -62,9 +62,24 @@ export function downloadFile(ws: WebSocket, sftp: SftpClient, path: string) {
         }
     };
 
+    const onMessage = (msg: any) => {
+        try {
+            const data = JSON.parse(msg.toString());
+            if (data.type === 'downloadCancel') {
+                if (stream) {
+                    try { stream.destroy(); } catch(e) {}
+                }
+                ws.send(JSON.stringify({ type: 'downloadCancelled' }));
+                ws.off('message', onMessage);
+                ws.off('close', onClose);
+            }
+        } catch (e) {}
+    };
+
     try {
         stream = sftp.createReadStream(normalizedPath);
         ws.on('close', onClose);
+        ws.on('message', onMessage);
 
         stream.on('data', (chunk: Buffer) => {
             stream.pause();
@@ -80,6 +95,7 @@ export function downloadFile(ws: WebSocket, sftp: SftpClient, path: string) {
         stream.on('end', () => {
             ws.send(JSON.stringify({ type: 'fileEnd' }));
             ws.off('close', onClose);
+            ws.off('message', onMessage);
         });
 
         stream.on('error', (err: any) => {
@@ -87,12 +103,14 @@ export function downloadFile(ws: WebSocket, sftp: SftpClient, path: string) {
                 ws.send(JSON.stringify({ type: 'error', message: err instanceof Error ? err.message : err }));
             }
             ws.off('close', onClose);
+            ws.off('message', onMessage);
         });
     } catch (err) {
         if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'error', message: err instanceof Error ? err.message : err }));
         }
         ws.off('close', onClose);
+        ws.off('message', onMessage);
     }
 }
 
@@ -172,5 +190,30 @@ export function uploadFile(ws: WebSocket, sftp: SftpClient, path: string) {
             ws.send(JSON.stringify({ type: 'error', message: err instanceof Error ? err.message : err }));
         }
         cleanup();
+    }
+}
+
+export async function deleteItem(ws: WebSocket, sftp: SftpClient, path: string) {
+    const normalizedPath = normalizePath(path);
+    try {
+        const type = await sftp.exists(normalizedPath);
+        if (type === 'd') {
+            await sftp.rmdir(normalizedPath, true);
+        } else if (type) {
+            await sftp.delete(normalizedPath);
+        }
+        ws.send(JSON.stringify({ type: 'deleteSuccess' }));
+    } catch (err) {
+        ws.send(JSON.stringify({ type: 'error', message: err instanceof Error ? err.message : err }));
+    }
+}
+
+export async function createDirectory(ws: WebSocket, sftp: SftpClient, path: string) {
+    const normalizedPath = normalizePath(path);
+    try {
+        await sftp.mkdir(normalizedPath, true);
+        ws.send(JSON.stringify({ type: 'mkdirSuccess' }));
+    } catch (err) {
+        ws.send(JSON.stringify({ type: 'error', message: err instanceof Error ? err.message : err }));
     }
 }

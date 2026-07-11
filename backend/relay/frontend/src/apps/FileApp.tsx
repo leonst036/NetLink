@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Folder, File, ArrowLeft, RefreshCw, HardDrive, ShieldAlert, Upload, Download } from 'lucide-react';
+import { Folder, File, ArrowLeft, RefreshCw, HardDrive, ShieldAlert, Upload, Download, Trash2, FolderPlus, X } from 'lucide-react';
 
 interface FileAppProps {
   token: string;
@@ -34,6 +34,11 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const [history, setHistory] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [transferSpeed, setTransferSpeed] = useState<string>('');
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const downloadTotalSizeRef = useRef<number>(0);
+  const downloadReceivedRef = useRef<number>(0);
 
   const socketRef = useRef<WebSocket | null>(null);
   const downloadChunksRef = useRef<Blob[]>([]);
@@ -52,12 +57,18 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     return clean;
   };
 
-  const triggerDownload = (fileName: string) => {
+  const triggerDownload = (fileName: string, fileSize: number = 0) => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
     setAppError(null);
     const fullPath = normalizePath(currentPath === '/' ? `/${fileName}` : `${currentPath}/${fileName}`);
     downloadFileNameRef.current = fileName;
     downloadChunksRef.current = [];
+    downloadTotalSizeRef.current = fileSize;
+    downloadReceivedRef.current = 0;
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    setTransferSpeed('');
+    chunkStartTimeRef.current = Date.now();
     socketRef.current.send(JSON.stringify({ type: 'download', path: fullPath }));
   };
 
@@ -71,9 +82,43 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     currentChunkSizeRef.current = 64 * 1024;
     setIsUploading(true);
     setUploadProgress(0);
+    setTransferSpeed('');
 
     const remotePath = normalizePath(currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`);
     socketRef.current.send(JSON.stringify({ type: 'upload', path: remotePath }));
+  };
+
+
+  const cancelUpload = () => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: 'uploadCancel' }));
+      setIsUploading(false);
+      setUploadProgress(null);
+      setTransferSpeed('');
+      uploadFileRef.current = null;
+    }
+  };
+
+  const cancelDownload = () => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: 'downloadCancel' }));
+    }
+  };
+
+  const handleCreateFolder = () => {
+    const folderName = prompt('Enter new folder name:');
+    if (folderName && socketRef.current?.readyState === WebSocket.OPEN) {
+      const targetPath = normalizePath(currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`);
+      socketRef.current.send(JSON.stringify({ type: 'mkdir', path: targetPath }));
+    }
+  };
+
+  const handleDeleteItem = (itemName: string) => {
+    const confirmDelete = window.confirm(`Are you sure you want to delete "${itemName}"?`);
+    if (confirmDelete && socketRef.current?.readyState === WebSocket.OPEN) {
+      const targetPath = normalizePath(currentPath === '/' ? `/${itemName}` : `${currentPath}/${itemName}`);
+      socketRef.current.send(JSON.stringify({ type: 'delete', path: targetPath }));
+    }
   };
 
   const sendNextChunk = () => {
@@ -183,6 +228,17 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
               bytes[i] = binaryString.charCodeAt(i);
             }
             downloadChunksRef.current.push(new Blob([bytes]));
+            
+            downloadReceivedRef.current += bytes.byteLength;
+            if (downloadTotalSizeRef.current > 0) {
+              setDownloadProgress(Math.min(100, Math.round((downloadReceivedRef.current / downloadTotalSizeRef.current) * 100)));
+            }
+            const duration = Date.now() - chunkStartTimeRef.current;
+            if (duration > 0) {
+              const speedBytesPerMs = bytes.byteLength / duration;
+              setTransferSpeed((speedBytesPerMs / 1024).toFixed(2) + ' MB/s');
+            }
+            chunkStartTimeRef.current = Date.now();
           }
         }
         else if (data.type === 'fileEnd') {
@@ -197,6 +253,19 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           URL.revokeObjectURL(url);
           downloadChunksRef.current = [];
           downloadFileNameRef.current = '';
+          setIsDownloading(false);
+          setDownloadProgress(null);
+          setTransferSpeed('');
+        }
+        else if (data.type === 'downloadCancelled') {
+          downloadChunksRef.current = [];
+          downloadFileNameRef.current = '';
+          setIsDownloading(false);
+          setDownloadProgress(null);
+          setTransferSpeed('');
+        }
+        else if (data.type === 'mkdirSuccess' || data.type === 'deleteSuccess') {
+          refreshList();
         }
         else if (data.type === 'uploadReady') {
           sendNextChunk();
@@ -206,6 +275,10 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           if (file) {
             setUploadProgress(Math.min(100, Math.round((uploadOffsetRef.current / file.size) * 100)));
             const duration = Date.now() - chunkStartTimeRef.current;
+            if (duration > 0) {
+              const speedBytesPerMs = currentChunkSizeRef.current / duration;
+              setTransferSpeed((speedBytesPerMs / 1024).toFixed(2) + ' MB/s');
+            }
             if (duration < 50 && currentChunkSizeRef.current < 2 * 1024 * 1024) {
               currentChunkSizeRef.current = Math.floor(currentChunkSizeRef.current * 1.5);
             } else if (duration > 150 && currentChunkSizeRef.current > 32 * 1024) {
@@ -217,6 +290,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
         else if (data.type === 'uploadSuccess') {
           setIsUploading(false);
           setUploadProgress(null);
+          setTransferSpeed('');
           uploadFileRef.current = null;
           uploadOffsetRef.current = 0;
           refreshList();
@@ -553,6 +627,25 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             />
 
             <button
+              onClick={handleCreateFolder}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <FolderPlus size={14} />
+              <span>New Folder</span>
+            </button>
+            <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
               style={{
@@ -628,32 +721,51 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           {/* Upload Progress Bar */}
           {isUploading && uploadProgress !== null && (
             <div style={{
-              background: 'rgba(15, 23, 42, 0.6)',
-              padding: '8px 16px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+              padding: '12px 16px',
+              background: 'rgba(234, 88, 12, 0.1)',
+              borderBottom: '1px solid rgba(234, 88, 12, 0.2)',
               display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
+              flexDirection: 'column',
+              gap: '8px'
             }}>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8', minWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                Uploading: {uploadFileRef.current?.name}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#fb923c' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Uploading {uploadFileRef.current?.name}...</span>
+                  {transferSpeed && <span style={{ opacity: 0.8 }}>({transferSpeed})</span>}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span>{uploadProgress}%</span>
+                  <button onClick={cancelUpload} style={{ background: 'transparent', border: 'none', color: '#fca5a5', cursor: 'pointer', display: 'flex', padding: 0 }}><X size={14} /></button>
+                </div>
               </div>
-              <div style={{
-                flex: 1,
-                height: '6px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '3px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  width: `${uploadProgress}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #38bdf8, #0ea5e9)',
-                  transition: 'width 0.1s'
-                }} />
+              <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{ width: `${uploadProgress}%`, height: '100%', background: '#fb923c', transition: 'width 0.2s' }} />
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8', minWidth: '40px', textAlign: 'right' }}>
-                {uploadProgress}%
+            </div>
+          )}
+
+          {/* Download Progress Bar */}
+          {isDownloading && (
+            <div style={{
+              padding: '12px 16px',
+              background: 'rgba(56, 189, 248, 0.1)',
+              borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#38bdf8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Downloading {downloadFileNameRef.current}...</span>
+                  {transferSpeed && <span style={{ opacity: 0.8 }}>({transferSpeed})</span>}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {downloadProgress !== null ? <span>{downloadProgress}%</span> : <span>...</span>}
+                  <button onClick={cancelDownload} style={{ background: 'transparent', border: 'none', color: '#fca5a5', cursor: 'pointer', display: 'flex', padding: 0 }}><X size={14} /></button>
+                </div>
+              </div>
+              <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{ width: `${downloadProgress || 0}%`, height: '100%', background: '#38bdf8', transition: 'width 0.2s' }} />
               </div>
             </div>
           )}
@@ -700,7 +812,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                   return (
                     <tr
                       key={file.name}
-                      onClick={() => (file.type === 'd' || file.type === 'l') ? navigateTo(`${currentPath === '/' ? '' : currentPath}/${file.name}`) : triggerDownload(file.name)}
+                      onClick={() => (file.type === 'd' || file.type === 'l') ? navigateTo(`${currentPath === '/' ? '' : currentPath}/${file.name}`) : triggerDownload(file.name, file.size)}
                       style={{
                         cursor: 'pointer',
                         borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
@@ -733,7 +845,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              triggerDownload(file.name);
+                              triggerDownload(file.name, file.size);
                             }}
                             title="Download File"
                             style={{
@@ -746,7 +858,8 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                               display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              transition: 'color 0.2s, background 0.2s'
+                              transition: 'color 0.2s, background 0.2s',
+                              marginRight: '8px'
                             }}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.color = '#38bdf8';
@@ -760,6 +873,35 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                             <Download size={14} />
                           </button>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteItem(file.name);
+                          }}
+                          title="Delete"
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#94a3b8',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'color 0.2s, background 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = '#ef4444';
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#94a3b8';
+                            e.currentTarget.style.background = 'transparent';
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </td>
                     </tr>
                   );

@@ -2,7 +2,7 @@ import { WebSocket } from 'ws';
 import { Client as SSHClient } from 'ssh2';
 import dotenv from 'dotenv';
 import { startVnc } from './vncHandler.js';  // ToDo: Refactor this. Why is it even in the sshHandler?
-import { connectToSftp, listDirectory, disconnectSftp, downloadFile, uploadFile } from '../network/file/sftpHandler.js';
+import { connectToSftp, listDirectory, disconnectSftp, downloadFile, uploadFile, deleteItem, createDirectory } from '../network/file/sftpHandler.js';
 dotenv.config();
 
 export function handleSshConnection(ws: WebSocket): void {
@@ -107,6 +107,10 @@ async function startSftp(ws: WebSocket, host: string, username: string, password
                     await downloadFile(ws, sftp, data.path);
                 } else if (data.type === 'upload') {
                     uploadFile(ws, sftp, data.path);
+                } else if (data.type === 'delete') {
+                    await deleteItem(ws, sftp, data.path);
+                } else if (data.type === 'mkdir') {
+                    await createDirectory(ws, sftp, data.path);
                 } else if (data.type === 'disconnect') {
                     await disconnectSftp(ws, sftp);
                 }
