@@ -26,6 +26,7 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
   const [settings, setSettings] = useState({
     username: localStorage.getItem('netlink_username') || 'Admin',
     wallpaper: localStorage.getItem('netlink_wallpaper') || 'default',
+    theme: localStorage.getItem('netlink_theme') || 'Dark',
   });
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
       setSettings({
         username: localStorage.getItem('netlink_username') || 'Admin',
         wallpaper: localStorage.getItem('netlink_wallpaper') || 'default',
+        theme: localStorage.getItem('netlink_theme') || 'Dark',
       });
     };
     window.addEventListener('settingsChange', handleSettingsChange);
@@ -161,7 +163,13 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
       </div>
 
       {/* Windows Area */}
-      <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
+      <div style={{ 
+        flex: 1, 
+        position: 'relative', 
+        zIndex: 1,
+        filter: settings.theme === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : settings.theme === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none',
+        transition: 'filter 0.3s ease'
+      }}>
         {graphWindow.isOpen && (
           <Window
             id="graph"
