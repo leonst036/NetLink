@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { Client as SSHClient } from 'ssh2';
 import dotenv from 'dotenv';
-import { startVnc } from './vncHandler.js';
+import { startVnc } from './vncHandler.js';  // ToDo: Refactor this. Why is it even in the sshHandler?
 dotenv.config();
 
 export function handleSshConnection(ws: WebSocket): void {

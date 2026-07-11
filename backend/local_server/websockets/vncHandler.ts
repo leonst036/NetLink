@@ -6,6 +6,9 @@ export function startVnc(ws: WebSocket, host: string, port: number): void {
 
     const vncSocket = net.createConnection({ host, port }, () => {
         console.log(`Connected to VNC server on ${host}:${port}`);
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'vnc_started' }));
+        }
     });
 
     vncSocket.on('data', (data: Buffer) => {
