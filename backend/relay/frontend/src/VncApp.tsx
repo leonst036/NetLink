@@ -9,6 +9,7 @@ interface VncAppProps {
 export default function VncApp({ token, target, initialIp }: VncAppProps) {
     const [selectedIp, setSelectedIp] = useState(initialIp || '');
     const [vncPort, setVncPort] = useState('5900');
+    const [vncPassword, setVncPassword] = useState('');
     const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
     const [isConnected, setIsConnected] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -32,7 +33,8 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
         const OriginalWebSocket = window.WebSocket;
         class VncWebSocket extends OriginalWebSocket {
-            private messageListeners: any[] = [];
+            private _onmessage: ((this: WebSocket, ev: MessageEvent) => any) | null = null;
+            private _messageListeners: any[] = [];
             
             constructor(url: string | URL, protocols?: string | string[]) {
                 super(url, protocols);
@@ -52,13 +54,24 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     }
 
                     // Forward all other messages to noVNC
-                    this.messageListeners.forEach(listener => listener(e));
+                    if (this._onmessage) {
+                        this._onmessage.call(this, e);
+                    }
+                    this._messageListeners.forEach(listener => listener.call(this, e));
                 });
+            }
+
+            set onmessage(listener: ((this: WebSocket, ev: MessageEvent) => any) | null) {
+                this._onmessage = listener;
+            }
+
+            get onmessage() {
+                return this._onmessage;
             }
 
             addEventListener(type: string, listener: any, options?: any) {
                 if (type === 'message') {
-                    this.messageListeners.push(listener);
+                    this._messageListeners.push(listener);
                 } else {
                     super.addEventListener(type, listener, options);
                 }
@@ -66,7 +79,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
 
             removeEventListener(type: string, listener: any, options?: any) {
                 if (type === 'message') {
-                    this.messageListeners = this.messageListeners.filter(l => l !== listener);
+                    this._messageListeners = this._messageListeners.filter(l => l !== listener);
                 } else {
                     super.removeEventListener(type, listener, options);
                 }
@@ -77,7 +90,8 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
 
         // Initialize noVNC
         const rfb = new RFB(containerRef.current, socketUrl, {
-            wsProtocols: ['binary']
+            wsProtocols: ['binary'],
+            credentials: { password: vncPassword }
         });
         // restore WebSocket
         window.WebSocket = OriginalWebSocket;
@@ -114,6 +128,14 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     placeholder="Port"
                     disabled={isConnected}
                     style={{...inputStyle, width: '70px'}}
+                />
+                <input
+                    type="password"
+                    value={vncPassword}
+                    onChange={(e) => setVncPassword(e.target.value)}
+                    placeholder="Password"
+                    disabled={isConnected}
+                    style={{...inputStyle, width: '100px'}}
                 />
                 {isConnected ? (
                     <button style={btnDisconnectStyle} onClick={disconnectVnc}>Disconnect</button>
