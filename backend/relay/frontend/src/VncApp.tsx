@@ -71,7 +71,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                 });
             }
 
-            send(data: string | ArrayBuffer | SharedArrayBuffer | Blob | ArrayBufferView) {
+            send(data: Parameters<WebSocket['send']>[0]) {
                 if (!this._isBackendReady) {
                     this._sendBuffer.push(data);
                 } else {
