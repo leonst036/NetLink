@@ -40,3 +40,10 @@ result
 # package-lock.json
 yarn.lock
 pnpm-lock.yaml
+
+# Compiled TypeScript outputs (in-place builds)
+backend/**/*.js
+backend/**/*.js.map
+backend/**/*.d.ts
+backend/**/*.d.ts.map
+!backend/relay/frontend/
