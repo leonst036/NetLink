@@ -31,88 +31,47 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         const wsPort = '4536';
         const host = window.location.hostname ? `${window.location.hostname}:${wsPort}` : `localhost:${wsPort}`;
         const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
-        const OriginalWebSocket = window.WebSocket;
-        class VncWebSocket extends OriginalWebSocket {
-            private _onmessage: ((this: WebSocket, ev: MessageEvent) => any) | null = null;
-            private _messageListeners: any[] = [];
-            private _isBackendReady = false;
-            private _sendBuffer: any[] = [];
-            
-            constructor(url: string | URL, protocols?: string | string[]) {
-                super(url, protocols);
+        const ws = new window.WebSocket(socketUrl, ['binary']);
+        
+        let isBackendReady = false;
+        let sendBuffer: any[] = [];
+        const originalSend = ws.send.bind(ws);
+        
+        ws.send = function(data: any) {
+            if (!isBackendReady) {
+                sendBuffer.push(data);
+            } else {
+                originalSend(data);
+            }
+        };
 
-                super.addEventListener('message', (e) => {
-                    let text = '';
-                    if (e.data instanceof ArrayBuffer) {
-                        text = new TextDecoder().decode(e.data);
-                    } else if (typeof e.data === 'string') {
-                        text = e.data;
-                    }
-
-                    if (!this._isBackendReady && text.includes('ready_for_credentials')) {
-                        // Backend is ready, send the VNC connect payload
-                        super.send(JSON.stringify({ type: 'connect_vnc', ip: selectedIp, port: parseInt(vncPort, 10) || 5900 }));
-                        return; // Hide this message from noVNC
-                    }
-
-                    if (!this._isBackendReady && text.includes('vnc_started')) {
-                        this._isBackendReady = true;
-                        // Flush the buffered noVNC handshake messages
-                        this._sendBuffer.forEach(data => super.send(data));
-                        this._sendBuffer = [];
-                        return; // Hide this message from noVNC
-                    }
-
-                    // Forward all other messages to noVNC
-                    if (this._onmessage) {
-                        this._onmessage.call(this, e);
-                    }
-                    this._messageListeners.forEach(listener => listener.call(this, e));
-                });
+        ws.addEventListener('message', (e) => {
+            let text = '';
+            if (e.data instanceof ArrayBuffer) {
+                text = new TextDecoder().decode(e.data);
+            } else if (typeof e.data === 'string') {
+                text = e.data;
             }
 
-            send(data: Parameters<WebSocket['send']>[0]) {
-                if (!this._isBackendReady) {
-                    this._sendBuffer.push(data);
-                } else {
-                    super.send(data);
-                }
+            if (!isBackendReady && text.includes('ready_for_credentials')) {
+                originalSend(JSON.stringify({ type: 'connect_vnc', ip: selectedIp, port: parseInt(vncPort, 10) || 5900 }));
+                e.stopImmediatePropagation();
+                return;
             }
 
-            set onmessage(listener: ((this: WebSocket, ev: MessageEvent) => any) | null) {
-                this._onmessage = listener;
+            if (!isBackendReady && text.includes('vnc_started')) {
+                isBackendReady = true;
+                sendBuffer.forEach(data => originalSend(data));
+                sendBuffer = [];
+                e.stopImmediatePropagation();
+                return;
             }
+        });
 
-            get onmessage() {
-                return this._onmessage;
-            }
-
-            addEventListener(type: string, listener: any, options?: any) {
-                if (type === 'message') {
-                    this._messageListeners.push(listener);
-                } else {
-                    super.addEventListener(type, listener, options);
-                }
-            }
-
-            removeEventListener(type: string, listener: any, options?: any) {
-                if (type === 'message') {
-                    this._messageListeners = this._messageListeners.filter(l => l !== listener);
-                } else {
-                    super.removeEventListener(type, listener, options);
-                }
-            }
-        }
-        // @ts-ignore
-        window.WebSocket = VncWebSocket;
-
-        // Initialize noVNC
-        const rfb = new RFB(containerRef.current, socketUrl, {
-            wsProtocols: ['binary'],
+        // Initialize noVNC with our patched WebSocket instance
+        const rfb = new RFB(containerRef.current, ws, {
             credentials: { password: vncPassword }
         });
-        // restore WebSocket
-        window.WebSocket = OriginalWebSocket;
 
 
         rfb.addEventListener('connect', () => {
