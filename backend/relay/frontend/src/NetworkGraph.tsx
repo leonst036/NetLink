@@ -39,6 +39,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
   const [nicknames, setNicknames] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
 
   // Load Topology
   useEffect(() => {
@@ -53,7 +54,10 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
 
           // extract nicknames from nodes
           const loadedNicknames: Record<string, string> = {};
-          const updatedNodes = data.nodes.map((n: Node) => {
+          let updatedNodes = data.nodes.map((n: Node) => {
+            if (n.id === 'nat') {
+              return { ...n, deletable: false, data: { ...n.data, label: n.data?.label || 'NAT / Gateway' }, style: { ...n.style, background: '#7c2d12', color: '#fdba74', border: '2px solid #ea580c', borderRadius: '8px', padding: '15px', fontWeight: 'bold' } };
+            }
             if (n.data?.nickname) {
               loadedNicknames[n.id] = n.data.nickname as string;
               return { ...n, data: { ...n.data, label: n.data.nickname || n.id } };
@@ -63,6 +67,18 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
             }
             return n;
           });
+
+          const hasNat = updatedNodes.some((n: Node) => n.id === 'nat');
+          if (!hasNat) {
+            updatedNodes.push({
+              id: 'nat',
+              position: { x: 300, y: 150 },
+              data: { label: 'NAT / Gateway' },
+              deletable: false,
+              style: { background: '#7c2d12', color: '#fdba74', border: '2px solid #ea580c', borderRadius: '8px', padding: '15px', fontWeight: 'bold' }
+            });
+          }
+
           setNodes(updatedNodes);
 
           if (data.nicknames && Object.keys(data.nicknames).length > 0) {
@@ -73,12 +89,21 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
           }
         } else {
           // Default empty or just the relay server node
-          setNodes([{
-            id: 'relay',
-            position: { x: 400, y: 300 },
-            data: { label: 'Relay Server' },
-            style: { background: '#0f172a', color: '#38bdf8', border: '2px solid #38bdf8', borderRadius: '8px', padding: '15px' }
-          }]);
+          setNodes([
+            {
+              id: 'nat',
+              position: { x: 200, y: 150 },
+              data: { label: 'NAT / Gateway' },
+              deletable: false,
+              style: { background: '#7c2d12', color: '#fdba74', border: '2px solid #ea580c', borderRadius: '8px', padding: '15px', fontWeight: 'bold' }
+            },
+            {
+              id: 'relay',
+              position: { x: 400, y: 300 },
+              data: { label: 'Relay Server' },
+              style: { background: '#0f172a', color: '#38bdf8', border: '2px solid #38bdf8', borderRadius: '8px', padding: '15px' }
+            }
+          ]);
         }
       })
       .catch(console.error);
@@ -121,7 +146,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
   const onNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       if (!isEditMode) return;
-      if (node.id === 'relay') return;
+      if (node.id === 'relay' || node.id === 'nat') return;
 
       if (node.id.startsWith('switch-')) {
         const newName = window.prompt('Enter new name for switch/router:', node.data.label as string);
@@ -153,11 +178,11 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      if (node.id !== 'relay' && !node.id.startsWith('switch-')) {
-        onNodeClick(node.id); // It's an IP
+      if (node.id !== 'relay' && node.id !== 'nat' && !node.id.startsWith('switch-')) {
+        setSelectedDevice(node.id);
       }
     },
-    [onNodeClick]
+    []
   );
 
   const saveTopology = async () => {
@@ -338,6 +363,50 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, 
           <MiniMap nodeColor="#1e293b" maskColor="rgba(2, 6, 23, 0.8)" />
           <Background color="#1e293b" gap={20} />
         </ReactFlow>
+
+        {/* Protocol Selection Modal */}
+        {selectedDevice && (
+          <div style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            zIndex: 50
+          }} onClick={() => setSelectedDevice(null)}>
+            <div style={{
+              background: '#0f172a',
+              border: '1px solid #334155',
+              padding: '20px',
+              borderRadius: '8px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '15px',
+              minWidth: '250px'
+            }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.1rem', textAlign: 'center' }}>
+                Connect to {nicknames[selectedDevice] || selectedDevice}
+              </h3>
+              <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center', marginTop: '-10px' }}>
+                {selectedDevice}
+              </p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => { onNodeClick(selectedDevice); setSelectedDevice(null); }}
+                  style={{ flex: 1, padding: '10px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}
+                >
+                  SSH
+                </button>
+                <button
+                  onClick={() => { onVncClick(selectedDevice); setSelectedDevice(null); }}
+                  style={{ flex: 1, padding: '10px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}
+                >
+                  VNC
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
     </div>
