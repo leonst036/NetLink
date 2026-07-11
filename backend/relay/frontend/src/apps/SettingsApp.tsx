@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Monitor, Wifi, Info, Shield, Bell, ChevronRight } from 'lucide-react';
+import { User, Monitor, Wifi, Info, Shield, ChevronRight } from 'lucide-react';
 
 type TabId = 'general' | 'appearance' | 'network' | 'security' | 'about';
 
