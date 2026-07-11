@@ -41,6 +41,8 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const uploadFileRef = useRef<File | null>(null);
   const uploadOffsetRef = useRef<number>(0);
+  const currentChunkSizeRef = useRef<number>(64 * 1024);
+  const chunkStartTimeRef = useRef<number>(0);
 
   const normalizePath = (p: string): string => {
     let clean = p.replace(/\/+/g, '/');
@@ -66,6 +68,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
 
     uploadFileRef.current = file;
     uploadOffsetRef.current = 0;
+    currentChunkSizeRef.current = 64 * 1024;
     setIsUploading(true);
     setUploadProgress(0);
 
@@ -83,8 +86,9 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
       return;
     }
 
-    const chunkSize = 64 * 1024; // 64KB
+    const chunkSize = currentChunkSizeRef.current;
     const slice = file.slice(offset, offset + chunkSize);
+    chunkStartTimeRef.current = Date.now();
     const reader = new FileReader();
     reader.onload = (e) => {
       const arrayBuffer = e.target?.result as ArrayBuffer;
@@ -201,6 +205,12 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           const file = uploadFileRef.current;
           if (file) {
             setUploadProgress(Math.min(100, Math.round((uploadOffsetRef.current / file.size) * 100)));
+            const duration = Date.now() - chunkStartTimeRef.current;
+            if (duration < 50 && currentChunkSizeRef.current < 2 * 1024 * 1024) {
+              currentChunkSizeRef.current = Math.floor(currentChunkSizeRef.current * 1.5);
+            } else if (duration > 150 && currentChunkSizeRef.current > 32 * 1024) {
+              currentChunkSizeRef.current = Math.floor(currentChunkSizeRef.current * 0.75);
+            }
           }
           sendNextChunk();
         }
