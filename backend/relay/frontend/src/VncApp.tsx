@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+// @ts-ignore
 import RFB from '@novnc/novnc/core/rfb';
 interface VncAppProps {
     token: string;
