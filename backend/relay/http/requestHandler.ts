@@ -4,6 +4,8 @@ import path from 'path';
 import { fileURLToPath, URL } from 'url';
 import { handleLogin } from '../auth/login.js';
 import { serverDevices } from '../websocket/connectionManager.js';
+import { getMongoClient } from '../database/MongoManager.js';
+import { authenticateToken } from '../auth/authenticator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,6 +66,71 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         const devices = serverDevices.get(target) || [];
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ devices }));
+        return;
+    }
+    
+    // Topology API routes
+    if (pathname === '/api/topology') {
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.split(' ')[1] || parsedUrl.searchParams.get('token');
+        const target = parsedUrl.searchParams.get('target');
+        
+        if (!target) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'target parameter required' }));
+            return;
+        }
+
+        const mongoClient = getMongoClient();
+        if (!mongoClient) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Database not available' }));
+            return;
+        }
+
+        authenticateToken(token || null, mongoClient).then((decoded) => {
+            const username = decoded.username || decoded.sub;
+            const db = mongoClient.db('NetLink');
+            const collection = db.collection('topologies');
+
+            if (req.method === 'GET') {
+                collection.findOne({ username, target }).then(topology => {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(topology || { nodes: [], edges: [] }));
+                }).catch(err => {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Failed to fetch topology' }));
+                });
+            } else if (req.method === 'POST') {
+                let body = '';
+                req.on('data', chunk => { body += chunk.toString(); });
+                req.on('end', () => {
+                    try {
+                        const { nodes, edges } = JSON.parse(body);
+                        collection.updateOne(
+                            { username, target },
+                            { $set: { nodes, edges, updatedAt: new Date() } },
+                            { upsert: true }
+                        ).then(() => {
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: true }));
+                        }).catch(err => {
+                            res.writeHead(500, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: 'Failed to save topology' }));
+                        });
+                    } catch (e) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                    }
+                });
+            } else {
+                res.writeHead(405, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Method not allowed' }));
+            }
+        }).catch((err) => {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Unauthorized', details: err.message }));
+        });
         return;
     }
     

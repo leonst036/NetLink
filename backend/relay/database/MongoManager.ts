@@ -4,17 +4,17 @@ let activeClient: mongoDB.MongoClient | null = null;
 
 export async function connectToDatabase(MongoURI: string) {
     const client: mongoDB.MongoClient = new mongoDB.MongoClient(MongoURI);
-    try { 
-        await client.connect(); 
-        return client; 
-    } catch (e) { 
-        console.log(e); 
-        return e; 
+    try {
+        await client.connect();
+        return client;
+    } catch (e) {
+        console.log(e);
+        return e;
     }
 }
 
 export async function initializeDatabase(): Promise<mongoDB.MongoClient | null> {
-    if (!process.env.MONGO_URI) {
+    if (!process.env.MONGO_URI) {  // Fallback to memory-only auth mode
         console.log('MONGO_URI is not set. Running in memory-only auth mode.');
         return null;
     }
