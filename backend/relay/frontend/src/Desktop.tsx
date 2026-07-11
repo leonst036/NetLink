@@ -114,8 +114,8 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
                   <Search size={14} /> {isScanning ? 'Scanning...' : 'Scan Network'}
                 </button>
               </div>
-              <div style={{ flex: 1 }}>
-                <NetworkGraph servers={servers} onNodeClick={(ip) => openTerminal(ip)} />
+              <div style={{ flex: 1, position: 'relative' }}>
+                <NetworkGraph servers={servers} onNodeClick={(ip) => openTerminal(ip)} token={token} target={target} />
               </div>
             </div>
           </Window>
