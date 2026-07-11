@@ -8,6 +8,7 @@ interface VncAppProps {
 }
 export default function VncApp({ token, target, initialIp }: VncAppProps) {
     const [selectedIp, setSelectedIp] = useState(initialIp || '');
+    const [vncPort, setVncPort] = useState('5900');
     const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
     const [isConnected, setIsConnected] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -46,7 +47,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
 
                     if (text.includes('ready_for_credentials')) {
                         // Backend is ready, send the VNC connect payload
-                        this.send(JSON.stringify({ type: 'connect_vnc', ip: selectedIp }));
+                        this.send(JSON.stringify({ type: 'connect_vnc', ip: selectedIp, port: parseInt(vncPort, 10) || 5900 }));
                         return; // Hide this message from noVNC
                     }
 
@@ -105,6 +106,14 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     placeholder="Target IP"
                     disabled={isConnected}
                     style={inputStyle}
+                />
+                <input
+                    type="text"
+                    value={vncPort}
+                    onChange={(e) => setVncPort(e.target.value)}
+                    placeholder="Port"
+                    disabled={isConnected}
+                    style={{...inputStyle, width: '70px'}}
                 />
                 {isConnected ? (
                     <button style={btnDisconnectStyle} onClick={disconnectVnc}>Disconnect</button>
