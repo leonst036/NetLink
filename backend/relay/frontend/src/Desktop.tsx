@@ -163,9 +163,9 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
       </div>
 
       {/* Windows Area */}
-      <div style={{ 
-        flex: 1, 
-        position: 'relative', 
+      <div style={{
+        flex: 1,
+        position: 'relative',
         zIndex: 1,
         filter: settings.theme === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : settings.theme === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none',
         transition: 'filter 0.3s ease'
@@ -332,6 +332,13 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
           label="New SFTP Client"
           isOpen={false}
           onClick={() => openSftp('')}
+        />
+
+        <DockIcon
+          icon={<Monitor size={24} color="#10b981" />}
+          label="New VNC connection"
+          isOpen={false}
+          onClick={() => openVnc('')}
         />
 
         <DockIcon
