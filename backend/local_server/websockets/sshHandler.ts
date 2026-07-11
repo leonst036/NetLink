@@ -1,6 +1,7 @@
 import { WebSocket } from 'ws';
 import { Client as SSHClient } from 'ssh2';
 import dotenv from 'dotenv';
+import { startVnc } from './vncHandler.js';
 dotenv.config();
 
 export function handleSshConnection(ws: WebSocket): void {
@@ -22,6 +23,16 @@ export function handleSshConnection(ws: WebSocket): void {
                 } else {
                     console.warn('Received connect payload but missing ip or username:', data);
                     ws.send('\r\n[Backend] Error: Missing IP or Username in connection payload\r\n');
+                }
+            }
+            else if (data.type === 'connect_vnc') { // VNC connection
+                if (data.ip) {
+                    console.log(`VNC request received for ${data.ip}, starting VNC proxy...`);
+                    ws.removeListener('message', onMessage);
+                    startVnc(ws, data.ip, 5900);
+                } else {
+                    console.warn('Received VNC connect payload but missing IP');
+                    ws.close();
                 }
             }
         } catch (err) {

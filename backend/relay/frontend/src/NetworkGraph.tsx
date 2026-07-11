@@ -26,14 +26,15 @@ interface ServerData {
 interface NetworkGraphProps {
   servers: ServerData[];
   onNodeClick: (ip: string) => void;
+  onVncClick: (ip: string) => void;
   token: string;
   target: string;
 }
 
-export default function NetworkGraph({ servers, onNodeClick, token, target }: NetworkGraphProps) {
+export default function NetworkGraph({ servers, onNodeClick, onVncClick, token, target }: NetworkGraphProps) {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  
+
   const [search, setSearch] = useState('');
   const [nicknames, setNicknames] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -48,7 +49,7 @@ export default function NetworkGraph({ servers, onNodeClick, token, target }: Ne
         if (data && data.nodes && data.nodes.length > 0) {
           setNodes(data.nodes);
           setEdges(data.edges || []);
-          
+
           // extract nicknames from nodes
           const loadedNicknames: Record<string, string> = {};
           data.nodes.forEach((n: Node) => {
@@ -141,13 +142,13 @@ export default function NetworkGraph({ servers, onNodeClick, token, target }: Ne
     setNodes(nds => [...nds, newNode]);
   };
 
-  const filteredServers = servers.filter(s => 
+  const filteredServers = servers.filter(s =>
     s.ip.includes(search) || (s.hostname || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div style={{ display: 'flex', height: '100%', background: '#050811' }}>
-      
+
       {/* Sidebar: Device List */}
       <div style={{ width: '300px', background: '#0f172a', borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -173,8 +174,8 @@ export default function NetworkGraph({ servers, onNodeClick, token, target }: Ne
               <div key={server.ip} style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', marginBottom: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#38bdf8' }}>{server.ip}</div>
                 <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>{server.hostname || 'Unknown Host'}</div>
-                
-                <input 
+
+                <input
                   type="text"
                   placeholder="Nickname..."
                   value={nicknames[server.ip] || ''}
@@ -192,13 +193,29 @@ export default function NetworkGraph({ servers, onNodeClick, token, target }: Ne
                   style={{ width: '100%', padding: '6px', background: 'rgba(0,0,0,0.2)', border: '1px solid #334155', borderRadius: '4px', color: 'white', fontSize: '0.8rem', marginBottom: '8px' }}
                 />
 
-                <button 
+                <button
                   onClick={() => addDeviceToGraph(server)}
                   disabled={inGraph}
                   style={{ width: '100%', padding: '6px', background: inGraph ? '#1e293b' : '#3b82f6', color: inGraph ? '#64748b' : 'white', border: 'none', borderRadius: '4px', cursor: inGraph ? 'not-allowed' : 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
                 >
                   {inGraph ? 'In Graph' : <><Plus size={14} /> Add to Graph</>}
                 </button>
+
+                {/* Quick Connect Buttons */}
+                <div style={{ display: 'flex', gap: '5px', marginTop: '8px' }}>
+                  <button
+                    onClick={() => onNodeClick(server.ip)}
+                    style={{ flex: 1, padding: '4px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
+                  >
+                    SSH
+                  </button>
+                  <button
+                    onClick={() => onVncClick(server.ip)}
+                    style={{ flex: 1, padding: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
+                  >
+                    VNC
+                  </button>
+                </div>
               </div>
             );
           })}

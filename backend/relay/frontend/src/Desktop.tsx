@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import Window from './Window';
 import TerminalApp from './TerminalApp';
 import NetworkGraph from './NetworkGraph';
-import { Terminal, Network, LogOut, Search } from 'lucide-react';
+import VncApp from './VncApp';
+import { Terminal, Network, LogOut, Search, Monitor } from 'lucide-react';
 
 interface DesktopProps {
   token: string;
@@ -18,12 +19,20 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
   const [activeWindow, setActiveWindow] = useState<string | null>('graph');
 
   const [graphWindow, setGraphWindow] = useState({ isOpen: true, zIndex: 1 });
+
   interface TerminalInstance {
     id: string;
     ip: string;
   }
   const [terminals, setTerminals] = useState<TerminalInstance[]>([]);
 
+  const [vncWindows, setVncWindows] = useState<{ id: string, ip: string }[]>([]);
+
+  const openVnc = (ip: string) => {
+    const id = `vnc-${ip}-${Date.now()}`;
+    setVncWindows(prev => [...prev, { id, ip }]);
+    bringToFront(id);
+  };
 
   const fetchServers = async () => {
     setIsScanning(true);
@@ -51,9 +60,9 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
 
   const openTerminal = (ip: string) => {
     const newID = `terminal-${Date.now()}`;
-    setTerminals(prev => [...prev, { id: newID, ip }])
+    setTerminals(prev => [...prev, { id: newID, ip }]);
     setActiveWindow(newID);
-  }
+  };
 
   return (
     <div style={{
@@ -119,26 +128,51 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
                 </button>
               </div>
               <div style={{ flex: 1, position: 'relative' }}>
-                <NetworkGraph servers={servers} onNodeClick={(ip) => openTerminal(ip)} token={token} target={target} />
+                <NetworkGraph
+                  servers={servers}
+                  onNodeClick={(ip) => openTerminal(ip)}
+                  onVncClick={(ip) => openVnc(ip)}
+                  token={token}
+                  target={target}
+                />
               </div>
             </div>
           </Window>
         )}
 
-        {termWindow.isOpen && (
+        {/* SSH Terminals */}
+        {terminals.map(term => (
           <Window
-            id="terminal"
-            title={`NetLink Terminal - ${selectedIpForTerm || 'Localhost'}`}
+            key={term.id}
+            id={term.id}
+            title={`NetLink Terminal - ${term.ip || 'Localhost'}`}
             icon={<Terminal size={14} color="#a78bfa" />}
-            isActive={activeWindow === 'terminal'}
-            onFocus={() => bringToFront('terminal')}
-            onClose={() => setTermWindow(w => ({ ...w, isOpen: false }))}
+            isActive={activeWindow === term.id}
+            onFocus={() => bringToFront(term.id)}
+            onClose={() => setTerminals(prev => prev.filter(t => t.id !== term.id))}
             defaultPosition={{ x: 150, y: 150 }}
             defaultSize={{ width: 800, height: 500 }}
           >
-            <TerminalApp token={token} target={target} initialIp={selectedIpForTerm} />
+            <TerminalApp token={token} target={target} initialIp={term.ip} />
           </Window>
-        )}
+        ))}
+
+        {/* VNC Windows */}
+        {vncWindows.map(vnc => (
+          <Window
+            key={vnc.id}
+            id={vnc.id}
+            title={`NetLink VNC - ${vnc.ip}`}
+            icon={<Monitor size={14} color="#10b981" />}
+            isActive={activeWindow === vnc.id}
+            onFocus={() => bringToFront(vnc.id)}
+            onClose={() => setVncWindows(prev => prev.filter(v => v.id !== vnc.id))}
+            defaultPosition={{ x: 200, y: 200 }}
+            defaultSize={{ width: 800, height: 600 }}
+          >
+            <VncApp token={token} target={target} initialIp={vnc.ip} />
+          </Window>
+        ))}
       </div>
 
       {/* macOS style Dock */}
