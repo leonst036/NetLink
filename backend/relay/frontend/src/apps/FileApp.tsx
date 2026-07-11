@@ -28,6 +28,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
 
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [statusMessage, setStatusMessage] = useState('');
+  const [appError, setAppError] = useState<string | null>(null);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [currentPath, setCurrentPath] = useState('/');
   const [history, setHistory] = useState<string[]>([]);
@@ -41,9 +42,18 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const uploadFileRef = useRef<File | null>(null);
   const uploadOffsetRef = useRef<number>(0);
 
+  const normalizePath = (p: string): string => {
+    let clean = p.replace(/\/+/g, '/');
+    if (clean.length > 1 && clean.endsWith('/')) {
+      clean = clean.slice(0, -1);
+    }
+    return clean;
+  };
+
   const triggerDownload = (fileName: string) => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
-    const fullPath = currentPath === '/' ? `/${fileName}` : `${currentPath}/${fileName}`;
+    setAppError(null);
+    const fullPath = normalizePath(currentPath === '/' ? `/${fileName}` : `${currentPath}/${fileName}`);
     downloadFileNameRef.current = fileName;
     downloadChunksRef.current = [];
     socketRef.current.send(JSON.stringify({ type: 'download', path: fullPath }));
@@ -52,13 +62,14 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+    setAppError(null);
 
     uploadFileRef.current = file;
     uploadOffsetRef.current = 0;
     setIsUploading(true);
     setUploadProgress(0);
 
-    const remotePath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
+    const remotePath = normalizePath(currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`);
     socketRef.current.send(JSON.stringify({ type: 'upload', path: remotePath }));
   };
 
@@ -135,8 +146,10 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
         else if (data.type === 'connected') {
           setStatus('connected');
           setStatusMessage('');
-          // Load root / initial directory
-          socket.send(JSON.stringify({ type: 'list', path: '/' }));
+          setAppError(null);
+          const startPath = data.homeDir || '/';
+          setCurrentPath(startPath);
+          socket.send(JSON.stringify({ type: 'list', path: startPath }));
         }
         else if (data.type === 'fileList') {
           // Sort folders first, then files
@@ -148,8 +161,13 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           setFiles(sortedList);
         }
         else if (data.type === 'error') {
-          setStatus('disconnected');
-          setStatusMessage(typeof data.message === 'string' ? data.message : JSON.stringify(data.message));
+          const errorMsg = typeof data.message === 'string' ? data.message : JSON.stringify(data.message);
+          if (data.fatal) {
+            setStatus('disconnected');
+            setStatusMessage(errorMsg);
+          } else {
+            setAppError(errorMsg);
+          }
           setIsUploading(false);
           setUploadProgress(null);
         }
@@ -233,6 +251,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
 
   const navigateTo = (path: string, pushToHistory = true) => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+    setAppError(null);
 
     let targetPath = path;
     // Handle relative pathing
@@ -241,6 +260,8 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
       parts.pop();
       targetPath = '/' + parts.join('/');
     }
+
+    targetPath = normalizePath(targetPath);
 
     if (pushToHistory) {
       setHistory(prev => [...prev, currentPath]);
@@ -560,6 +581,40 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             </button>
           </div>
 
+          {appError && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
+              color: '#fca5a5',
+              padding: '10px 16px',
+              fontSize: '0.8rem',
+              fontWeight: 500
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldAlert size={16} style={{ flexShrink: 0 }} />
+                <span>{appError}</span>
+              </div>
+              <button
+                onClick={() => setAppError(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  lineHeight: 1,
+                  padding: '4px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Upload Progress Bar */}
           {isUploading && uploadProgress !== null && (
             <div style={{
@@ -635,7 +690,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                   return (
                     <tr
                       key={file.name}
-                      onClick={() => isDir ? navigateTo(`${currentPath === '/' ? '' : currentPath}/${file.name}`) : triggerDownload(file.name)}
+                      onClick={() => (file.type === 'd' || file.type === 'l') ? navigateTo(`${currentPath === '/' ? '' : currentPath}/${file.name}`) : triggerDownload(file.name)}
                       style={{
                         cursor: 'pointer',
                         borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
