@@ -10,6 +10,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     const [selectedIp, setSelectedIp] = useState(initialIp || '');
     const [vncPort, setVncPort] = useState('5900');
     const [vncPassword, setVncPassword] = useState('');
+    const [selectedMonitor, setSelectedMonitor] = useState('1');
     const [savedLogins, setSavedLogins] = useState<any[]>([]);
     const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
     const [isConnected, setIsConnected] = useState(false);
@@ -79,6 +80,18 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         rfb.addEventListener('connect', () => {
             setStatus('connected');
             setIsConnected(true);
+
+            // Send setMonitor as soon as connected
+            try {
+                if (typeof rfb.sendSetMonitor === 'function') {
+                    const monitorNumber = parseInt(selectedMonitor, 10);
+                    if (!isNaN(monitorNumber)) {
+                        rfb.sendSetMonitor(monitorNumber);
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to send set monitor message", e);
+            }
         });
         rfb.addEventListener('disconnect', () => {
             setStatus('disconnected');
@@ -110,6 +123,24 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
             setVncPassword(login.password);
         }
     };
+
+    // Send updated monitor number to backend when it changes if we are connected
+    useEffect(() => {
+        if (isConnected && rfbRef.current) {
+            try {
+                // @ts-ignore
+                if (typeof rfbRef.current.sendSetMonitor === 'function') {
+                    const monitorNumber = parseInt(selectedMonitor, 10);
+                    if (!isNaN(monitorNumber)) {
+                        // @ts-ignore
+                        rfbRef.current.sendSetMonitor(monitorNumber);
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to send set monitor message", e);
+            }
+        }
+    }, [selectedMonitor, isConnected]);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#050811' }}>
@@ -146,6 +177,16 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     disabled={isConnected}
                     style={{ ...inputStyle, width: '100px' }}
                 />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ color: 'white', fontSize: '0.85rem' }}>Monitor:</span>
+                    <input
+                        type="number"
+                        min="1"
+                        value={selectedMonitor}
+                        onChange={(e) => setSelectedMonitor(e.target.value)}
+                        style={{ ...inputStyle, width: '50px', padding: '6px' }}
+                    />
+                </div>
                 {isConnected ? (
                     <button style={btnDisconnectStyle} onClick={disconnectVnc}>Disconnect</button>
                 ) : (
