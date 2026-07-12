@@ -131,7 +131,8 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
 
     // Install Script route
     if (pathname === '/api/install.sh') {
-        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const isHttps = (req.socket as any).encrypted || req.headers['x-forwarded-proto'] === 'https';
+        const protocol = isHttps ? 'https' : 'http';
         const host = req.headers.host || 'localhost';
         const relayUrl = `${protocol}://${host}`;
 
@@ -142,7 +143,7 @@ echo "====================================="
 
 RELAY_URL="${relayUrl}"
 
-read -p "Enter Target ID (your server's unique name): " TARGET_ID
+read -p "Enter Target ID (your server's unique name): " TARGET_ID </dev/tty
 
 if [ -z "$TARGET_ID" ]; then
     echo "Error: Target ID cannot be empty."
@@ -150,7 +151,7 @@ if [ -z "$TARGET_ID" ]; then
 fi
 
 echo "Validating Target ID '$TARGET_ID' with Relay ($RELAY_URL)..."
-VALIDATION=$(curl -s "$RELAY_URL/api/validate-target?target=$TARGET_ID")
+VALIDATION=$(curl -ks "$RELAY_URL/api/validate-target?target=$TARGET_ID")
 
 if [[ $VALIDATION == *"\\"valid\\":true"* ]]; then
     echo "Target ID is valid! Proceeding with Docker installation..."

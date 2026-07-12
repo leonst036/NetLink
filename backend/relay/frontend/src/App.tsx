@@ -206,13 +206,15 @@ function App() {
             </div>
           </form>
 
-          <div className="docker-instructions" style={{ marginTop: '30px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.85rem', color: '#ddd' }}>
-            <h4 style={{ margin: '0 0 10px 0', color: '#fff' }}>Connect Local Server via Docker</h4>
-            <p style={{ margin: '0 0 10px 0', lineHeight: '1.4' }}>Run this command on your server to download and execute the NetLink setup script:</p>
-            <code style={{ background: 'rgba(0,0,0,0.4)', padding: '8px', borderRadius: '4px', display: 'block', wordBreak: 'break-all', fontFamily: 'monospace' }}>
-              curl -s {window.location.origin}/api/install.sh | bash
-            </code>
-          </div>
+          {isRegistering && (
+            <div className="docker-instructions" style={{ marginTop: '30px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.85rem', color: '#ddd' }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#fff' }}>Connect Local Server via Docker</h4>
+              <p style={{ margin: '0 0 10px 0', lineHeight: '1.4' }}>Run this command on your server to download and execute the NetLink setup script:</p>
+              <code style={{ background: 'rgba(0,0,0,0.4)', padding: '8px', borderRadius: '4px', display: 'block', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                curl -ks {window.location.origin}/api/install.sh | bash
+              </code>
+            </div>
+          )}
         </div>
       </div>
     );
