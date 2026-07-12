@@ -33,12 +33,12 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         const host = window.location.hostname ? `${window.location.hostname}:${wsPort}` : `localhost:${wsPort}`;
         const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
         const ws = new window.WebSocket(socketUrl, ['binary']);
-        
+
         let isBackendReady = false;
         let sendBuffer: any[] = [];
         const originalSend = ws.send.bind(ws);
-        
-        ws.send = function(data: any) {
+
+        ws.send = function (data: any) {
             if (!isBackendReady) {
                 sendBuffer.push(data);
             } else {
@@ -115,7 +115,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#050811' }}>
             <div style={{ padding: '10px', background: 'rgba(15, 23, 42, 0.9)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: '10px', alignItems: 'center' }}>
                 {savedLogins.length > 0 && (
-                    <select onChange={applyLogin} defaultValue="" disabled={isConnected} style={{...inputStyle, width: 'auto'}}>
+                    <select onChange={applyLogin} defaultValue="" disabled={isConnected} style={{ ...inputStyle, width: 'auto' }}>
                         <option value="" disabled>Saved Logins...</option>
                         {savedLogins.map(l => (
                             <option key={l.id} value={l.id}>{l.name} ({l.ip})</option>
@@ -136,7 +136,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     onChange={(e) => setVncPort(e.target.value)}
                     placeholder="Port"
                     disabled={isConnected}
-                    style={{...inputStyle, width: '70px'}}
+                    style={{ ...inputStyle, width: '70px' }}
                 />
                 <input
                     type="password"
@@ -144,7 +144,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     onChange={(e) => setVncPassword(e.target.value)}
                     placeholder="Password"
                     disabled={isConnected}
-                    style={{...inputStyle, width: '100px'}}
+                    style={{ ...inputStyle, width: '100px' }}
                 />
                 {isConnected ? (
                     <button style={btnDisconnectStyle} onClick={disconnectVnc}>Disconnect</button>
