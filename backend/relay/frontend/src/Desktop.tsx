@@ -96,6 +96,34 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
 
   useEffect(() => {
     fetchServers();
+
+    const isSecure = window.location.protocol === 'https:';
+    const protocol = isSecure ? 'wss:' : 'ws:';
+    const wsPort = '4536';
+    const host = window.location.hostname
+      ? `${window.location.hostname}:${wsPort}`
+      : `localhost:${wsPort}`;
+
+    const socketUrl = `${protocol}//${host}/desktop?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
+    const ws = new WebSocket(socketUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'scanning') {
+          setIsScanning(true);
+        } else if (data.type === 'server_list' && data.devices) {
+          setServers(data.devices);
+          setIsScanning(false);
+        }
+      } catch (err) {
+        console.error('Failed to parse websocket message', err);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target]);
 

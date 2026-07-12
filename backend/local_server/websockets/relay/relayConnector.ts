@@ -23,7 +23,7 @@ function getRelayUrl(): string {
  */
 export function connectToRelay(token: string): WebSocket {
     const relayUrl = getRelayUrl();
-    
+
     // Support self-signed certs in development (if REJECT_UNAUTHORIZED=false)
     const options = {
         rejectUnauthorized: process.env.REJECT_UNAUTHORIZED?.trim().toLowerCase() !== 'false'
@@ -44,7 +44,7 @@ export function handleRelayConnection(token: string): void {
 
     controlWs.on('open', async () => {
         console.log('Successfully connected to relay server control channel.');
-        
+
         // Keep-alive ping to prevent reverse proxies (e.g. Traefik/Nginx) from dropping idle connections
         pingInterval = setInterval(() => {
             if (controlWs.readyState === WebSocket.OPEN) {
@@ -53,6 +53,7 @@ export function handleRelayConnection(token: string): void {
         }, 30000);
         // Run network scan and send the results
         try {
+            controlWs.send(JSON.stringify({ type: 'scanning' }));
             const devices = await runNetworkScan();
             if (controlWs.readyState === WebSocket.OPEN) {
                 controlWs.send(JSON.stringify({ type: 'server_list', devices }));
@@ -67,12 +68,12 @@ export function handleRelayConnection(token: string): void {
             const message = JSON.parse(data.toString());
             if (message.type === 'init_session' && message.sessionId) {
                 console.log(`Relay requested new SSH data session: ${message.sessionId}`);
-                
+
                 const relayUrl = getRelayUrl();
                 const sessionWs = new WebSocket(`${relayUrl}/connect?token=${token}&sessionId=${message.sessionId}`, {
                     rejectUnauthorized: process.env.REJECT_UNAUTHORIZED?.trim().toLowerCase() !== 'false'
                 });
-                
+
                 sessionWs.on('open', () => {
                     console.log(`Data connection established for session: ${message.sessionId}`);
                     handleSshConnection(sessionWs);
