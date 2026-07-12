@@ -26,7 +26,7 @@ server.listen(8080, () => {
     console.log('NetLink Server running at https://localhost:8080');
 });
 
-// 4. Optionally connect to cloud relay if configured
+// 4.Connect to cloud relay if configured
 const RELAY_TOKEN = process.env.RELAY_TOKEN;
 if (RELAY_TOKEN) {
     handleRelayConnection(RELAY_TOKEN);

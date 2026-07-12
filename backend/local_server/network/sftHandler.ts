@@ -67,13 +67,13 @@ export function downloadFile(ws: WebSocket, sftp: SftpClient, path: string) {
             const data = JSON.parse(msg.toString());
             if (data.type === 'downloadCancel') {
                 if (stream) {
-                    try { stream.destroy(); } catch(e) {}
+                    try { stream.destroy(); } catch (e) { }
                 }
                 ws.send(JSON.stringify({ type: 'downloadCancelled' }));
                 ws.off('message', onMessage);
                 ws.off('close', onClose);
             }
-        } catch (e) {}
+        } catch (e) { }
     };
 
     try {

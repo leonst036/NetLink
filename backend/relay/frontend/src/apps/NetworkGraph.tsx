@@ -39,15 +39,20 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
   const [search, setSearch] = useState('');
   const [nicknames, setNicknames] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
 
   // Load Topology
   useEffect(() => {
+    setIsLoading(true);
     fetch(`/api/topology?target=${encodeURIComponent(target)}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch');
+        return res.json();
+      })
       .then(data => {
         if (data && data.nodes && data.nodes.length > 0) {
           setNodes(data.nodes);
@@ -107,7 +112,8 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
           ]);
         }
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
   }, [target, token]);
 
   // Handlers for React Flow
@@ -179,11 +185,13 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      if (node.id !== 'relay' && node.id !== 'nat' && !node.id.startsWith('switch-')) {
-        setSelectedDevice(node.id);
-      }
+      // Don't open connection modal in edit mode
+      if (isEditMode) return;
+      
+      // Allow opening modal for any device, switch, or relay
+      setSelectedDevice(node.id);
     },
-    []
+    [isEditMode]
   );
 
   const saveTopology = async () => {
@@ -352,71 +360,110 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
           )}
         </div>
 
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeClick={handleNodeClick}
-          onNodeDoubleClick={onNodeDoubleClick}
-          nodesDraggable={isEditMode}
-          nodesConnectable={isEditMode}
-          elementsSelectable={true}
-          edgesFocusable={isEditMode}
-          fitView
-        >
-          <Controls />
-          <MiniMap nodeColor="#1e293b" maskColor="rgba(2, 6, 23, 0.8)" />
-          <Background color="#1e293b" gap={20} />
-        </ReactFlow>
+        {isLoading ? (
+          <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: '#38bdf8' }}>
+            <div className="animate-spin" style={{ marginRight: '10px', width: '20px', height: '20px', border: '2px solid transparent', borderTopColor: '#38bdf8', borderRadius: '50%' }}></div>
+            Loading Topology...
+          </div>
+        ) : (
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={handleNodeClick}
+            onNodeDoubleClick={onNodeDoubleClick}
+            nodesDraggable={isEditMode}
+            nodesConnectable={isEditMode}
+            elementsSelectable={true}
+            edgesFocusable={isEditMode}
+            fitView
+          >
+            <Controls />
+            <MiniMap nodeColor="#1e293b" maskColor="rgba(2, 6, 23, 0.8)" />
+            <Background color="#1e293b" gap={20} />
+          </ReactFlow>
+        )}
 
         {/* Protocol Selection Modal */}
         {selectedDevice && (
           <div style={{
             position: 'absolute',
             top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.6)',
+            background: 'rgba(2, 6, 23, 0.7)',
+            backdropFilter: 'blur(8px)',
             display: 'flex', justifyContent: 'center', alignItems: 'center',
-            zIndex: 50
+            zIndex: 9999
           }} onClick={() => setSelectedDevice(null)}>
             <div style={{
               background: '#0f172a',
-              border: '1px solid #334155',
-              padding: '20px',
-              borderRadius: '8px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+              border: '1px solid #38bdf8',
+              padding: '25px',
+              borderRadius: '12px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
               display: 'flex',
               flexDirection: 'column',
               gap: '15px',
-              minWidth: '250px'
+              minWidth: '280px',
+              transform: 'scale(1)',
+              animation: 'popIn 0.2s ease-out'
             }} onClick={e => e.stopPropagation()}>
-              <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.1rem', textAlign: 'center' }}>
-                Connect to {nicknames[selectedDevice] || selectedDevice}
-              </h3>
-              <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center', marginTop: '-10px' }}>
-                {selectedDevice}
-              </p>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  onClick={() => { onNodeClick(selectedDevice); setSelectedDevice(null); }}
-                  style={{ flex: 1, padding: '10px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}
-                >
-                  SSH
-                </button>
-                <button
-                  onClick={() => { onVncClick(selectedDevice); setSelectedDevice(null); }}
-                  style={{ flex: 1, padding: '10px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}
-                >
-                  VNC
-                </button>
-                <button
-                  onClick={() => { onSftpClick(selectedDevice); setSelectedDevice(null); }}
-                  style={{ flex: 1, padding: '10px', background: 'rgba(251, 146, 60, 0.1)', color: '#fb923c', border: '1px solid rgba(251, 146, 60, 0.3)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}
-                >
-                  SFTP
-                </button>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.2rem' }}>
+                  {selectedDevice === 'relay' ? 'Relay Server' : 
+                   selectedDevice === 'nat' ? 'NAT / Gateway' : 
+                   selectedDevice.startsWith('switch-') ? 'Network Switch' :
+                   (nicknames[selectedDevice] || selectedDevice)}
+                </h3>
+                <button onClick={() => setSelectedDevice(null)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}>&times;</button>
               </div>
+
+              {selectedDevice !== 'relay' && selectedDevice !== 'nat' && !selectedDevice.startsWith('switch-') && (
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.85rem', marginTop: '-10px' }}>
+                  IP: {selectedDevice}
+                </p>
+              )}
+
+              {selectedDevice.startsWith('switch-') ? (
+                <div style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', padding: '10px 0' }}>
+                  No remote protocols available for this switch.
+                </div>
+              ) : selectedDevice === 'nat' ? (
+                <div style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', padding: '10px 0' }}>
+                  Gateway device. Connect via SSH if supported.
+                </div>
+              ) : null}
+
+              {(!selectedDevice.startsWith('switch-') && selectedDevice !== 'nat') && (
+                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                  <button
+                    onClick={() => { onNodeClick(selectedDevice === 'relay' ? '' : selectedDevice); setSelectedDevice(null); }}
+                    style={{ flex: 1, padding: '12px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 'bold', transition: 'all 0.2s' }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.2)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.1)'}
+                  >
+                    SSH
+                  </button>
+                  <button
+                    onClick={() => { onVncClick(selectedDevice === 'relay' ? '' : selectedDevice); setSelectedDevice(null); }}
+                    style={{ flex: 1, padding: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 'bold', transition: 'all 0.2s' }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)'}
+                  >
+                    VNC
+                  </button>
+                  <button
+                    onClick={() => { onSftpClick(selectedDevice === 'relay' ? '' : selectedDevice); setSelectedDevice(null); }}
+                    style={{ flex: 1, padding: '12px', background: 'rgba(251, 146, 60, 0.1)', color: '#fb923c', border: '1px solid rgba(251, 146, 60, 0.4)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 'bold', transition: 'all 0.2s' }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(251, 146, 60, 0.2)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(251, 146, 60, 0.1)'}
+                  >
+                    SFTP
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

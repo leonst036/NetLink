@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import * as mongoDB from 'mongodb';
 import { initializeDatabase } from './database/MongoManager.js';
 import { authenticateToken } from './auth/authenticator.js';
-import { handleLocalServerConnection, handleClientConnection } from './websocket/connectionHandlers.js';
+import { handleLocalServerConnection, handleClientConnection, handleDesktopConnection } from './websocket/connectionHandlers.js';
 import { createServer } from './websocket/httpsHelper.js';
 import { handleRequest } from './http/requestHandler.js';
 
@@ -64,6 +64,9 @@ wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
         } else if (pathname === '/client') {
             const targetId = target || identifier; // If target is not specified, assume target is the token/identifier itself
             handleClientConnection(ws, identifier, targetId);
+        } else if (pathname === '/desktop') {
+            const targetId = target || identifier;
+            handleDesktopConnection(ws, targetId);
         } else {
             console.warn(`Unsupported request path: ${pathname}`);
             ws.close(1003, 'Unsupported Path');

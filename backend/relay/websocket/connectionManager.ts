@@ -4,6 +4,7 @@ import { WebSocket } from 'ws';
 export const controlConnections = new Map<string, WebSocket>();
 export const pendingSessions = new Map<string, WebSocket>(); // Key: sessionId, Value: Client WebSocket
 export const serverDevices = new Map<string, any[]>(); // Key: identifier, Value: Array of devices
+export const frontendClients = new Map<string, Set<WebSocket>>(); // Key: identifier, Value: Set of frontend desktop WebSockets
 
 /**
  * Bridges two WebSockets together, forwarding all traffic in both directions.

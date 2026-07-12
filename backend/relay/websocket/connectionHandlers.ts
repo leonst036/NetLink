@@ -3,7 +3,8 @@ import {
     controlConnections, 
     pendingSessions, 
     serverDevices,
-    bridgeSockets 
+    bridgeSockets,
+    frontendClients
 } from './connectionManager.js';
 
 /**
@@ -41,6 +42,16 @@ export function handleLocalServerConnection(
                 if (message.type === 'server_list' && Array.isArray(message.devices)) {
                     console.log(`Received ${message.devices.length} devices from local server: ${identifier}`);
                     serverDevices.set(identifier, message.devices);
+                }
+                
+                // Forward message (scanning, server_list, etc.) to all connected frontend clients
+                const clients = frontendClients.get(identifier);
+                if (clients) {
+                    clients.forEach(client => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(data.toString());
+                        }
+                    });
                 }
             } catch (err) {
                 // Ignore parse errors on control channel
@@ -96,4 +107,29 @@ export function handleClientConnection(
         console.warn(`Target local server ${targetId} not online`);
         ws.close(1011, 'Target local server not online');
     }
+}
+
+/**
+ * Handles incoming frontend desktop connections for real-time events.
+ */
+export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
+    let clients = frontendClients.get(targetId);
+    if (!clients) {
+        clients = new Set();
+        frontendClients.set(targetId, clients);
+    }
+    clients.add(ws);
+
+    // Send the current list immediately if available
+    const devices = serverDevices.get(targetId);
+    if (devices) {
+        ws.send(JSON.stringify({ type: 'server_list', devices }));
+    }
+
+    ws.on('close', () => {
+        clients!.delete(ws);
+        if (clients!.size === 0) {
+            frontendClients.delete(targetId);
+        }
+    });
 }
