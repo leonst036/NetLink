@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User, Monitor, Info, Shield, ChevronRight, Key, Plus, Trash2, Save } from 'lucide-react';
+import { User, Users, Monitor, Info, Shield, ChevronRight, Key, Plus, Trash2, Save, CheckSquare, Square } from 'lucide-react';
 
-type TabId = 'general' | 'appearance' | 'logins' | 'security' | 'about';
+type TabId = 'general' | 'appearance' | 'logins' | 'security' | 'about' | 'users';
 
 interface SettingsAppProps {
   token: string;
@@ -21,6 +21,25 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     window.dispatchEvent(new Event('settingsChange'));
   };
 
+  const getPermissions = () => {
+    try {
+      if (!token) return [];
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const decoded = JSON.parse(jsonPayload);
+      if (decoded.role === 'admin') return ['manage_users', 'manage_logins', 'access_terminal', 'access_vnc', 'access_sftp', 'scan_network'];
+      return decoded.permissions || [];
+    } catch (e) {
+      return [];
+    }
+  };
+  
+  const permissions = getPermissions();
+  const canManageUsers = permissions.includes('manage_users');
+
   const tabs = [
     { id: 'general', label: 'General', icon: <User size={18} /> },
     { id: 'appearance', label: 'Appearance', icon: <Monitor size={18} /> },
@@ -29,14 +48,93 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     { id: 'about', label: 'About NetLink', icon: <Info size={18} /> },
   ];
 
+  if (canManageUsers) {
+    tabs.splice(3, 0, { id: 'users', label: 'User Management', icon: <Users size={18} /> });
+  }
+
   const [logins, setLogins] = useState<any[]>([]);
   const [editingLogin, setEditingLogin] = useState<any | null>(null);
+
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
 
   useEffect(() => {
     if (activeTab === 'logins') {
       fetchLogins();
+    } else if (activeTab === 'users' && canManageUsers) {
+      fetchUsers();
     }
   }, [activeTab]);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.users) setUsersList(data.users);
+    } catch (err) {
+      console.error('Failed to fetch users', err);
+    }
+  };
+
+  const saveUser = async () => {
+    if (!editingUser) return;
+    try {
+      const isNew = !usersList.find(u => u.username === editingUser.username);
+      const method = isNew ? 'POST' : 'PUT';
+      const res = await fetch('/api/users', {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(editingUser)
+      });
+      if (res.ok) {
+        setEditingUser(null);
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error('Failed to save user', err);
+    }
+  };
+
+  const deleteUser = async (username: string) => {
+    if (!window.confirm(`Are you sure you want to delete user ${username}?`)) return;
+    try {
+      const res = await fetch(`/api/users?username=${encodeURIComponent(username)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error('Failed to delete user', err);
+    }
+  };
+
+  const togglePermission = (perm: string) => {
+    if (!editingUser) return;
+    const current = editingUser.permissions || [];
+    if (current.includes(perm)) {
+      setEditingUser({ ...editingUser, permissions: current.filter((p: string) => p !== perm) });
+    } else {
+      setEditingUser({ ...editingUser, permissions: [...current, perm] });
+    }
+  };
+
+  const ALL_PERMISSIONS = [
+    { id: 'manage_users', label: 'Manage Users' },
+    { id: 'manage_logins', label: 'Manage Server Logins' },
+    { id: 'access_terminal', label: 'Access Terminal' },
+    { id: 'access_vnc', label: 'Access VNC' },
+    { id: 'access_sftp', label: 'Access SFTP File Explorer' },
+    { id: 'scan_network', label: 'Scan Network' }
+  ];
+
+
 
   const fetchLogins = async () => {
     try {
@@ -328,6 +426,89 @@ export default function SettingsApp({ token }: SettingsAppProps) {
             </div>
           )}
 
+          {activeTab === 'users' && canManageUsers && (
+            <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 24px 0' }}>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: 0, color: '#f8fafc' }}>User Management</h3>
+                <button
+                  onClick={() => setEditingUser({ username: '', password: '', role: 'user', permissions: [] })}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: '#38bdf8', color: '#0f172a', border: 'none',
+                    padding: '8px 12px', borderRadius: '6px', cursor: 'pointer',
+                    fontSize: '0.85rem', fontWeight: 600
+                  }}
+                >
+                  <Plus size={16} /> Add User
+                </button>
+              </div>
+
+              {editingUser ? (
+                <SettingSection title={usersList.find(u => u.username === editingUser.username) ? "Edit User" : "New User"}>
+                  <SettingRow label="Username">
+                    <input type="text" value={editingUser.username} onChange={e => setEditingUser({...editingUser, username: e.target.value})} style={inputStyle} placeholder="john_doe" disabled={!!usersList.find(u => u.username === editingUser.username)} />
+                  </SettingRow>
+                  <SettingRow label={usersList.find(u => u.username === editingUser.username) ? "New Password" : "Password"}>
+                    <input type="password" value={editingUser.password} onChange={e => setEditingUser({...editingUser, password: e.target.value})} style={inputStyle} placeholder={usersList.find(u => u.username === editingUser.username) ? "(Leave blank to keep current)" : "Secret Password"} />
+                  </SettingRow>
+                  
+                  <div style={{ marginTop: '16px' }}>
+                    <div style={{ fontSize: '0.95rem', color: '#cbd5e1', marginBottom: '12px' }}>Permissions</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {ALL_PERMISSIONS.map(perm => {
+                        const hasPerm = editingUser.permissions?.includes(perm.id);
+                        return (
+                          <div 
+                            key={perm.id} 
+                            onClick={() => togglePermission(perm.id)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '8px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
+                          >
+                            {hasPerm ? <CheckSquare size={18} color="#38bdf8" /> : <Square size={18} color="#64748b" />}
+                            <span style={{ fontSize: '0.9rem', color: hasPerm ? '#f8fafc' : '#94a3b8' }}>{perm.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                    <button onClick={saveUser} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#10b981', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>
+                      <Save size={16} /> Save
+                    </button>
+                    <button onClick={() => setEditingUser(null)} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </SettingSection>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {usersList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '32px', color: '#64748b', background: 'rgba(30, 41, 59, 0.3)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                      No users found.
+                    </div>
+                  ) : (
+                    usersList.map(user => (
+                      <div key={user.username} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '12px' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '1.05rem', marginBottom: '4px' }}>
+                            {user.username}
+                            {user.role === 'admin' && <span style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', borderRadius: '4px', marginLeft: '8px', verticalAlign: 'middle', textTransform: 'uppercase' }}>Admin</span>}
+                          </div>
+                          <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{user.permissions?.length || 0} Permissions Granted</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => setEditingUser(user)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>Edit</button>
+                          <button onClick={() => deleteUser(user.username)} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {activeTab === 'security' && (
             <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
