@@ -131,7 +131,8 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
 
     // Install Script route
     if (pathname === '/api/install.sh') {
-        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const isHttps = (req.socket as any).encrypted || req.headers['x-forwarded-proto'] === 'https';
+        const protocol = isHttps ? 'https' : 'http';
         const host = req.headers.host || 'localhost';
         const relayUrl = `${protocol}://${host}`;
 
