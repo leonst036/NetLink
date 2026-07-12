@@ -55,6 +55,50 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         return;
     }
 
+    // Register API route
+    if (pathname === '/api/register' || pathname === '/register') {
+        if (req.method === 'OPTIONS') {
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+            res.writeHead(204);
+            res.end();
+            return;
+        }
+        if (req.method === 'POST') {
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            let body = '';
+            req.on('data', chunk => { body += chunk.toString(); });
+            req.on('end', () => {
+                try {
+                    const parsedBody = JSON.parse(body);
+                    const mongoClient = getMongoClient();
+                    if (!mongoClient) {
+                        res.writeHead(503, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Database not available' }));
+                        return;
+                    }
+                    import('../database/MongoManager.js').then(({ RegisterUser }) => {
+                        RegisterUser(mongoClient, parsedBody).then(() => {
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: true }));
+                        }).catch(err => {
+                            res.writeHead(400, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: err.message || 'Failed to register user' }));
+                        });
+                    });
+                } catch (e) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                }
+            });
+        } else {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+        return;
+    }
+
     // Get servers API route
     if (pathname === '/api/servers') {
         const target = parsedUrl.searchParams.get('target');

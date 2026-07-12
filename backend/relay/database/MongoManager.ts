@@ -53,12 +53,36 @@ export async function CheckToken(client: mongoDB.MongoClient, token: string) {
 }
 
 export async function CheckUser(client: mongoDB.MongoClient, username: string) {
-    return client.db("NetLink").collection("users").findOne({ username });
+    // Check by username or email
+    return client.db("NetLink").collection("users").findOne({ 
+        $or: [{ username: username }, { email: username }] 
+    });
 }
 
 export async function GetUsers(client: mongoDB.MongoClient) {
     return client.db("NetLink").collection("users").find({}, { projection: { password: 0 } }).toArray();
 }
+
+export async function RegisterUser(client: mongoDB.MongoClient, userData: any) {
+    const { username, email, password } = userData;
+    // Check if user or email already exists
+    const existing = await client.db("NetLink").collection("users").findOne({
+        $or: [{ username }, { email }]
+    });
+    if (existing) {
+        throw new Error("User or email already exists");
+    }
+    return client.db("NetLink").collection("users").insertOne({
+        username,
+        email,
+        password,
+        role: 'user',
+        permissions: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+    });
+}
+
 
 export async function CreateUser(client: mongoDB.MongoClient, userData: any) {
     const { username, password, role, permissions } = userData;

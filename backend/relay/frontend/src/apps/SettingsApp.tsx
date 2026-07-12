@@ -26,8 +26,8 @@ export default function SettingsApp({ token }: SettingsAppProps) {
       if (!token) return [];
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
       }).join(''));
       const decoded = JSON.parse(jsonPayload);
       if (decoded.role === 'admin') return ['manage_users', 'manage_logins', 'access_terminal', 'access_vnc', 'access_sftp', 'scan_network'];
@@ -36,7 +36,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
       return [];
     }
   };
-  
+
   const permissions = getPermissions();
   const canManageUsers = permissions.includes('manage_users');
 
@@ -133,8 +133,6 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     { id: 'access_sftp', label: 'Access SFTP File Explorer' },
     { id: 'scan_network', label: 'Scan Network' }
   ];
-
-
 
   const fetchLogins = async () => {
     try {
@@ -261,15 +259,15 @@ export default function SettingsApp({ token }: SettingsAppProps) {
           {activeTab === 'general' && (
             <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
               <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 24px 0', color: '#f8fafc' }}>General Settings</h3>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <SettingSection title="User Profile">
                   <SettingRow label="Username">
-                    <input 
-                      type="text" 
-                      value={username} 
-                      onChange={(e) => updateSetting('netlink_username', e.target.value, setUsername)} 
-                      style={inputStyle} 
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => updateSetting('netlink_username', e.target.value, setUsername)}
+                      style={inputStyle}
                     />
                   </SettingRow>
                   <SettingRow label="Language">
@@ -293,7 +291,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
           {activeTab === 'appearance' && (
             <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
               <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 24px 0', color: '#f8fafc' }}>Appearance</h3>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <SettingSection title="Theme">
                   <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
@@ -311,23 +309,23 @@ export default function SettingsApp({ token }: SettingsAppProps) {
 
                 <SettingSection title="Wallpaper">
                   <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '12px' }}>
-                    <div 
+                    <div
                       onClick={() => updateSetting('netlink_wallpaper', 'default', setWallpaper)}
-                      style={{ ...wallpaperThumbStyle, background: 'url("https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=200&auto=format&fit=crop") center/cover', border: wallpaper === 'default' ? '2px solid #38bdf8' : 'none' }} 
+                      style={{ ...wallpaperThumbStyle, background: 'url("https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=200&auto=format&fit=crop") center/cover', border: wallpaper === 'default' ? '2px solid #38bdf8' : 'none' }}
                     />
-                    <div 
+                    <div
                       onClick={() => updateSetting('netlink_wallpaper', 'wp1', setWallpaper)}
-                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', border: wallpaper === 'wp1' ? '2px solid #38bdf8' : 'none' }} 
+                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', border: wallpaper === 'wp1' ? '2px solid #38bdf8' : 'none' }}
                     />
-                    <div 
+                    <div
                       onClick={() => updateSetting('netlink_wallpaper', 'wp2', setWallpaper)}
-                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)', border: wallpaper === 'wp2' ? '2px solid #38bdf8' : 'none' }} 
+                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)', border: wallpaper === 'wp2' ? '2px solid #38bdf8' : 'none' }}
                     />
-                    <div 
+                    <div
                       onClick={() => updateSetting('netlink_wallpaper', 'wp3', setWallpaper)}
-                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)', border: wallpaper === 'wp3' ? '2px solid #38bdf8' : 'none' }} 
+                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)', border: wallpaper === 'wp3' ? '2px solid #38bdf8' : 'none' }}
                     />
-                    <div 
+                    <div
                       onClick={() => updateSetting('netlink_wallpaper', 'solid', setWallpaper)}
                       style={{ ...wallpaperThumbStyle, background: '#090d1a', border: wallpaper === 'solid' ? '2px solid #38bdf8' : '1px dashed rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
                       Solid
@@ -369,22 +367,22 @@ export default function SettingsApp({ token }: SettingsAppProps) {
               {editingLogin ? (
                 <SettingSection title="Edit Server Login">
                   <SettingRow label="Name">
-                    <input type="text" value={editingLogin.name} onChange={e => setEditingLogin({...editingLogin, name: e.target.value})} style={inputStyle} placeholder="My Server" />
+                    <input type="text" value={editingLogin.name} onChange={e => setEditingLogin({ ...editingLogin, name: e.target.value })} style={inputStyle} placeholder="My Server" />
                   </SettingRow>
                   <SettingRow label="IP Address">
-                    <input type="text" value={editingLogin.ip} onChange={e => setEditingLogin({...editingLogin, ip: e.target.value})} style={inputStyle} placeholder="192.168.1.1" />
+                    <input type="text" value={editingLogin.ip} onChange={e => setEditingLogin({ ...editingLogin, ip: e.target.value })} style={inputStyle} placeholder="192.168.1.1" />
                   </SettingRow>
                   <SettingRow label="Port">
-                    <input type="text" value={editingLogin.port} onChange={e => setEditingLogin({...editingLogin, port: e.target.value})} style={inputStyle} placeholder="22" />
+                    <input type="text" value={editingLogin.port} onChange={e => setEditingLogin({ ...editingLogin, port: e.target.value })} style={inputStyle} placeholder="22" />
                   </SettingRow>
                   <SettingRow label="Username">
-                    <input type="text" value={editingLogin.loginUsername} onChange={e => setEditingLogin({...editingLogin, loginUsername: e.target.value})} style={inputStyle} placeholder="root" />
+                    <input type="text" value={editingLogin.loginUsername} onChange={e => setEditingLogin({ ...editingLogin, loginUsername: e.target.value })} style={inputStyle} placeholder="root" />
                   </SettingRow>
                   <SettingRow label="Password">
-                    <input type="password" value={editingLogin.password} onChange={e => setEditingLogin({...editingLogin, password: e.target.value})} style={inputStyle} placeholder="password" />
+                    <input type="password" value={editingLogin.password} onChange={e => setEditingLogin({ ...editingLogin, password: e.target.value })} style={inputStyle} placeholder="password" />
                   </SettingRow>
                   <SettingRow label="Protocol">
-                    <select value={editingLogin.type} onChange={e => setEditingLogin({...editingLogin, type: e.target.value})} style={selectStyle}>
+                    <select value={editingLogin.type} onChange={e => setEditingLogin({ ...editingLogin, type: e.target.value })} style={selectStyle}>
                       <option value="ssh">SSH</option>
                       <option value="vnc">VNC</option>
                       <option value="sftp">SFTP</option>
@@ -446,20 +444,20 @@ export default function SettingsApp({ token }: SettingsAppProps) {
               {editingUser ? (
                 <SettingSection title={usersList.find(u => u.username === editingUser.username) ? "Edit User" : "New User"}>
                   <SettingRow label="Username">
-                    <input type="text" value={editingUser.username} onChange={e => setEditingUser({...editingUser, username: e.target.value})} style={inputStyle} placeholder="john_doe" disabled={!!usersList.find(u => u.username === editingUser.username)} />
+                    <input type="text" value={editingUser.username} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} style={inputStyle} placeholder="john_doe" disabled={!!usersList.find(u => u.username === editingUser.username)} />
                   </SettingRow>
                   <SettingRow label={usersList.find(u => u.username === editingUser.username) ? "New Password" : "Password"}>
-                    <input type="password" value={editingUser.password} onChange={e => setEditingUser({...editingUser, password: e.target.value})} style={inputStyle} placeholder={usersList.find(u => u.username === editingUser.username) ? "(Leave blank to keep current)" : "Secret Password"} />
+                    <input type="password" value={editingUser.password} onChange={e => setEditingUser({ ...editingUser, password: e.target.value })} style={inputStyle} placeholder={usersList.find(u => u.username === editingUser.username) ? "(Leave blank to keep current)" : "Secret Password"} />
                   </SettingRow>
-                  
+
                   <div style={{ marginTop: '16px' }}>
                     <div style={{ fontSize: '0.95rem', color: '#cbd5e1', marginBottom: '12px' }}>Permissions</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {ALL_PERMISSIONS.map(perm => {
                         const hasPerm = editingUser.permissions?.includes(perm.id);
                         return (
-                          <div 
-                            key={perm.id} 
+                          <div
+                            key={perm.id}
                             onClick={() => togglePermission(perm.id)}
                             style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '8px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
                           >
@@ -513,12 +511,12 @@ export default function SettingsApp({ token }: SettingsAppProps) {
           {activeTab === 'security' && (
             <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
               <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 24px 0', color: '#f8fafc' }}>Security Settings</h3>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <SettingSection title="Authentication">
                   <SettingToggle label="Require password on wake" defaultChecked={true} />
                   <SettingToggle label="Save credentials securely" defaultChecked={true} />
-                  
+
                   <div style={{ marginTop: '16px' }}>
                     <button style={{
                       background: 'rgba(239, 68, 68, 0.1)',
@@ -541,9 +539,9 @@ export default function SettingsApp({ token }: SettingsAppProps) {
           {activeTab === 'about' && (
             <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <div style={{ 
-                  width: '64px', 
-                  height: '64px', 
+                <div style={{
+                  width: '64px',
+                  height: '64px',
                   background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)',
                   borderRadius: '16px',
                   display: 'flex',
@@ -558,7 +556,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                   <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem' }}>Version 1.0.0-beta</p>
                 </div>
               </div>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <SettingSection title="System Information">
                   <InfoRow label="Client Environment" value="Browser (Web Platform)" />
@@ -604,8 +602,8 @@ const SettingSection = ({ title, children }: { title: string, children: React.Re
     borderRadius: '12px',
     overflow: 'hidden'
   }}>
-    <div style={{ 
-      padding: '12px 20px', 
+    <div style={{
+      padding: '12px 20px',
       borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
       background: 'rgba(15, 23, 42, 0.4)',
       fontSize: '0.85rem',
@@ -632,7 +630,7 @@ const SettingRow = ({ label, children }: { label: string, children: React.ReactN
 const SettingToggle = ({ label, defaultChecked }: { label: string, defaultChecked: boolean }) => {
   const [checked, setChecked] = useState(defaultChecked);
   return (
-    <div 
+    <div
       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
       onClick={() => setChecked(!checked)}
     >
