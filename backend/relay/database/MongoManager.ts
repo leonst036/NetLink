@@ -56,6 +56,40 @@ export async function CheckUser(client: mongoDB.MongoClient, username: string) {
     return client.db("NetLink").collection("users").findOne({ username });
 }
 
+export async function GetUsers(client: mongoDB.MongoClient) {
+    return client.db("NetLink").collection("users").find({}, { projection: { password: 0 } }).toArray();
+}
+
+export async function CreateUser(client: mongoDB.MongoClient, userData: any) {
+    const { username, password, role, permissions } = userData;
+    return client.db("NetLink").collection("users").insertOne({
+        username,
+        password,
+        role: role || 'user',
+        permissions: permissions || [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+    });
+}
+
+export async function UpdateUser(client: mongoDB.MongoClient, username: string, userData: any) {
+    const updateDoc: any = {
+        updatedAt: new Date()
+    };
+    if (userData.password) updateDoc.password = userData.password;
+    if (userData.role) updateDoc.role = userData.role;
+    if (userData.permissions) updateDoc.permissions = userData.permissions;
+
+    return client.db("NetLink").collection("users").updateOne(
+        { username },
+        { $set: updateDoc }
+    );
+}
+
+export async function DeleteUser(client: mongoDB.MongoClient, username: string) {
+    return client.db("NetLink").collection("users").deleteOne({ username });
+}
+
 export async function GetTopology(client: mongoDB.MongoClient, username: string, target: string) {
     return client.db("NetLink").collection("network_data").findOne({ username, target });
 }

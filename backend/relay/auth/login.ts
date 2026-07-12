@@ -66,8 +66,13 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
     const envPass = process.env.ADMIN_PASSWORD || 'admin';
 
     let isAuthenticated = false;
+    let userRole = 'user';
+    let userPermissions: string[] = [];
+
     if (username === envUser && password === envPass) {
         isAuthenticated = true;
+        userRole = 'admin';
+        userPermissions = ['manage_users', 'manage_logins', 'access_terminal', 'access_vnc', 'access_sftp', 'scan_network'];
     } else {
         const client = getMongoClient();
         if (client) {
@@ -76,6 +81,8 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
                 const user = await CheckUser(client, username);
                 if (user && user.password === password) {
                     isAuthenticated = true;
+                    userRole = user.role || 'user';
+                    userPermissions = user.permissions || [];
                 }
             } catch (dbError) {
                 console.error('Failed to check user in database:', dbError);
@@ -93,7 +100,8 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
         const secretKey = process.env.JWT_SECRET || 'default_secret';
         const payload = {
             userId: username,
-            role: 'user'
+            role: userRole,
+            permissions: userPermissions
         };
 
         // Generate token with 1 day expiration

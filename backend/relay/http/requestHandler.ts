@@ -206,6 +206,109 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         return;
     }
 
+    // Users API routes
+    if (pathname === '/api/users') {
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.split(' ')[1] || parsedUrl.searchParams.get('token');
+
+        const mongoClient = getMongoClient();
+        if (!mongoClient) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Database not available' }));
+            return;
+        }
+
+        authenticateToken(token || null, mongoClient).then((decoded) => {
+            const hasPermission = decoded.role === 'admin' || (decoded.permissions && decoded.permissions.includes('manage_users'));
+            if (!hasPermission) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Forbidden: Missing manage_users permission' }));
+                return;
+            }
+
+            if (req.method === 'GET') {
+                import('../database/MongoManager.js').then(({ GetUsers }) => {
+                    GetUsers(mongoClient).then(users => {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ users }));
+                    }).catch(err => {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Failed to fetch users' }));
+                    });
+                });
+            } else if (req.method === 'POST') {
+                let body = '';
+                req.on('data', chunk => { body += chunk.toString(); });
+                req.on('end', () => {
+                    try {
+                        const parsedBody = JSON.parse(body);
+                        import('../database/MongoManager.js').then(({ CreateUser }) => {
+                            CreateUser(mongoClient, parsedBody).then(() => {
+                                res.writeHead(200, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ success: true }));
+                            }).catch(err => {
+                                res.writeHead(500, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ error: 'Failed to create user' }));
+                            });
+                        });
+                    } catch (e) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                    }
+                });
+            } else if (req.method === 'PUT') {
+                let body = '';
+                req.on('data', chunk => { body += chunk.toString(); });
+                req.on('end', () => {
+                    try {
+                        const parsedBody = JSON.parse(body);
+                        const username = parsedUrl.searchParams.get('username') || parsedBody.username;
+                        if (!username) {
+                            res.writeHead(400, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: 'username parameter required' }));
+                            return;
+                        }
+                        import('../database/MongoManager.js').then(({ UpdateUser }) => {
+                            UpdateUser(mongoClient, username, parsedBody).then(() => {
+                                res.writeHead(200, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ success: true }));
+                            }).catch(err => {
+                                res.writeHead(500, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ error: 'Failed to update user' }));
+                            });
+                        });
+                    } catch (e) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                    }
+                });
+            } else if (req.method === 'DELETE') {
+                const username = parsedUrl.searchParams.get('username');
+                if (!username) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'username parameter required for deletion' }));
+                    return;
+                }
+                import('../database/MongoManager.js').then(({ DeleteUser }) => {
+                    DeleteUser(mongoClient, username).then(() => {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true }));
+                    }).catch(err => {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Failed to delete user' }));
+                    });
+                });
+            } else {
+                res.writeHead(405, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Method not allowed' }));
+            }
+        }).catch((err) => {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Unauthorized', details: err.message }));
+        });
+        return;
+    }
+
     // Normalize pathname to prevent directory traversal
     const safeSuffix = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     let filePath = path.join(frontendPath, safeSuffix);
