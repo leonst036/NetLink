@@ -2,7 +2,7 @@ import { WebSocket } from 'ws';
 import { Client as SSHClient } from 'ssh2';
 import dotenv from 'dotenv';
 import { startVnc } from './vncHandler.js';  // ToDo: Refactor this. Why is it even in the sshHandler?
-import { connectToSftp, listDirectory, disconnectSftp, downloadFile, uploadFile, deleteItem, createDirectory } from '../network/file/sftpHandler.js';
+import { connectToSftp, listDirectory, disconnectSftp, downloadFile, uploadFile, deleteItem, createDirectory } from '../network/sftpHandler.js';
 dotenv.config();
 
 export function handleSshConnection(ws: WebSocket): void {
