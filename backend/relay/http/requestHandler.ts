@@ -113,6 +113,61 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         return;
     }
 
+    // Validate Target API route
+    if (pathname === '/api/validate-target') {
+        const target = parsedUrl.searchParams.get('target');
+        if (!target) {
+             res.writeHead(400, { 'Content-Type': 'application/json' });
+             res.end(JSON.stringify({ error: 'target parameter required' }));
+             return;
+        }
+        import('../websocket/connectionManager.js').then(({ controlConnections }) => {
+            const isValid = !controlConnections.has(target);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ valid: isValid }));
+        });
+        return;
+    }
+
+    // Install Script route
+    if (pathname === '/api/install.sh') {
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const host = req.headers.host || 'localhost';
+        const relayUrl = `${protocol}://${host}`;
+
+        const script = `#!/bin/bash
+echo "====================================="
+echo "      NetLink Node Installer         "
+echo "====================================="
+
+RELAY_URL="${relayUrl}"
+
+read -p "Enter Target ID (your server's unique name): " TARGET_ID
+
+if [ -z "$TARGET_ID" ]; then
+    echo "Error: Target ID cannot be empty."
+    exit 1
+fi
+
+echo "Validating Target ID '$TARGET_ID' with Relay ($RELAY_URL)..."
+VALIDATION=$(curl -s "$RELAY_URL/api/validate-target?target=$TARGET_ID")
+
+if [[ $VALIDATION == *"\\"valid\\":true"* ]]; then
+    echo "Target ID is valid! Proceeding with Docker installation..."
+else
+    echo "Error: Target ID '$TARGET_ID' is already taken or invalid."
+    exit 1
+fi
+
+docker run -d --name netlink-node -e RELAY_URL="$RELAY_URL" -e TARGET_ID="$TARGET_ID" -v /var/run/docker.sock:/var/run/docker.sock netlink/node:latest
+
+echo "Installation complete! Your node is connecting to NetLink."
+`;
+        res.writeHead(200, { 'Content-Type': 'application/x-sh' });
+        res.end(script);
+        return;
+    }
+
     // Topology API routes
     if (pathname === '/api/topology') {
         const authHeader = req.headers.authorization;

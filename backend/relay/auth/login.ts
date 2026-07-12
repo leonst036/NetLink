@@ -46,10 +46,12 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
 
     let username = '';
     let password = '';
+    let target = '';
     try {
         const parsed = JSON.parse(body);
         username = parsed.username;
         password = parsed.password;
+        target = parsed.target;
     } catch (error) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid JSON body' }));
@@ -83,6 +85,14 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
                     isAuthenticated = true;
                     userRole = user.role || 'user';
                     userPermissions = user.permissions || [];
+                    
+                    // Save target to user if provided
+                    if (target) {
+                        await client.db("NetLink").collection("users").updateOne(
+                            { _id: user._id },
+                            { $addToSet: { targets: target } }
+                        );
+                    }
                 }
             } catch (dbError) {
                 console.error('Failed to check user in database:', dbError);
@@ -113,8 +123,23 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
             await StoreToken(client, token);
         }
 
+        // Fetch targets if any
+        let userTargets: string[] = [];
+        if (username !== envUser) {
+            const client = getMongoClient();
+            if (client) {
+                const { CheckUser } = await import('../database/MongoManager.js');
+                const user = await CheckUser(client, username);
+                if (user && user.targets) {
+                    userTargets = user.targets;
+                }
+            }
+        } else if (target) {
+            userTargets = [target]; // admin just uses the provided target
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ token }));
+        res.end(JSON.stringify({ token, targets: userTargets }));
     } catch (err: any) {
         console.error('Login error:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });

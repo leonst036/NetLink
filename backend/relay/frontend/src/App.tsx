@@ -25,7 +25,7 @@ function App() {
 
   const [target, setTarget] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('target') || 'my-local-server';
+    return urlParams.get('target') || ''; // Default to empty so we can pick from saved
   });
 
   // Handle Login
@@ -43,13 +43,20 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, target: target.trim() || undefined }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
+      }
+
+      // If user didn't specify a target but has saved ones, pick the first
+      let activeTarget = target.trim();
+      if (!activeTarget && data.targets && data.targets.length > 0) {
+          activeTarget = data.targets[0];
+          setTarget(activeTarget);
       }
 
       localStorage.setItem('netlink_token', data.token);
@@ -201,13 +208,9 @@ function App() {
 
           <div className="docker-instructions" style={{ marginTop: '30px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.85rem', color: '#ddd' }}>
             <h4 style={{ margin: '0 0 10px 0', color: '#fff' }}>Connect Local Server via Docker</h4>
-            <p style={{ margin: '0 0 10px 0', lineHeight: '1.4' }}>Run this command on your server to link it to NetLink:</p>
+            <p style={{ margin: '0 0 10px 0', lineHeight: '1.4' }}>Run this command on your server to download and execute the NetLink setup script:</p>
             <code style={{ background: 'rgba(0,0,0,0.4)', padding: '8px', borderRadius: '4px', display: 'block', wordBreak: 'break-all', fontFamily: 'monospace' }}>
-              docker run -d --name netlink-node \<br />
-                &nbsp;&nbsp;-e RELAY_URL=https://your-netlink-url.com \<br />
-                &nbsp;&nbsp;-e TARGET_ID={target || 'my-local-server'} \<br />
-                &nbsp;&nbsp;-v /var/run/docker.sock:/var/run/docker.sock \<br />
-                &nbsp;&nbsp;netlink/node:latest
+              curl -s {window.location.origin}/api/install.sh | bash
             </code>
           </div>
         </div>

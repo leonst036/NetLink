@@ -5,7 +5,7 @@ import NetworkGraph from './apps/NetworkGraph';
 import VncApp from './apps/VncApp';
 import FileApp from './apps/FileApp';
 import SettingsApp from './apps/SettingsApp';
-import { Terminal, Network, LogOut, Search, Monitor, Folder, Settings } from 'lucide-react';
+import { Terminal, Network, LogOut, Search, Monitor, Folder, Settings, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 
 interface DesktopProps {
   token: string;
@@ -21,6 +21,27 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  interface AppNotification {
+    id: string;
+    message: string;
+    type: 'info' | 'success' | 'error';
+  }
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+  useEffect(() => {
+    const handleNotify = (e: any) => {
+      const { message, type = 'info' } = e.detail;
+      const id = Date.now().toString() + Math.random().toString();
+      setNotifications(prev => [...prev, { id, message, type }]);
+      setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      }, 5000);
+    };
+
+    window.addEventListener('netlink_notify', handleNotify);
+    return () => window.removeEventListener('netlink_notify', handleNotify);
   }, []);
 
   const [settings, setSettings] = useState({
@@ -159,8 +180,59 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
       display: 'flex',
       flexDirection: 'column'
     }}>
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
+
       {/* Desktop overlay filter */}
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(2, 6, 23, 0.4)', pointerEvents: 'none', zIndex: 0 }} />
+
+      {/* Notifications */}
+      <div style={{
+        position: 'absolute',
+        top: '40px',
+        right: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        zIndex: 10000,
+        pointerEvents: 'none'
+      }}>
+        {notifications.map(notif => (
+          <div key={notif.id} style={{
+            background: 'rgba(15, 23, 42, 0.9)',
+            backdropFilter: 'blur(10px)',
+            borderLeft: `4px solid ${notif.type === 'success' ? '#10b981' : notif.type === 'error' ? '#ef4444' : '#38bdf8'}`,
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            borderRight: '1px solid rgba(255,255,255,0.1)',
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            color: 'white',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+            pointerEvents: 'auto',
+            animation: 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            minWidth: '250px'
+          }}>
+            {notif.type === 'success' && <CheckCircle size={20} color="#10b981" />}
+            {notif.type === 'error' && <AlertCircle size={20} color="#ef4444" />}
+            {notif.type === 'info' && <Info size={20} color="#38bdf8" />}
+            <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 500 }}>{notif.message}</span>
+            <button
+              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: '4px' }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
 
       {/* Top Menu Bar */}
       <div style={{

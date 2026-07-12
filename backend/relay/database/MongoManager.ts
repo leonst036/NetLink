@@ -78,6 +78,7 @@ export async function RegisterUser(client: mongoDB.MongoClient, userData: any) {
         password,
         role: 'user',
         permissions: [],
+        targets: [],
         createdAt: new Date(),
         updatedAt: new Date()
     });
@@ -91,6 +92,7 @@ export async function CreateUser(client: mongoDB.MongoClient, userData: any) {
         password,
         role: role || 'user',
         permissions: permissions || [],
+        targets: [],
         createdAt: new Date(),
         updatedAt: new Date()
     });
