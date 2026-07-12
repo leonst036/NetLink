@@ -89,7 +89,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         }
 
         authenticateToken(token || null, mongoClient).then((decoded) => {
-            const username = decoded.username || decoded.sub;
+            const username = decoded.userId || decoded.username || decoded.sub;
 
             if (req.method === 'GET') {
                 import('../database/MongoManager.js').then(({ GetTopology }) => {
@@ -145,7 +145,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         }
 
         authenticateToken(token || null, mongoClient).then((decoded) => {
-            const username = decoded.username || decoded.sub;
+            const username = decoded.userId || decoded.username || decoded.sub;
 
             if (req.method === 'GET') {
                 import('../database/MongoManager.js').then(({ GetServerLogins }) => {
