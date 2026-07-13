@@ -303,6 +303,14 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                   <SettingToggle label="Show desktop icons" defaultChecked={true} />
                   <SettingToggle label="Enable window animations" defaultChecked={true} />
                   <SettingToggle label="Play notification sounds" defaultChecked={false} />
+                  <SettingToggle 
+                      label="Enable debug mode (VNC FPS/Latency)" 
+                      defaultChecked={localStorage.getItem('netlink_debug') === 'true'}
+                      onChange={(val) => {
+                          localStorage.setItem('netlink_debug', val.toString());
+                          window.dispatchEvent(new Event('settingsChange'));
+                      }}
+                  />
                 </SettingSection>
               </div>
             </div>
@@ -647,12 +655,16 @@ const SettingRow = ({ label, children }: { label: string, children: React.ReactN
   </div>
 );
 
-const SettingToggle = ({ label, defaultChecked }: { label: string, defaultChecked: boolean }) => {
+const SettingToggle = ({ label, defaultChecked, onChange }: { label: string, defaultChecked: boolean, onChange?: (val: boolean) => void }) => {
   const [checked, setChecked] = useState(defaultChecked);
   return (
     <div
       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-      onClick={() => setChecked(!checked)}
+      onClick={() => {
+        const newChecked = !checked;
+        setChecked(newChecked);
+        if (onChange) onChange(newChecked);
+      }}
     >
       <span style={{ fontSize: '0.95rem', color: '#cbd5e1', userSelect: 'none' }}>{label}</span>
       <div style={{

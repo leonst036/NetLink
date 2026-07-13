@@ -15,16 +15,32 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     const [savedLogins, setSavedLogins] = useState<any[]>([]);
     const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
     const [isConnected, setIsConnected] = useState(false);
+    const [stats, setStats] = useState({ fps: 0, latency: 0 });
+    const [isDebug, setIsDebug] = useState(() => localStorage.getItem('netlink_debug') === 'true');
+
     const containerRef = useRef<HTMLDivElement>(null);
     const rfbRef = useRef<RFB | null>(null);
+    const statIntervalRef = useRef<any>(null);
+
+    useEffect(() => {
+        const handleSettingsChange = () => setIsDebug(localStorage.getItem('netlink_debug') === 'true');
+        window.addEventListener('settingsChange', handleSettingsChange);
+        return () => window.removeEventListener('settingsChange', handleSettingsChange);
+    }, []);
+
     const disconnectVnc = () => {
         if (rfbRef.current) {
             rfbRef.current.disconnect();
             rfbRef.current = null;
         }
+        if (statIntervalRef.current) {
+            clearInterval(statIntervalRef.current);
+            statIntervalRef.current = null;
+        }
         setStatus('disconnected');
         setIsConnected(false);
     };
+
     const connectVnc = () => {
         if (!token || !containerRef.current || !selectedIp) return;
         disconnectVnc();
@@ -48,7 +64,26 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
             }
         };
 
+        let frames = 0;
+        let lastTime = performance.now();
+        statIntervalRef.current = setInterval(() => {
+            const now = performance.now();
+            const currentFps = Math.round((frames * 1000) / (now - lastTime));
+            
+            const startPing = performance.now();
+            fetch('/health').then(() => {
+                const latency = Math.round(performance.now() - startPing);
+                setStats({ fps: currentFps, latency });
+            }).catch(() => {
+                setStats({ fps: currentFps, latency: 0 });
+            });
+            
+            frames = 0;
+            lastTime = now;
+        }, 1000);
+
         ws.addEventListener('message', (e) => {
+            frames++;
             let text = '';
             if (e.data instanceof ArrayBuffer) {
                 text = new TextDecoder().decode(e.data);
@@ -215,8 +250,28 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     </button>
                 )}
             </div>
-            <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#000' }}>
+            <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#000', position: 'relative' }}>
                 {status === 'disconnected' && <div style={{ color: '#64748b' }}>VNC Disconnected</div>}
+                
+                {isDebug && isConnected && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        background: 'rgba(0, 0, 0, 0.7)',
+                        color: '#38bdf8',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontFamily: 'monospace',
+                        fontSize: '0.85rem',
+                        pointerEvents: 'none',
+                        zIndex: 1000,
+                        border: '1px solid rgba(56, 189, 248, 0.3)'
+                    }}>
+                        <div>FPS: {stats.fps}</div>
+                        <div>Ping: {stats.latency}ms</div>
+                    </div>
+                )}
             </div>
         </div>
     );
