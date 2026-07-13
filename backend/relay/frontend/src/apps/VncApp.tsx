@@ -75,6 +75,9 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
             credentials: { password: vncPassword }
         });
 
+        rfb.qualityLevel = 4;
+        rfb.compressionLevel = 4;
+
         rfb.scaleViewport = true;
         rfb.resizeSession = true;
 

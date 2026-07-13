@@ -44,8 +44,14 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
 
     // Health check route
     if (pathname === '/health') {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('NetLink Relay Server is running.\n');
+        let MongoDbStatus = getMongoClient();
+        if (MongoDbStatus) {
+            res.writeHead(200, { 'Content-Type': 'text/plain' });
+            res.end('NetLink Relay Server is running with MongoDB.\n');
+        } else {
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('NetLink Relay Server is running but MongoDB is not available.\n');
+        }
         return;
     }
 
@@ -117,9 +123,9 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     if (pathname === '/api/validate-target') {
         const target = parsedUrl.searchParams.get('target');
         if (!target) {
-             res.writeHead(400, { 'Content-Type': 'application/json' });
-             res.end(JSON.stringify({ error: 'target parameter required' }));
-             return;
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'target parameter required' }));
+            return;
         }
         import('../websocket/connectionManager.js').then(({ controlConnections }) => {
             const isValid = !controlConnections.has(target);
@@ -264,7 +270,7 @@ echo "Installation complete! Your node is connecting to NetLink."
                     try {
                         const parsedBody = JSON.parse(body);
                         if (!parsedBody.id) parsedBody.id = Date.now().toString();
-                        
+
                         import('../database/MongoManager.js').then(({ SaveServerLogin }) => {
                             SaveServerLogin(mongoClient, username, parsedBody).then(() => {
                                 res.writeHead(200, { 'Content-Type': 'application/json' });

@@ -5,6 +5,7 @@ export function startVnc(ws: WebSocket, host: string, port: number): void {
     console.log(`Initiating VNC session to ${host}:${port}...`);
 
     const vncSocket = net.createConnection({ host, port }, () => {
+        vncSocket.setNoDelay(true);
         console.log(`Connected to VNC server on ${host}:${port}`);
         if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'vnc_started' }));
@@ -17,7 +18,7 @@ export function startVnc(ws: WebSocket, host: string, port: number): void {
     vncSocket.on('data', (data: Buffer) => {
         vncToWsBytes += data.length;
         if (vncToWsBytes < 100) console.log(`[VNC -> WS] Sending ${data.length} bytes (Total: ${vncToWsBytes})`);
-        
+
         if (ws.readyState == WebSocket.OPEN) {
             ws.send(data);
         }
