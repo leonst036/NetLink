@@ -60,9 +60,17 @@ export default function SettingsApp({ token }: SettingsAppProps) {
 
   useEffect(() => {
     if (activeTab === 'logins') {
-      fetchLogins();
+      try {
+        fetchLogins();
+      } catch (err) {
+        console.error('Failed to fetch logins', err);
+      }
     } else if (activeTab === 'users' && canManageUsers) {
-      fetchUsers();
+      try {
+        fetchUsers();
+      } catch (err) {
+        console.error('Failed to fetch users', err);
+      }
     }
   }, [activeTab]);
 
@@ -108,7 +116,11 @@ export default function SettingsApp({ token }: SettingsAppProps) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        fetchUsers();
+        try {
+          await fetchUsers();
+        } catch (err) {
+          console.error('Failed to fetch users', err);
+        }
       }
     } catch (err) {
       console.error('Failed to delete user', err);
@@ -125,7 +137,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     }
   };
 
-  const ALL_PERMISSIONS = [
+  const ALL_PERMISSIONS = [ // TODO: Move these permissions to the DB
     { id: 'manage_users', label: 'Manage Users' },
     { id: 'manage_logins', label: 'Manage Server Logins' },
     { id: 'access_terminal', label: 'Access Terminal' },
@@ -160,8 +172,12 @@ export default function SettingsApp({ token }: SettingsAppProps) {
         body: JSON.stringify(editingLogin)
       });
       if (res.ok) {
-        setEditingLogin(null);
-        fetchLogins();
+        try {
+          setEditingLogin(null);
+          await fetchLogins();
+        } catch (err) {
+          console.error('Failed to fetch logins', err);
+        }
       }
     } catch (err) {
       console.error('Failed to save login', err);
@@ -176,7 +192,11 @@ export default function SettingsApp({ token }: SettingsAppProps) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        fetchLogins();
+        try {
+          await fetchLogins();
+        } catch (err) {
+          console.error('Failed to fetch logins', err);
+        }
       }
     } catch (err) {
       console.error('Failed to delete login', err);

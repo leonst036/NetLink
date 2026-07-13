@@ -41,26 +41,42 @@ export function getMongoClient(): mongoDB.MongoClient | null {
 
 export async function StoreToken(client: mongoDB.MongoClient, token: string) {
     const db: mongoDB.Db = client.db("NetLink");
-    const collection: mongoDB.Collection = db.collection("tokens");
-    await collection.insertOne({ token, timestamp: new Date() });
+    try {
+        const collection: mongoDB.Collection = db.collection("tokens");
+        await collection.insertOne({ token, timestamp: new Date() });
+    } catch (error) {
+        console.error('Failed to store token', error);
+    }
 }
 
 export async function CheckToken(client: mongoDB.MongoClient, token: string) {
     const db: mongoDB.Db = client.db("NetLink");
-    const collection: mongoDB.Collection = db.collection("tokens");
-    const result = await collection.findOne({ token });
-    return result;
+    try {
+        const collection: mongoDB.Collection = db.collection("tokens");
+        const result = await collection.findOne({ token });
+        return result;
+    } catch (error) {
+        console.error('Failed to check token', error);
+    }
 }
 
 export async function CheckUser(client: mongoDB.MongoClient, username: string) {
     // Check by username or email
-    return client.db("NetLink").collection("users").findOne({ 
-        $or: [{ username: username }, { email: username }] 
-    });
+    try {
+        return client.db("NetLink").collection("users").findOne({
+            $or: [{ username: username }, { email: username }]
+        });
+    } catch (error) {
+        console.error('Failed to check user', error);
+    }
 }
 
 export async function GetUsers(client: mongoDB.MongoClient) {
-    return client.db("NetLink").collection("users").find({}, { projection: { password: 0 } }).toArray();
+    try {
+        return client.db("NetLink").collection("users").find({}, { projection: { password: 0 } }).toArray();
+    } catch (error) {
+        console.error('Failed to get users', error);
+    }
 }
 
 export async function RegisterUser(client: mongoDB.MongoClient, userData: any) {
