@@ -55,6 +55,21 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         return;
     }
 
+    // favicon route
+    if (pathname === '/favicon.svg') {
+        const faviconPath = path.join(frontendPath, 'favicon.svg');
+        if (fs.existsSync(faviconPath)) {
+            const stat = fs.statSync(faviconPath);
+            res.writeHead(200, {
+                'Content-Type': 'image/svg+xml',
+                'Content-Length': stat.size
+            });
+            const readStream = fs.createReadStream(faviconPath);
+            readStream.pipe(res);
+            return;
+        }
+    }
+
     // Login API route
     if (pathname === '/api/login' || pathname === '/login') {
         handleLogin(req, res);
