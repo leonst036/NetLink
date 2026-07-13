@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 // @ts-ignore
 import RFB from '@novnc/novnc';
+import { Maximize } from 'lucide-react';
 interface VncAppProps {
     token: string;
     target: string;
@@ -124,6 +125,17 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         }
     };
 
+    const toggleFullscreen = () => {
+        if (!containerRef.current) return;
+        if (!document.fullscreenElement) {
+            containerRef.current.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
     // Send updated monitor number to backend when it changes if we are connected
     useEffect(() => {
         if (isConnected && rfbRef.current) {
@@ -188,7 +200,12 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     />
                 </div>
                 {isConnected ? (
-                    <button style={btnDisconnectStyle} onClick={disconnectVnc}>Disconnect</button>
+                    <>
+                        <button style={btnDisconnectStyle} onClick={disconnectVnc}>Disconnect</button>
+                        <button style={btnIconStyle} onClick={toggleFullscreen} title="Fullscreen">
+                            <Maximize size={16} />
+                        </button>
+                    </>
                 ) : (
                     <button style={btnConnectStyle} onClick={connectVnc} disabled={status === 'connecting' || !selectedIp}>
                         {status === 'connecting' ? '...' : 'Connect VNC'}
@@ -204,3 +221,4 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
 const inputStyle: React.CSSProperties = { background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '6px 10px', borderRadius: '6px', color: 'white', fontSize: '0.85rem', width: '120px' };
 const btnConnectStyle: React.CSSProperties = { background: '#10b981', border: 'none', padding: '6px 12px', borderRadius: '6px', color: 'white', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' };
 const btnDisconnectStyle: React.CSSProperties = { ...btnConnectStyle, background: '#ef4444' };
+const btnIconStyle: React.CSSProperties = { background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '6px', borderRadius: '6px', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
