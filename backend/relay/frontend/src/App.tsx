@@ -170,21 +170,6 @@ function App() {
               />
             </div>
 
-            {!isRegistering && (
-              <div className="form-group" style={{ marginBottom: '15px' }}>
-                <input
-                  className="form-input"
-                  id="target"
-                  type="text"
-                  value={target}
-                  onChange={(e) => setTarget(e.target.value)}
-                  placeholder="Target identifier"
-                  disabled={loading}
-                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
-                />
-              </div>
-            )}
-
             <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '10px', borderRadius: '4px', background: '#177ddc', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
               {loading ? (isRegistering ? 'Registering...' : 'Authenticating...') : (isRegistering ? 'Register' : 'Sign In')}
             </button>
