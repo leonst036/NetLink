@@ -25,7 +25,15 @@ function App() {
 
   const [target, setTarget] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('target') || ''; // Default to empty so we can pick from saved
+    return urlParams.get('target') || localStorage.getItem('netlink_target') || ''; // Default to empty so we can pick from saved
+  });
+
+  const [allowedTargets, setAllowedTargets] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('netlink_allowed_targets') || '[]');
+    } catch {
+      return [];
+    }
   });
 
   // Handle Login
@@ -55,11 +63,14 @@ function App() {
       // If user didn't specify a target but has saved ones, pick the first
       let activeTarget = target.trim();
       if (!activeTarget && data.targets && data.targets.length > 0) {
-          activeTarget = data.targets[0];
-          setTarget(activeTarget);
+        activeTarget = data.targets[0];
+        setTarget(activeTarget);
       }
 
       localStorage.setItem('netlink_token', data.token);
+      localStorage.setItem('netlink_target', activeTarget);
+      localStorage.setItem('netlink_allowed_targets', JSON.stringify(data.targets || []));
+      setAllowedTargets(data.targets || []);
       setToken(data.token);
     } catch (err: any) {
       setLoginError(err.message || 'Something went wrong');
@@ -103,10 +114,13 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('netlink_token');
+    localStorage.removeItem('netlink_target');
+    localStorage.removeItem('netlink_allowed_targets');
     setToken(null);
     setUsername('');
     setEmail('');
     setPassword('');
+    setAllowedTargets([]);
   };
 
   // Render Login Page if not authenticated
@@ -169,31 +183,15 @@ function App() {
                 style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
               />
             </div>
-            
-            {!isRegistering && (
-              <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label className="form-label" htmlFor="target" style={{ display: 'block', marginBottom: '5px', color: '#eee' }}>Target Node</label>
-                <input
-                  className="form-input"
-                  id="target"
-                  type="text"
-                  value={target}
-                  onChange={(e) => setTarget(e.target.value)}
-                  placeholder="Target identifier"
-                  disabled={loading}
-                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
-                />
-              </div>
-            )}
 
             <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '10px', borderRadius: '4px', background: '#177ddc', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
               {loading ? (isRegistering ? 'Registering...' : 'Authenticating...') : (isRegistering ? 'Register' : 'Sign In')}
             </button>
-            
+
             <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '0.9rem' }}>
               <span style={{ color: '#aaa' }}>{isRegistering ? 'Already have an account? ' : 'Need an account? '}</span>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => {
                   setIsRegistering(!isRegistering);
                   setLoginError('');
@@ -221,7 +219,7 @@ function App() {
   }
 
   // Render Desktop Environment
-  return <Desktop token={token} onLogout={handleLogout} target={target} />;
+  return <Desktop token={token} onLogout={handleLogout} target={target} setTarget={setTarget} allowedTargets={allowedTargets} />;
 }
 
 export default App;
