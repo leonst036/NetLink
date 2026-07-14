@@ -46,6 +46,9 @@ RUN npm ci --omit=dev
 # Copy the compiled JavaScript files from the builder stage
 COPY --from=builder /app/dist ./
 
+# Copy the assets directory (shell scripts, etc.)
+COPY assets/ ./assets/
+
 # Copy the frontend built files
 COPY --from=builder /app/frontend/dist ./frontend/dist
 
