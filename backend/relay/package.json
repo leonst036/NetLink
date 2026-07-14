@@ -5,7 +5,7 @@
   "description": "",
   "main": "main.ts",
   "scripts": {
-    "start": "node main.ts"
+    "start": "npx tsx main.ts"
   },
   "keywords": [],
   "author": "",
