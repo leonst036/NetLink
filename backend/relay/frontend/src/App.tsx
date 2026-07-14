@@ -25,7 +25,15 @@ function App() {
 
   const [target, setTarget] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('target') || ''; // Default to empty so we can pick from saved
+    return urlParams.get('target') || localStorage.getItem('netlink_target') || ''; // Default to empty so we can pick from saved
+  });
+
+  const [allowedTargets, setAllowedTargets] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('netlink_allowed_targets') || '[]');
+    } catch {
+      return [];
+    }
   });
 
   // Handle Login
@@ -60,6 +68,9 @@ function App() {
       }
 
       localStorage.setItem('netlink_token', data.token);
+      localStorage.setItem('netlink_target', activeTarget);
+      localStorage.setItem('netlink_allowed_targets', JSON.stringify(data.targets || []));
+      setAllowedTargets(data.targets || []);
       setToken(data.token);
     } catch (err: any) {
       setLoginError(err.message || 'Something went wrong');
@@ -103,10 +114,13 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('netlink_token');
+    localStorage.removeItem('netlink_target');
+    localStorage.removeItem('netlink_allowed_targets');
     setToken(null);
     setUsername('');
     setEmail('');
     setPassword('');
+    setAllowedTargets([]);
   };
 
   // Render Login Page if not authenticated
@@ -205,7 +219,7 @@ function App() {
   }
 
   // Render Desktop Environment
-  return <Desktop token={token} onLogout={handleLogout} target={target} />;
+  return <Desktop token={token} onLogout={handleLogout} target={target} setTarget={setTarget} allowedTargets={allowedTargets} />;
 }
 
 export default App;

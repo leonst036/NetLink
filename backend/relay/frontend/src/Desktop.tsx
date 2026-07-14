@@ -11,9 +11,11 @@ interface DesktopProps {
     token: string;
     onLogout: () => void;
     target: string;
+    setTarget: (t: string) => void;
+    allowedTargets: string[];
 }
 
-export default function Desktop({ token, onLogout, target }: DesktopProps) {
+export default function Desktop({ token, onLogout, target, setTarget, allowedTargets }: DesktopProps) {
     const [servers, setServers] = useState<any[]>([]);
     const [isScanning, setIsScanning] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -251,7 +253,33 @@ export default function Desktop({ token, onLogout, target }: DesktopProps) {
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <span style={{ fontWeight: 'bold' }}>NetLink OS</span>
-                    <span>Target: {target}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>Target:</span>
+                        {allowedTargets && allowedTargets.length > 0 ? (
+                            <select 
+                                value={target} 
+                                onChange={(e) => {
+                                    setTarget(e.target.value);
+                                    localStorage.setItem('netlink_target', e.target.value);
+                                }}
+                                style={{
+                                    background: 'rgba(0,0,0,0.3)',
+                                    color: 'white',
+                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    borderRadius: '4px',
+                                    padding: '2px 6px',
+                                    outline: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {allowedTargets.map(t => (
+                                    <option key={t} value={t} style={{ background: '#0f172a' }}>{t}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <span>{target}</span>
+                        )}
+                    </div>
                     <span style={{ color: '#38bdf8' }}>{settings.username}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
