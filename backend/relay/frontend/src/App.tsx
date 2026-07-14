@@ -57,8 +57,13 @@ function App() {
         throw new Error(data.error || 'Login failed');
       }
 
-      // If user didn't specify a target but has saved ones, pick the first
+      // If user specified a target but it's not in their allowed targets, clear it
       let activeTarget = target.trim();
+      if (activeTarget && data.targets && !data.targets.includes(activeTarget)) {
+        activeTarget = '';
+      }
+      
+      // If no active target is set, pick the first allowed one
       if (!activeTarget && data.targets && data.targets.length > 0) {
         activeTarget = data.targets[0];
         setTarget(activeTarget);
