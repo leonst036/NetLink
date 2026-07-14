@@ -55,8 +55,8 @@ function App() {
       // If user didn't specify a target but has saved ones, pick the first
       let activeTarget = target.trim();
       if (!activeTarget && data.targets && data.targets.length > 0) {
-          activeTarget = data.targets[0];
-          setTarget(activeTarget);
+        activeTarget = data.targets[0];
+        setTarget(activeTarget);
       }
 
       localStorage.setItem('netlink_token', data.token);
@@ -169,10 +169,9 @@ function App() {
                 style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
               />
             </div>
-            
+
             {!isRegistering && (
               <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label className="form-label" htmlFor="target" style={{ display: 'block', marginBottom: '5px', color: '#eee' }}>Target Node</label>
                 <input
                   className="form-input"
                   id="target"
@@ -189,11 +188,11 @@ function App() {
             <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '10px', borderRadius: '4px', background: '#177ddc', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
               {loading ? (isRegistering ? 'Registering...' : 'Authenticating...') : (isRegistering ? 'Register' : 'Sign In')}
             </button>
-            
+
             <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '0.9rem' }}>
               <span style={{ color: '#aaa' }}>{isRegistering ? 'Already have an account? ' : 'Need an account? '}</span>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => {
                   setIsRegistering(!isRegistering);
                   setLoginError('');
