@@ -27,6 +27,6 @@ else
     exit 1
 fi
 
-docker run -d --add-host=host.docker.internal:host-gateway --name netlink-node -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -v /var/run/docker.sock:/var/run/docker.sock leon036/netlink-node:latest
+docker run -d --network host --add-host=host.docker.internal:host-gateway --name netlink-node -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -v /var/run/docker.sock:/var/run/docker.sock leon036/netlink-node:latest
 
 echo "Installation complete! Your node is connecting to NetLink."

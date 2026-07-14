@@ -29,7 +29,7 @@ echo "Success! Created temporary demo user."
 echo "Starting NetLink Node in Docker (Will automatically destruct after 24h)..."
 
 # Run docker container
-docker run -d --rm --add-host=host.docker.internal:host-gateway --name netlink-demo-$TARGET_ID -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -e DEMO_TIMEOUT=86400 leon036/netlink-node:latest
+docker run -d --rm --network host --add-host=host.docker.internal:host-gateway --name netlink-demo-$TARGET_ID -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -e DEMO_TIMEOUT=86400 leon036/netlink-node:latest
 
 echo ""
 echo "====================================="
