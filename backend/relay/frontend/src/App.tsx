@@ -162,6 +162,10 @@ function App() {
               {loading ? 'Authenticating...' : 'Connect to Node'}
             </button>
           </form>
+          
+          <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem', color: '#888', textAlign: 'center', lineHeight: '1.4' }}>
+            <strong>Privacy Disclaimer:</strong> This demo environment is completely stateless and self-destructing. We use zero cookies, no third-party tracking, and collect no personal data. All demo accounts and associated network data are automatically and permanently deleted after 24 hours.
+          </div>
         </div>
 
         {showExplanation && (
