@@ -43,12 +43,15 @@ function App() {
     setLoginError('');
 
     try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlTarget = urlParams.get('target');
+      
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password, target: target.trim() || undefined }),
+        body: JSON.stringify({ username, password, target: urlTarget ? urlTarget.trim() : undefined }),
       });
 
       const data = await response.json();
