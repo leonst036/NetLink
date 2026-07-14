@@ -19,6 +19,7 @@ function App() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   const [target, setTarget] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -96,12 +97,22 @@ function App() {
           <h1 className="logo-title">NetLink Demo</h1>
           <p className="subtitle">Zero-Config Self-Destructing Environment</p>
 
-          <div className="docker-instructions" style={{ margin: '20px 0', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.85rem', color: '#ddd' }}>
+          <div className="docker-instructions" style={{ margin: '20px 0', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.85rem', color: '#ddd', position: 'relative' }}>
             <h4 style={{ margin: '0 0 10px 0', color: '#fff' }}>1. Start your temporary node</h4>
             <p style={{ margin: '0 0 10px 0', lineHeight: '1.4' }}>Run this command on any Linux machine with Docker to generate your 24-hour demo credentials:</p>
-            <code style={{ background: 'rgba(0,0,0,0.4)', padding: '12px', borderRadius: '4px', display: 'block', wordBreak: 'break-all', fontFamily: 'monospace', color: '#38bdf8', borderLeft: '4px solid #38bdf8' }}>
-              curl -ks {window.location.origin}/api/demo.sh | bash
-            </code>
+            <div style={{ position: 'relative' }}>
+              <code style={{ background: 'rgba(0,0,0,0.4)', padding: '12px', paddingRight: '40px', borderRadius: '4px', display: 'block', wordBreak: 'break-all', fontFamily: 'monospace', color: '#38bdf8', borderLeft: '4px solid #38bdf8' }}>
+                curl -ks {window.location.origin}/api/demo.sh | bash
+              </code>
+              <button 
+                type="button"
+                onClick={() => setShowExplanation(true)}
+                title="What does this do?"
+                style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', color: '#888', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+              >
+                ?
+              </button>
+            </div>
           </div>
 
           <h4 style={{ margin: '0 0 15px 0', color: '#fff', textAlign: 'center' }}>2. Login to manage your machine</h4>
@@ -144,6 +155,25 @@ function App() {
             </button>
           </form>
         </div>
+
+        {showExplanation && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+            <div style={{ background: '#0f172a', padding: '25px', borderRadius: '8px', maxWidth: '400px', width: '100%', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <h3 style={{ margin: '0 0 15px 0', color: '#38bdf8' }}>How it works</h3>
+              <ul style={{ color: '#ddd', fontSize: '0.9rem', lineHeight: '1.5', paddingLeft: '20px', margin: '0 0 20px 0' }}>
+                <li style={{ marginBottom: '10px' }}><strong>Auto-Setup:</strong> The script fetches temporary credentials from this server.</li>
+                <li style={{ marginBottom: '10px' }}><strong>Isolation:</strong> It pulls the open-source NetLink Node Docker image and runs it safely isolated on your machine.</li>
+                <li style={{ marginBottom: '10px' }}><strong>Self-Destruct:</strong> After exactly 24 hours, the node will automatically delete itself and your temporary account is wiped.</li>
+              </ul>
+              <button 
+                onClick={() => setShowExplanation(false)}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
