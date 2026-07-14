@@ -20,12 +20,11 @@ COPY http/ ./http/
 # Compile TS code to the "dist" directory
 RUN npx tsc --outDir dist
 
-# Copy frontend dependency manifests and install dependencies
-COPY frontend/package*.json ./frontend/
+# Copy frontend source files and install dependencies
+COPY frontend/ ./frontend/
 RUN npm ci --prefix ./frontend
 
-# Copy frontend source files and build
-COPY frontend/ ./frontend/
+# Build frontend
 RUN npm run build --prefix ./frontend
 
 # Stage 2: Clean production runtime image
