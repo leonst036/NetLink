@@ -178,7 +178,8 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         const host = req.headers.host || 'localhost';
         const relayUrl = `${protocol}://${host}`;
 
-        const script = fs.readFileSync(path.join(process.cwd(), 'assets/scripts/install_local_server.sh'), 'utf-8').replaceAll('${relayUrl}', relayUrl);
+        const scriptPath = path.join(__dirname, '../assets/scripts/install_local_server.sh');
+        const script = fs.readFileSync(scriptPath, 'utf-8').replaceAll('${relayUrl}', relayUrl);
         res.writeHead(200, { 'Content-Type': 'application/x-sh' });
         res.end(script);
         return;
@@ -191,7 +192,8 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         const host = req.headers.host || 'localhost';
         const relayUrl = `${protocol}://${host}`;
 
-        const script = fs.readFileSync(path.join(process.cwd(), 'assets/scripts/demo_setup.sh'), 'utf-8').replaceAll('${relayUrl}', relayUrl);
+        const scriptPath = path.join(__dirname, '../assets/scripts/demo_setup.sh');
+        const script = fs.readFileSync(scriptPath, 'utf-8').replaceAll('${relayUrl}', relayUrl);
         res.writeHead(200, { 'Content-Type': 'application/x-sh' });
         res.end(script);
         return;

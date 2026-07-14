@@ -1,0 +1,9 @@
+{
+  "name": "netlink-root",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "npm install --prefix frontend && npm install --prefix backend/relay",
+    "build": "npm run build --prefix frontend",
+    "start": "npm start --prefix backend/relay"
+  }
+}

@@ -11,7 +11,7 @@ import { handleRequest } from './http/requestHandler.js';
 
 dotenv.config();
 
-const HTTP_PORT = Number(process.env.HTTP_PORT || 4535);
+const HTTP_PORT = Number(process.env.PORT || process.env.HTTP_PORT || 4535);
 const WS_PORT = Number(process.env.WS_PORT || 4536);
 let mongoClient: mongoDB.MongoClient | null = null;
 
