@@ -22,7 +22,7 @@ RUN npx tsc --outDir dist
 
 # Copy frontend source files and install dependencies
 COPY frontend/ ./frontend/
-RUN npm ci --prefix ./frontend
+RUN npm install --prefix ./frontend
 
 # Build frontend
 RUN npm run build --prefix ./frontend
