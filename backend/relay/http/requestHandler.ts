@@ -177,11 +177,16 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         const protocol = isHttps ? 'https' : 'http';
         const host = req.headers.host || 'localhost';
         const relayUrl = `${protocol}://${host}`;
-
-        const scriptPath = path.join(__dirname, '../assets/scripts/install_local_server.sh');
-        const script = fs.readFileSync(scriptPath, 'utf-8').replaceAll('${relayUrl}', relayUrl);
-        res.writeHead(200, { 'Content-Type': 'application/x-sh' });
-        res.end(script);
+        try {
+            const scriptPath = path.join(__dirname, '../assets/scripts/install_local_server.sh');
+            const script = fs.readFileSync(scriptPath, 'utf-8').replaceAll('${relayUrl}', relayUrl);
+            res.writeHead(200, { 'Content-Type': 'application/x-sh' });
+            res.end(script);
+        } catch (err: any) {
+            console.error('Error reading install script:', err.message, 'path:', path.join(__dirname, '../assets/scripts/install_local_server.sh'));
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('Script not found or error reading file');
+        }
         return;
     }
 
@@ -191,11 +196,16 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         const protocol = isHttps ? 'https' : 'http';
         const host = req.headers.host || 'localhost';
         const relayUrl = `${protocol}://${host}`;
-
-        const scriptPath = path.join(__dirname, '../assets/scripts/demo_setup.sh');
-        const script = fs.readFileSync(scriptPath, 'utf-8').replaceAll('${relayUrl}', relayUrl);
-        res.writeHead(200, { 'Content-Type': 'application/x-sh' });
-        res.end(script);
+        try {
+            const scriptPath = path.join(__dirname, '../assets/scripts/demo_setup.sh');
+            const script = fs.readFileSync(scriptPath, 'utf-8').replaceAll('${relayUrl}', relayUrl);
+            res.writeHead(200, { 'Content-Type': 'application/x-sh' });
+            res.end(script);
+        } catch (err: any) {
+            console.error('Error reading demo script:', err.message, 'path:', path.join(__dirname, '../assets/scripts/demo_setup.sh'));
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('Script not found or error reading file');
+        }
         return;
     }
 
