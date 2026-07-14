@@ -33,3 +33,15 @@ if (RELAY_TOKEN) {
 } else {
     console.log('RELAY_TOKEN not set in environment. Running in local-only mode.');
 }
+
+// 5. Handle Demo Timeout (auto self-destruct)
+if (process.env.DEMO_TIMEOUT) {
+    const timeoutSeconds = parseInt(process.env.DEMO_TIMEOUT, 10);
+    if (!isNaN(timeoutSeconds)) {
+        console.log(`[DEMO MODE] Node will automatically shut down in ${timeoutSeconds} seconds.`);
+        setTimeout(() => {
+            console.log(`[DEMO MODE] Time's up! Shutting down local server...`);
+            process.exit(0);
+        }, timeoutSeconds * 1000);
+    }
+}

@@ -21,15 +21,9 @@ mongoClient = await initializeDatabase();
 // Create HTTP(S) Server for serving the web app (frontend and health check)
 const httpServer = createServer(handleRequest);
 
-// Create separate HTTP(S) Server for WebSockets to run on a dedicated port
-const wsServer = createServer((req, res) => {
-    res.writeHead(400, { 'Content-Type': 'text/plain' });
-    res.end('Upgrade Required (WebSocket connections only)\n');
-});
-
-// Attach WebSocketServer to the dedicated wsServer
+// Attach WebSocketServer to the httpServer directly
 const wss = new WebSocketServer({ 
-    server: wsServer,
+    server: httpServer,
     handleProtocols: (protocols) => {
         // Echo back the first requested protocol, or false to reject
         return Array.from(protocols)[0] || false;
@@ -79,9 +73,5 @@ wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
 });
 
 httpServer.listen(HTTP_PORT, () => {
-    console.log(`HTTP Relay server started on port ${HTTP_PORT}`);
-});
-
-wsServer.listen(WS_PORT, () => {
-    console.log(`WebSocket Relay server started on port ${WS_PORT}`);
+    console.log(`Relay server (HTTP & WS) started on port ${HTTP_PORT}`);
 });

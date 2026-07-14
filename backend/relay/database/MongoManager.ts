@@ -24,6 +24,10 @@ export async function initializeDatabase(): Promise<mongoDB.MongoClient | null> 
         if (result instanceof mongoDB.MongoClient) {
             console.log('Successfully connected to MongoDB database.');
             activeClient = result;
+            
+            // Create TTL index for temporary users
+            await result.db("NetLink").collection("users").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+            
             return result;
         } else {
             console.warn('MongoDB connection returned an error, running in memory-only auth mode:', result);
@@ -102,16 +106,20 @@ export async function RegisterUser(client: mongoDB.MongoClient, userData: any) {
 
 
 export async function CreateUser(client: mongoDB.MongoClient, userData: any) {
-    const { username, password, role, permissions } = userData;
-    return client.db("NetLink").collection("users").insertOne({
+    const { username, password, role, permissions, expiresAt } = userData;
+    const userDoc: any = {
         username,
         password,
         role: role || 'user',
         permissions: permissions || [],
-        targets: [],
+        targets: userData.targets || [],
         createdAt: new Date(),
         updatedAt: new Date()
-    });
+    };
+    if (expiresAt) {
+        userDoc.expiresAt = new Date(expiresAt);
+    }
+    return client.db("NetLink").collection("users").insertOne(userDoc);
 }
 
 export async function UpdateUser(client: mongoDB.MongoClient, username: string, userData: any) {
