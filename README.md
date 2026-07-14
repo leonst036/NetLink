@@ -1,83 +1,88 @@
 # NetLink
 
-NetLink is a web-based remote management desktop environment that allows you to securely access and manage your infrastructure from a web browser. It features a windowed interface, real-time communication via WebSockets, and a relay server architecture to bypass NATs and firewalls, enabling remote access from anywhere.
+NetLink is a web-based remote management desktop environment. It allows you to securely access and manage your infrastructure from a web browser. The system uses a relay server architecture to bypass NATs and firewalls, and provides a windowed interface for SSH, VNC, SFTP, and network topology visualization.
 
-## Architecture
+## 🚀 Setup & Servers
 
-The project consists of three main components:
+To run NetLink, three core components need to be started. The focus is on the central Relay Server, which acts as the middleman, and the Local Server, which acts as a bridge in the target network.
 
-1.  **Frontend (`/frontend`)**: A rich, desktop-like web application built with React, Vite, and TypeScript. It features a window manager (`react-rnd`) and provides applications for SSH terminal emulation (`xterm.js`), VNC remote desktop (`@novnc/novnc`), SFTP file management, Network Topology visualization (`@xyflow/react`), and administrative Settings.
-2.  **Local Server (`/backend/local_server`)**: A TypeScript-based Node.js service running on the target machine. It exposes a local server and a WebSocket server. It handles SSH, SFTP, and VNC connections to local and remote devices, piping data to connected WebSocket clients. It can optionally maintain a persistent connection to the Relay Server.
-3.  **Relay Server (`/backend/relay`)**: A central server written in TypeScript. It acts as a secure middleman, routing WebSocket and API traffic between the frontend clients and the local servers. It uses MongoDB for storing user accounts, role-based access control (RBAC), and saved server login credentials, secured by JWT authentication.
+### 1. Relay Server (Central Middleman)
+The Relay Server acts as a secure intermediary. It routes traffic (WebSockets/API) between the web frontend and the local servers. It also manages user accounts and Role-Based Access Control (RBAC) via MongoDB.
 
-## Features
-
--   **Desktop Environment**: A windowed UI allowing multiple simultaneous connections and applications.
--   **Terminal (SSH)**: Full terminal emulation using `xterm.js` for remote SSH access.
--   **Remote Desktop (VNC)**: In-browser VNC client with dynamic resolution adaptation via `noVNC`.
--   **File Manager (SFTP)**: Full SFTP file management interface with upload/download progress, and directory manipulation.
--   **Network Topology**: Interactive visualization of the network graph and connected devices.
--   **Relay Support**: Access local machines behind firewalls or NATs via the central relay server.
--   **Security & Permissions**: JWT-based authentication with a MongoDB-backed User Permission System (RBAC).
--   **Centralized Credentials**: Securely store and manage server logins (SSH, VNC, SFTP) in MongoDB.
-
-## Technology Stack
-
--   **Frontend**: React, TypeScript, Vite, CSS
--   **Frontend Libraries**: `xterm.js`, `@novnc/novnc`, `@xyflow/react`, `react-rnd`, `lucide-react`
--   **Backend**: Node.js, TypeScript
--   **Networking**: WebSockets (`ws`), `net`
--   **Protocols**: `ssh2`, `ssh2-sftp-client`
--   **Database & Auth**: MongoDB, JSON Web Tokens (`jsonwebtoken`)
-
-## Getting Started
-
-### Prerequisites
-
--   Node.js (v18+ recommended)
--   npm or yarn
--   MongoDB instance (for the relay server features like users and saved logins)
-
-### 1. Setting up the Relay Server
-
-If you plan to access your machine remotely over the internet or use user management, you need to run the relay server.
-
+**Setup (Manual):**
 ```bash
 cd backend/relay
 npm install
 npm run start
 ```
-*Note: Configure `.env` with `PORT`, `MONGO_URI`, and your `JWT_SECRET`.*
+*Note: Create a `.env` file in the `backend/relay` folder and configure `PORT`, `MONGO_URI`, and `JWT_SECRET`.*
 
-### 2. Setting up the Local Server
+**Setup (Docker):**
+```bash
+cd backend/relay
+docker build -t netlink-relay .
+docker run -d -p 4535:4535 -p 4536:4536 --env-file .env netlink-relay
+```
 
-Run this on the machine acting as your bridge or target server.
+### 2. Local Server (Target Bridge)
+This server runs on the machine or within the network you want to manage remotely (acting as a bridge or direct target). It establishes an outgoing connection to the Relay Server and accepts commands (SSH, SFTP, VNC) from the frontend.
 
+**Setup (Manual):**
 ```bash
 cd backend/local_server
 npm install
 npm run start
 ```
-*Note: Configure `.env` with `RELAY_TOKEN` if connecting to the relay server.*
+*Note: Configure a `.env` file with `RELAY_TOKEN` to connect to the Relay Server.*
 
-### 3. Running the Frontend
+**Setup (Docker):**
+```bash
+cd backend/local_server
+docker build -t netlink-local .
+docker run -d --env-file .env netlink-local
+```
 
-The frontend is a React application built with Vite.
+### 3. Frontend (Web Interface)
+The frontend is the React/Vite-based user interface that you open in your browser.
 
+**Setup:**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open your browser to the URL provided by Vite (usually `http://localhost:5173`).
+Afterwards, open your browser to the URL provided by Vite (usually `http://localhost:5173`).
 
-### 4. Build Utilities
+---
+
+## 🏗️ Architecture
+
+*   **Frontend (`/frontend`)**: A feature-rich, desktop-like web application (React, TypeScript). Includes apps for SSH (`xterm.js`), VNC (`@novnc/novnc`), SFTP, Network Topology (`@xyflow/react`), and settings.
+*   **Local Server (`/backend/local_server`)**: A Node.js/TypeScript service on the target device. Provides SSH, SFTP, and VNC connections to local and remote devices, forwarding the data to connected WebSocket clients.
+*   **Relay Server (`/backend/relay`)**: A central Node.js/TypeScript server. Securely connects clients to Local Servers and uses MongoDB for authentication and secure storage of credentials.
+
+## ✨ Features
+
+-   **Desktop Environment**: Window-based UI for multiple simultaneous connections and apps.
+-   **Terminal (SSH)**: Full terminal emulation (`xterm.js`) for remote SSH access.
+-   **Remote Desktop (VNC)**: In-browser VNC client with dynamic resolution adaptation (`noVNC`).
+-   **File Manager (SFTP)**: SFTP interface for file uploads, downloads, and directory management.
+-   **Network Topology**: Interactive visualization of the network graph and connected devices.
+-   **Relay Support**: Access to local machines behind firewalls or NATs.
+-   **Security & Permissions**: JWT-based authentication with Role-Based Access Control (RBAC) via MongoDB.
+-   **Centralized Credentials**: Secure storage and management of server logins (SSH, VNC, SFTP).
+
+## 🛠️ Technology Stack
+
+-   **Frontend**: React, TypeScript, Vite, CSS (`react-rnd`, `lucide-react`, `xterm.js`, `noVNC`, `xyflow`)
+-   **Backend**: Node.js, TypeScript
+-   **Networking**: WebSockets (`ws`), `net`
+-   **Protocols**: `ssh2`, `ssh2-sftp-client`
+-   **Database & Auth**: MongoDB, JSON Web Tokens (`jsonwebtoken`)
+
+### Build Utilities
 
 To clean up generated TypeScript build artifacts (JavaScript and source maps) in the backend, you can use the provided script:
 ```bash
 ./clean_generated.sh
 ```
-
-## License
-
-ISC License
