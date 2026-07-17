@@ -70,10 +70,8 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
 
     const isSecure = window.location.protocol === 'https:';
     const protocol = isSecure ? 'wss:' : 'ws:';
-    const wsPort = '4536';
-    const host = window.location.hostname
-      ? `${window.location.hostname}:${wsPort}`
-      : `localhost:${wsPort}`;
+    let host = window.location.host;
+    if (host.includes('localhost:5173')) host = 'localhost:4535'; // Dev mode fallback
 
     const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
     const socket = new WebSocket(socketUrl);

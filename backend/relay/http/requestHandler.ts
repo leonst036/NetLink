@@ -1,6 +1,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath, URL } from 'url';
 import { handleLogin } from '../auth/login.js';
 import { serverDevices } from '../websocket/connectionManager.js';
@@ -144,8 +145,28 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         }
         import('../websocket/connectionManager.js').then(({ controlConnections }) => {
             const isValid = !controlConnections.has(target);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ valid: isValid }));
+            if (!isValid) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ valid: false }));
+                return;
+            }
+            
+            const mongoClient = getMongoClient();
+            import('../auth/tokenManager.js').then(({ GenerateToken }) => {
+                GenerateToken({ deviceId: target }, process.env.JWT_SECRET || 'default_secret').then(token => {
+                    if (mongoClient) {
+                        import('../database/MongoManager.js').then(({ StoreToken }) => {
+                            StoreToken(mongoClient, token).then(() => {
+                                res.writeHead(200, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ valid: true, token }));
+                            });
+                        });
+                    } else {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ valid: true, token }));
+                    }
+                });
+            });
         });
         return;
     }
@@ -157,9 +178,63 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         const host = req.headers.host || 'localhost';
         const relayUrl = `${protocol}://${host}`;
 
-        const script = fs.readFileSync(path.join(__dirname, '../../assets/scripts/install_local_server.sh'), 'utf-8').replaceAll('${relayUrl}', relayUrl);
+        const script = fs.readFileSync(path.join(process.cwd(), 'assets/scripts/install_local_server.sh'), 'utf-8').replaceAll('${relayUrl}', relayUrl);
         res.writeHead(200, { 'Content-Type': 'application/x-sh' });
         res.end(script);
+        return;
+    }
+
+    // Demo Setup Script route
+    if (pathname === '/api/demo.sh') {
+        const isHttps = (req.socket as any).encrypted || req.headers['x-forwarded-proto'] === 'https';
+        const protocol = isHttps ? 'https' : 'http';
+        const host = req.headers.host || 'localhost';
+        const relayUrl = `${protocol}://${host}`;
+
+        const script = fs.readFileSync(path.join(process.cwd(), 'assets/scripts/demo_setup.sh'), 'utf-8').replaceAll('${relayUrl}', relayUrl);
+        res.writeHead(200, { 'Content-Type': 'application/x-sh' });
+        res.end(script);
+        return;
+    }
+
+    // Demo Setup API route
+    if (pathname === '/api/demo-setup' && req.method === 'POST') {
+        const mongoClient = getMongoClient();
+        if (!mongoClient) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Database not available' }));
+            return;
+        }
+
+        const username = `demo_${crypto.randomBytes(4).toString('hex')}`;
+        const password = crypto.randomBytes(6).toString('hex');
+        const targetId = `target_${crypto.randomBytes(4).toString('hex')}`;
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+        import('../database/MongoManager.js').then(({ CreateUser, StoreToken }) => {
+            const userData = {
+                username,
+                password,
+                role: 'user', // limited permissions might be better, but 'user' is fine for now
+                permissions: ['access_terminal', 'access_vnc', 'access_sftp', 'scan_network'],
+                targets: [targetId],
+                expiresAt
+            };
+            
+            CreateUser(mongoClient, userData).then(() => {
+                import('../auth/tokenManager.js').then(({ GenerateToken }) => {
+                    GenerateToken({ deviceId: targetId }, process.env.JWT_SECRET || 'default_secret').then(token => {
+                        StoreToken(mongoClient, token).then(() => {
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ username, password, targetId, jwtToken: token }));
+                        });
+                    });
+                });
+            }).catch(err => {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Failed to create demo user' }));
+            });
+        });
         return;
     }
 

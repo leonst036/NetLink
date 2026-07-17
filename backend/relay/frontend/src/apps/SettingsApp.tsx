@@ -32,7 +32,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
       const decoded = JSON.parse(jsonPayload);
       if (decoded.role === 'admin') return ['manage_users', 'manage_logins', 'access_terminal', 'access_vnc', 'access_sftp', 'scan_network'];
       return decoded.permissions || [];
-    } catch (e) {
+    } catch {
       return [];
     }
   };
@@ -72,6 +72,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
         console.error('Failed to fetch users', err);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const fetchUsers = async () => {
