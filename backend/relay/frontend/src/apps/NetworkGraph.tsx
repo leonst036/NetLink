@@ -247,7 +247,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
   );
 
   return (
-    <div style={{ display: 'flex', height: '100%', background: '#050811' }}>
+    <div style={{ display: 'flex', height: '100%', width: '100%', minHeight: 0, background: '#050811' }}>
 
       {/* Sidebar: Device List */}
       <div style={{ width: '300px', background: '#0f172a', borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column' }}>
@@ -267,7 +267,10 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
+        <div 
+          style={{ flex: 1, overflowY: 'auto', padding: '10px', minHeight: 0 }}
+          onWheelCapture={(e) => e.stopPropagation()}
+        >
           {filteredServers.map(server => {
             const inGraph = nodes.some(n => n.id === server.ip);
             return (

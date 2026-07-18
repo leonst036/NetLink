@@ -319,7 +319,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                                     <Search size={14} /> {isScanning ? 'Scanning...' : 'Scan Network'}
                                 </button>
                             </div>
-                            <div style={{ flex: 1, position: 'relative' }}>
+                            <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
                                 <NetworkGraph
                                     servers={servers}
                                     onNodeClick={(ip) => openTerminal(ip)}
