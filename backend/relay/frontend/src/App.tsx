@@ -1,9 +1,19 @@
 import { useState } from 'react';
+import { 
+  Box, 
+  Card, 
+  CardContent, 
+  Typography, 
+  TextField, 
+  Button, 
+  Alert, 
+  Link,
+  CssBaseline 
+} from '@mui/material';
 import Desktop from './Desktop';
-import './App.css'; // ensure global styles remain intact if needed
+import './App.css';
 
 function App() {
-  // Authentication State
   const [token, setToken] = useState<string | null>(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
@@ -25,7 +35,7 @@ function App() {
 
   const [target, setTarget] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('target') || localStorage.getItem('netlink_target') || ''; // Default to empty so we can pick from saved
+    return urlParams.get('target') || localStorage.getItem('netlink_target') || '';
   });
 
   const [allowedTargets, setAllowedTargets] = useState<string[]>(() => {
@@ -36,7 +46,6 @@ function App() {
     }
   });
 
-  // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
@@ -48,19 +57,13 @@ function App() {
     try {
       const response = await fetch('/api/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, target: target.trim() || undefined }),
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Login failed');
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
-      // If user didn't specify a target but has saved ones, pick the first
       let activeTarget = target.trim();
       if (!activeTarget && data.targets && data.targets.length > 0) {
         activeTarget = data.targets[0];
@@ -79,7 +82,6 @@ function App() {
     }
   };
 
-  // Handle Register
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !email || !password) return;
@@ -91,17 +93,12 @@ function App() {
     try {
       const response = await fetch('/api/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password }),
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
+      if (!response.ok) throw new Error(data.error || 'Registration failed');
 
       setRegisterSuccess('Registration successful! You can now log in.');
       setIsRegistering(false);
@@ -123,102 +120,127 @@ function App() {
     setAllowedTargets([]);
   };
 
-  // Render Login Page if not authenticated
   if (!token) {
     return (
-      <div style={{ display: 'flex', width: '100vw', minHeight: '100vh', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+      <Box sx={{ 
+        display: 'flex', width: '100vw', minHeight: '100vh', 
+        justifyContent: 'center', alignItems: 'center', position: 'relative' 
+      }}>
+        <CssBaseline />
         <div className="bg-glow"></div>
         <div className="bg-glow-2"></div>
-        <div className="glass-card">
-          <h1 className="logo-title">NetLink</h1>
-          <p className="subtitle">Secure OS Environment</p>
+        
+        <Card elevation={12} sx={{ 
+          maxWidth: 440, width: '100%', borderRadius: 4, p: 2,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255, 255, 255, 0.08)'
+        }}>
+          <CardContent>
+            <Typography variant="h4" component="h1" align="center" gutterBottom sx={{
+              fontWeight: 700, 
+              background: 'linear-gradient(to right, #60a5fa, #818cf8, #c084fc)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              NetLink
+            </Typography>
+            <Typography variant="subtitle1" align="center" color="text.secondary" sx={{ mb: 4 }}>
+              Secure OS Environment
+            </Typography>
 
-          {loginError && <div className="alert-error" style={{ color: '#ff4d4f', background: 'rgba(255,77,79,0.1)', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>{loginError}</div>}
-          {registerSuccess && <div className="alert-success" style={{ color: '#52c41a', background: 'rgba(82,196,26,0.1)', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>{registerSuccess}</div>}
+            {loginError && <Alert severity="error" sx={{ mb: 3 }}>{loginError}</Alert>}
+            {registerSuccess && <Alert severity="success" sx={{ mb: 3 }}>{registerSuccess}</Alert>}
 
-          <form onSubmit={isRegistering ? handleRegister : handleLogin}>
-            <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label className="form-label" htmlFor="username" style={{ display: 'block', marginBottom: '5px', color: '#eee' }}>Username</label>
-              <input
-                className="form-input"
-                id="username"
-                type="text"
+            <Box component="form" onSubmit={isRegistering ? handleRegister : handleLogin}>
+              <TextField
+                label="Username"
+                variant="outlined"
+                fullWidth
+                required
+                margin="normal"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
-                required
                 disabled={loading}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
               />
-            </div>
 
-            {isRegistering && (
-              <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label className="form-label" htmlFor="email" style={{ display: 'block', marginBottom: '5px', color: '#eee' }}>Email</label>
-                <input
-                  className="form-input"
-                  id="email"
+              {isRegistering && (
+                <TextField
+                  label="Email"
                   type="email"
+                  variant="outlined"
+                  fullWidth
+                  required
+                  margin="normal"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter email address"
-                  required={isRegistering}
                   disabled={loading}
-                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
                 />
-              </div>
-            )}
+              )}
 
-            <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label className="form-label" htmlFor="password" style={{ display: 'block', marginBottom: '5px', color: '#eee' }}>Password</label>
-              <input
-                className="form-input"
-                id="password"
+              <TextField
+                label="Password"
                 type="password"
+                variant="outlined"
+                fullWidth
+                required
+                margin="normal"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                required
                 disabled={loading}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
               />
-            </div>
 
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '10px', borderRadius: '4px', background: '#177ddc', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-              {loading ? (isRegistering ? 'Registering...' : 'Authenticating...') : (isRegistering ? 'Register' : 'Sign In')}
-            </button>
-
-            <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '0.9rem' }}>
-              <span style={{ color: '#aaa' }}>{isRegistering ? 'Already have an account? ' : 'Need an account? '}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsRegistering(!isRegistering);
-                  setLoginError('');
-                  setRegisterSuccess('');
-                }}
-                style={{ background: 'none', border: 'none', color: '#177ddc', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                fullWidth
+                disabled={loading}
+                sx={{ mt: 3, mb: 2, py: 1.5, borderRadius: 2 }}
               >
-                {isRegistering ? 'Log in' : 'Register'}
-              </button>
-            </div>
-          </form>
+                {loading ? (isRegistering ? 'Registering...' : 'Authenticating...') : (isRegistering ? 'Register' : 'Sign In')}
+              </Button>
 
-          {isRegistering && (
-            <div className="docker-instructions" style={{ marginTop: '30px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.85rem', color: '#ddd' }}>
-              <h4 style={{ margin: '0 0 10px 0', color: '#fff' }}>Connect Local Server via Docker</h4>
-              <p style={{ margin: '0 0 10px 0', lineHeight: '1.4' }}>Run this command on your server to download and execute the NetLink setup script:</p>
-              <code style={{ background: 'rgba(0,0,0,0.4)', padding: '8px', borderRadius: '4px', display: 'block', wordBreak: 'break-all', fontFamily: 'monospace' }}>
-                curl -ks {window.location.origin}/api/install.sh | bash
-              </code>
-            </div>
-          )}
-        </div>
-      </div>
+              <Typography align="center" variant="body2" color="text.secondary">
+                {isRegistering ? 'Already have an account? ' : 'Need an account? '}
+                <Link
+                  component="button"
+                  type="button"
+                  variant="body2"
+                  onClick={() => {
+                    setIsRegistering(!isRegistering);
+                    setLoginError('');
+                    setRegisterSuccess('');
+                  }}
+                  sx={{ cursor: 'pointer' }}
+                >
+                  {isRegistering ? 'Log in' : 'Register'}
+                </Link>
+              </Typography>
+            </Box>
+
+            {isRegistering && (
+              <Box sx={{ mt: 4, p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Connect Local Server via Docker
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Run this command on your server to download and execute the NetLink setup script:
+                </Typography>
+                <Box component="code" sx={{ 
+                  bgcolor: 'rgba(0,0,0,0.4)', p: 1, borderRadius: 1, 
+                  display: 'block', wordBreak: 'break-all', fontFamily: 'monospace', fontSize: '0.85rem' 
+                }}>
+                  curl -ks {window.location.origin}/api/install.sh | bash
+                </Box>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
     );
   }
 
-  // Render Desktop Environment
   return <Desktop token={token} onLogout={handleLogout} target={target} setTarget={setTarget} allowedTargets={allowedTargets} />;
 }
 

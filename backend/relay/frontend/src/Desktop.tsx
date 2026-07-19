@@ -5,7 +5,19 @@ import NetworkGraph from './apps/NetworkGraph';
 import VncApp from './apps/VncApp';
 import FileApp from './apps/FileApp';
 import SettingsApp from './apps/SettingsApp';
-import { Terminal, Network, LogOut, Search, Monitor, Folder, Settings, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { Terminal, Network, LogOut, Search, Monitor, Folder, Settings } from 'lucide-react';
+import { 
+    Box, 
+    AppBar, 
+    Toolbar, 
+    Typography, 
+    Select, 
+    MenuItem, 
+    Button, 
+    Paper,
+    Tooltip,
+    Alert
+} from '@mui/material';
 
 interface DesktopProps {
     token: string;
@@ -76,7 +88,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
 
     // Window states
     const [activeWindow, setActiveWindow] = useState<string | null>('graph');
-
     const [graphWindow, setGraphWindow] = useState({ isOpen: true, isMinimized: false, zIndex: 1 });
     const [settingsWindow, setSettingsWindow] = useState({ isOpen: false, isMinimized: false, zIndex: 1 });
 
@@ -86,7 +97,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         isMinimized: boolean;
     }
     const [terminals, setTerminals] = useState<TerminalInstance[]>([]);
-
     const [vncWindows, setVncWindows] = useState<{ id: string; ip: string; isMinimized: boolean }[]>([]);
     const [sftpWindows, setSftpWindows] = useState<{ id: string; ip: string; isMinimized: boolean }[]>([]);
 
@@ -123,7 +133,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         const isSecure = window.location.protocol === 'https:';
         const protocol = isSecure ? 'wss:' : 'ws:';
         let host = window.location.host;
-        if (host.includes('localhost:5173')) host = 'localhost:4535'; // Dev mode fallback
+        if (host.includes('localhost:5173')) host = 'localhost:4535'; 
 
         const socketUrl = `${protocol}//${host}/desktop?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
         const ws = new WebSocket(socketUrl);
@@ -150,7 +160,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
 
     const bringToFront = (windowName: string) => {
         setActiveWindow(windowName);
-        // Un-minimize if it was minimized
         if (windowName === 'graph') {
             setGraphWindow(w => w.isMinimized ? { ...w, isMinimized: false } : w);
         } else if (windowName === 'settings') {
@@ -171,7 +180,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     };
 
     return (
-        <div style={{
+        <Box sx={{
             width: '100vw',
             height: '100vh',
             background: getBackgroundStyle(),
@@ -180,116 +189,75 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
             display: 'flex',
             flexDirection: 'column'
         }}>
-            <style>{`
-        @keyframes slideInRight {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-      `}</style>
-
             {/* Desktop overlay filter */}
-            <div style={{ position: 'absolute', inset: 0, background: 'rgba(2, 6, 23, 0.4)', pointerEvents: 'none', zIndex: 0 }} />
+            <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(2, 6, 23, 0.4)', pointerEvents: 'none', zIndex: 0 }} />
 
             {/* Notifications */}
-            <div style={{
+            <Box sx={{
                 position: 'absolute',
-                top: '40px',
-                right: '20px',
+                top: 40,
+                right: 20,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '10px',
+                gap: 1,
                 zIndex: 10000,
                 pointerEvents: 'none'
             }}>
                 {notifications.map(notif => (
-                    <div key={notif.id} style={{
-                        background: 'rgba(15, 23, 42, 0.9)',
-                        backdropFilter: 'blur(10px)',
-                        borderLeft: `4px solid ${notif.type === 'success' ? '#10b981' : notif.type === 'error' ? '#ef4444' : '#38bdf8'}`,
-                        borderTop: '1px solid rgba(255,255,255,0.1)',
-                        borderRight: '1px solid rgba(255,255,255,0.1)',
-                        borderBottom: '1px solid rgba(255,255,255,0.1)',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        color: 'white',
-                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                        pointerEvents: 'auto',
-                        animation: 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                        minWidth: '250px'
-                    }}>
-                        {notif.type === 'success' && <CheckCircle size={20} color="#10b981" />}
-                        {notif.type === 'error' && <AlertCircle size={20} color="#ef4444" />}
-                        {notif.type === 'info' && <Info size={20} color="#38bdf8" />}
-                        <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 500 }}>{notif.message}</span>
-                        <button
-                            onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
-                            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: '4px' }}
-                        >
-                            <X size={14} />
-                        </button>
-                    </div>
+                    <Alert 
+                        key={notif.id} 
+                        severity={notif.type} 
+                        onClose={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+                        sx={{ pointerEvents: 'auto', minWidth: 250, boxShadow: 4 }}
+                    >
+                        {notif.message}
+                    </Alert>
                 ))}
-            </div>
+            </Box>
 
             {/* Top Menu Bar */}
-            <div style={{
-                height: '28px',
-                background: 'rgba(2, 6, 23, 0.6)',
+            <AppBar position="static" color="transparent" elevation={0} sx={{ 
+                bgcolor: 'rgba(2, 6, 23, 0.6)', 
                 backdropFilter: 'blur(10px)',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 16px',
-                justifyContent: 'space-between',
-                color: 'white',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                zIndex: 9999,
-                borderBottom: '1px solid rgba(255,255,255,0.05)'
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                zIndex: 9999
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <span style={{ fontWeight: 'bold' }}>NetLink OS</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>Target:</span>
-                        {allowedTargets && allowedTargets.length > 0 ? (
-                            <select 
-                                value={target} 
-                                onChange={(e) => {
-                                    setTarget(e.target.value);
-                                    localStorage.setItem('netlink_target', e.target.value);
-                                }}
-                                style={{
-                                    background: 'rgba(0,0,0,0.3)',
-                                    color: 'white',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    borderRadius: '4px',
-                                    padding: '2px 6px',
-                                    outline: 'none',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                {allowedTargets.map(t => (
-                                    <option key={t} value={t} style={{ background: '#0f172a' }}>{t}</option>
-                                ))}
-                            </select>
-                        ) : (
-                            <span>{target}</span>
-                        )}
-                    </div>
-                    <span style={{ color: '#38bdf8' }}>{settings.username}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <span>{currentTime.toLocaleTimeString()}</span>
-                    <button onClick={onLogout} style={{ background: 'transparent', border: 'none', color: '#fca5a5', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <LogOut size={14} /> Logout
-                    </button>
-                </div>
-            </div>
+                <Toolbar variant="dense" sx={{ justifyContent: 'space-between', minHeight: '32px !important' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary' }}>NetLink OS</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="caption" color="text.secondary">Target:</Typography>
+                            {allowedTargets && allowedTargets.length > 0 ? (
+                                <Select
+                                    size="small"
+                                    value={target}
+                                    onChange={(e) => {
+                                        setTarget(e.target.value);
+                                        localStorage.setItem('netlink_target', e.target.value);
+                                    }}
+                                    sx={{ height: 24, fontSize: '0.8rem', color: 'text.primary', '& .MuiSelect-select': { py: 0 } }}
+                                >
+                                    {allowedTargets.map(t => (
+                                        <MenuItem key={t} value={t}>{t}</MenuItem>
+                                    ))}
+                                </Select>
+                            ) : (
+                                <Typography variant="caption">{target}</Typography>
+                            )}
+                        </Box>
+                        <Typography variant="caption" color="primary.light">{settings.username}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Typography variant="caption">{currentTime.toLocaleTimeString()}</Typography>
+                        <Button size="small" color="error" startIcon={<LogOut size={14} />} onClick={onLogout} sx={{ textTransform: 'none' }}>
+                            Logout
+                        </Button>
+                    </Box>
+                </Toolbar>
+            </AppBar>
 
             {/* Windows Area */}
-            <div style={{
+            <Box sx={{
                 flex: 1,
                 position: 'relative',
                 zIndex: 1,
@@ -309,17 +277,20 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultPosition={{ x: 50, y: 50 }}
                         defaultSize={{ width: 900, height: 600 }}
                     >
-                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#020617' }}>
-                            <div style={{ padding: '10px', display: 'flex', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <button
+                        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+                            <Box sx={{ p: 1, display: 'flex', gap: 1, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    size="small"
                                     onClick={fetchServers}
                                     disabled={isScanning}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#3b82f6', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}
+                                    startIcon={<Search size={14} />}
                                 >
-                                    <Search size={14} /> {isScanning ? 'Scanning...' : 'Scan Network'}
-                                </button>
-                            </div>
-                            <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+                                    {isScanning ? 'Scanning...' : 'Scan Network'}
+                                </Button>
+                            </Box>
+                            <Box sx={{ flex: 1, position: 'relative', minHeight: 0 }}>
                                 <NetworkGraph
                                     servers={servers}
                                     onNodeClick={(ip) => openTerminal(ip)}
@@ -328,8 +299,8 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                                     token={token}
                                     target={target}
                                 />
-                            </div>
-                        </div>
+                            </Box>
+                        </Box>
                     </Window>
                 )}
 
@@ -350,7 +321,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     </Window>
                 )}
 
-                {/* SSH Terminals */}
                 {terminals.map(term => (
                     <Window
                         key={term.id}
@@ -369,7 +339,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     </Window>
                 ))}
 
-                {/* VNC Windows */}
                 {vncWindows.map(vnc => (
                     <Window
                         key={vnc.id}
@@ -388,7 +357,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     </Window>
                 ))}
 
-                {/* SFTP Windows */}
                 {sftpWindows.map(sftp => (
                     <Window
                         key={sftp.id}
@@ -406,26 +374,24 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         <FileApp token={token} target={target} initialIp={sftp.ip} />
                     </Window>
                 ))}
-            </div>
+            </Box>
 
             {/* macOS style Dock */}
-            <div style={{
+            <Paper elevation={16} sx={{
                 position: 'absolute',
-                bottom: '20px',
+                bottom: 20,
                 left: '50%',
                 transform: 'translateX(-50%)',
-                background: 'rgba(15, 23, 42, 0.6)',
+                bgcolor: 'rgba(15, 23, 42, 0.6)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255,255,255,0.1)',
                 padding: '10px 16px',
-                borderRadius: '24px',
+                borderRadius: 6,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '16px',
+                gap: 2,
                 zIndex: 9999,
-                boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
             }}>
-                {/* Launchers */}
                 <DockIcon
                     icon={<Network size={24} color="#38bdf8" />}
                     label="Topology Explorer"
@@ -451,22 +417,18 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     isOpen={false}
                     onClick={() => openTerminal('')}
                 />
-
-                {/* Launcher for SFTP */}
                 <DockIcon
                     icon={<Folder size={24} color="#fb923c" />}
                     label="New SFTP Client"
                     isOpen={false}
                     onClick={() => openSftp('')}
                 />
-
                 <DockIcon
                     icon={<Monitor size={24} color="#10b981" />}
                     label="New VNC connection"
                     isOpen={false}
                     onClick={() => openVnc('')}
                 />
-
                 <DockIcon
                     icon={<Settings size={24} color="#94a3b8" />}
                     label="Settings"
@@ -487,12 +449,10 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     }}
                 />
 
-                {/* Divider for Running Apps */}
                 {(terminals.length > 0 || vncWindows.length > 0 || sftpWindows.length > 0) && (
-                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.2)', height: '24px' }} />
+                    <Box sx={{ width: '1px', bgcolor: 'rgba(255,255,255,0.2)', height: 24 }} />
                 )}
 
-                {/* Running SSH Terminals */}
                 {terminals.map(term => (
                     <DockIcon
                         key={term.id}
@@ -513,7 +473,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     />
                 ))}
 
-                {/* Running VNC Connections */}
                 {vncWindows.map(vnc => (
                     <DockIcon
                         key={vnc.id}
@@ -534,7 +493,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     />
                 ))}
 
-                {/* Running SFTP Connections */}
                 {sftpWindows.map(sftp => (
                     <DockIcon
                         key={sftp.id}
@@ -554,8 +512,8 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         }}
                     />
                 ))}
-            </div>
-        </div>
+            </Paper>
+        </Box>
     );
 }
 
@@ -573,36 +531,33 @@ function DockIcon({
     isMinimized?: boolean;
 }) {
     return (
-        <div
-            onClick={onClick}
-            style={{
-                width: '48px',
-                height: '48px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '14px',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                cursor: 'pointer',
-                position: 'relative',
-                transition: 'all 0.2s',
-                opacity: isMinimized ? 0.4 : 1,
-            }}
-            title={label}
-            onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-5px) scale(1.1)';
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-            }}
-            onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-            }}
-        >
-            {icon}
-            {isOpen && (
-                <div style={{ position: 'absolute', bottom: '4px', width: '4px', height: '4px', borderRadius: '50%', background: '#f8fafc' }} />
-            )}
-        </div>
+        <Tooltip title={label} arrow placement="top">
+            <Box
+                onClick={onClick}
+                sx={{
+                    width: 48,
+                    height: 48,
+                    bgcolor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: 3,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'all 0.2s',
+                    opacity: isMinimized ? 0.4 : 1,
+                    '&:hover': {
+                        transform: 'translateY(-5px) scale(1.1)',
+                        bgcolor: 'rgba(255, 255, 255, 0.1)'
+                    }
+                }}
+            >
+                {icon}
+                {isOpen && (
+                    <Box sx={{ position: 'absolute', bottom: 4, width: 4, height: 4, borderRadius: '50%', bgcolor: '#f8fafc' }} />
+                )}
+            </Box>
+        </Tooltip>
     );
 }

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Rnd } from 'react-rnd';
 import { X, Minus, Maximize2 } from 'lucide-react';
+import { Box, Paper, IconButton, Typography, useTheme } from '@mui/material';
 
 interface WindowProps {
   id: string;
@@ -28,6 +29,7 @@ export default function Window({
   defaultPosition = { x: 50, y: 50 },
   defaultSize = { width: 800, height: 500 }
 }: WindowProps) {
+  const theme = useTheme();
   const [size, setSize] = useState<{ width: number | string; height: number | string }>(defaultSize);
   const [position, setPosition] = useState<{ x: number; y: number }>(defaultPosition);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -80,61 +82,62 @@ export default function Window({
         zIndex: isActive ? 100 : 10,
         display: isMinimized ? 'none' : 'flex',
         flexDirection: 'column',
-        borderRadius: isMaximized ? '0px' : '12px',
-        overflow: 'hidden',
-        boxShadow: isActive
-          ? '0 0 30px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.1)'
-          : '0 10px 20px rgba(0,0,0,0.5)',
-        background: 'rgba(15, 23, 42, 0.95)',
-        backdropFilter: 'blur(10px)',
-        border: isMaximized ? 'none' : '1px solid rgba(255, 255, 255, 0.05)',
-        transition: 'box-shadow 0.2s, border-radius 0.2s',
       }}
     >
-      {/* Window Header */}
-      <div
-        className="window-handle"
-        style={{
-          height: '40px',
-          background: 'rgba(2, 6, 23, 0.8)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+      <Paper
+        elevation={isActive ? 12 : 4}
+        sx={{
+          width: '100%',
+          height: '100%',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '0 15px',
-          cursor: isMaximized ? 'default' : 'grab',
-          userSelect: 'none'
+          flexDirection: 'column',
+          borderRadius: isMaximized ? 0 : 3,
+          overflow: 'hidden',
+          bgcolor: 'background.paper',
+          border: isMaximized ? 'none' : `1px solid ${theme.palette.divider}`,
+          transition: 'box-shadow 0.2s',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f8fafc', fontSize: '0.9rem', fontWeight: 500 }}>
-          {icon}
-          <span>{title}</span>
-        </div>
+        {/* Window Header */}
+        <Box
+          className="window-handle"
+          sx={{
+            height: 40,
+            bgcolor: 'rgba(0, 0, 0, 0.2)',
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            px: 2,
+            cursor: isMaximized ? 'default' : 'grab',
+            userSelect: 'none'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {icon}
+            <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
+              {title}
+            </Typography>
+          </Box>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={onMinimize} style={btnStyle} title="Minimize"><Minus size={14} /></button>
-          <button onClick={toggleMaximize} style={btnStyle} title={isMaximized ? "Restore" : "Maximize"}><Maximize2 size={12} /></button>
-          <button onClick={onClose} style={{ ...btnStyle, color: '#ef4444' }} title="Close"><X size={14} /></button>
-        </div>
-      </div>
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <IconButton size="small" onClick={onMinimize} title="Minimize" sx={{ color: 'text.secondary' }}>
+              <Minus size={14} />
+            </IconButton>
+            <IconButton size="small" onClick={toggleMaximize} title={isMaximized ? "Restore" : "Maximize"} sx={{ color: 'text.secondary' }}>
+              <Maximize2 size={12} />
+            </IconButton>
+            <IconButton size="small" onClick={onClose} title="Close" color="error">
+              <X size={14} />
+            </IconButton>
+          </Box>
+        </Box>
 
-      {/* Window Content */}
-      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        {children}
-      </div>
+        {/* Window Content */}
+        <Box sx={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+          {children}
+        </Box>
+      </Paper>
     </Rnd>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  background: 'transparent',
-  border: 'none',
-  color: '#94a3b8',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '4px',
-  borderRadius: '4px',
-  transition: 'all 0.2s'
-};
