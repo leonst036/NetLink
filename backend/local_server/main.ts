@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { createHttpsServer } from './httpServer.js';
-import { handleSshConnection } from './websockets/sshHandler.js';
+import { handleSshConnection } from './websockets/connectionHandler.js';
 import { handleRelayConnection } from './websockets/relay/relayConnector.js';
 import dotenv from 'dotenv';
 import path from 'path';

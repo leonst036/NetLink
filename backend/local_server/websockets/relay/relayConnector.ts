@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { handleSshConnection } from '../sshHandler.js';
+import { handleSshConnection } from '../connectionHandler.js';
 import { runNetworkScan } from '../../network/scanner.js';
 
 /**

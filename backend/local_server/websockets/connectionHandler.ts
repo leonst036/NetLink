@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { Client as SSHClient } from 'ssh2';
 import dotenv from 'dotenv';
-import { startVnc } from './vncHandler.js';  // ToDo: Refactor this. Why is it even in the sshHandler?
+import { startVnc } from './vncHandler.js';
 import { connectToSftp, listDirectory, disconnectSftp, downloadFile, uploadFile, deleteItem, createDirectory } from '../network/sftpHandler.js';
 dotenv.config();
 
@@ -122,7 +122,7 @@ async function startSftp(ws: WebSocket, host: string, username: string, password
         ws.on('message', onSftpMessage);
 
         ws.on('close', () => {
-            sftp.end().catch(() => {});
+            sftp.end().catch(() => { });
         });
     } catch (err: any) {
         console.error('Failed to initialize SFTP connection:', err);
