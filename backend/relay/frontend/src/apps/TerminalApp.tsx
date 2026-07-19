@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
+import { Box, TextField, Select, MenuItem, Button, Toolbar } from '@mui/material';
 
 interface TerminalAppProps {
   token: string;
@@ -173,7 +174,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
       .catch(err => console.error('Failed to fetch logins', err));
   }, [token]);
 
-  const applyLogin = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const applyLogin = (e: any) => {
     const login = savedLogins.find(l => l.id === e.target.value);
     if (login) {
       setSelectedIp(login.ip);
@@ -183,75 +184,87 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#050811' }}>
-      <div style={{ padding: '10px', background: 'rgba(15, 23, 42, 0.9)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: '10px', alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#050811' }}>
+      <Toolbar 
+        variant="dense" 
+        sx={{ 
+          bgcolor: 'rgba(15, 23, 42, 0.9)', 
+          borderBottom: '1px solid rgba(255,255,255,0.05)', 
+          display: 'flex', 
+          gap: 1.5, 
+          py: 1,
+          px: '10px !important'
+        }}
+      >
         {savedLogins.length > 0 && (
-          <select onChange={applyLogin} defaultValue="" disabled={isConnected} style={{...inputStyle, width: 'auto'}}>
-            <option value="" disabled>Saved Logins...</option>
+          <Select
+            size="small"
+            value=""
+            displayEmpty
+            onChange={applyLogin}
+            disabled={isConnected}
+            sx={{ width: 140, '& .MuiSelect-select': { py: 0.8 } }}
+          >
+            <MenuItem value="" disabled>Saved Logins...</MenuItem>
             {savedLogins.map(l => (
-              <option key={l.id} value={l.id}>{l.name} ({l.ip})</option>
+              <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>
             ))}
-          </select>
+          </Select>
         )}
-        <input
-          type="text"
+        <TextField
+          size="small"
           value={selectedIp}
           onChange={(e) => setSelectedIp(e.target.value)}
           placeholder="Target IP"
           disabled={isConnected}
-          style={inputStyle}
+          sx={{ width: 130, '& .MuiInputBase-input': { py: 0.8 } }}
         />
-        <input
-          type="text"
+        <TextField
+          size="small"
           value={sshUsername}
           onChange={(e) => setSshUsername(e.target.value)}
           placeholder="Username"
           disabled={isConnected}
-          style={inputStyle}
+          sx={{ width: 120, '& .MuiInputBase-input': { py: 0.8 } }}
         />
-        <input
+        <TextField
+          size="small"
           type="password"
           value={sshPassword}
           onChange={(e) => setSshPassword(e.target.value)}
           placeholder="Password"
           disabled={isConnected}
-          style={inputStyle}
+          sx={{ width: 120, '& .MuiInputBase-input': { py: 0.8 } }}
         />
         {isConnected ? (
-          <button style={btnDisconnectStyle} onClick={disconnectTerminal}>Disconnect</button>
+          <Button 
+            variant="contained" 
+            color="error" 
+            onClick={disconnectTerminal}
+            sx={{ textTransform: 'none', px: 2 }}
+          >
+            Disconnect
+          </Button>
         ) : (
-          <button style={btnConnectStyle} onClick={connectTerminal} disabled={status === 'connecting' || !selectedIp || !sshUsername}>
-            {status === 'connecting' ? '...' : 'Connect'}
-          </button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={connectTerminal} 
+            disabled={status === 'connecting' || !selectedIp || !sshUsername}
+            sx={{ textTransform: 'none', px: 2 }}
+          >
+            {status === 'connecting' ? 'Connecting...' : 'Connect'}
+          </Button>
         )}
-      </div>
-      <div id="terminal-container" ref={terminalRef} style={{ flex: 1, padding: '10px' }}></div>
-    </div>
+      </Toolbar>
+      <Box 
+        ref={terminalRef} 
+        sx={{ 
+          flex: 1, 
+          p: 1.5,
+          '& .xterm': { padding: '4px' }
+        }} 
+      />
+    </Box>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  background: 'rgba(255, 255, 255, 0.05)',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  padding: '6px 10px',
-  borderRadius: '6px',
-  color: 'white',
-  fontSize: '0.85rem',
-  width: '120px'
-};
-
-const btnConnectStyle: React.CSSProperties = {
-  background: '#3b82f6',
-  border: 'none',
-  padding: '6px 12px',
-  borderRadius: '6px',
-  color: 'white',
-  cursor: 'pointer',
-  fontSize: '0.85rem',
-  fontWeight: 'bold'
-};
-
-const btnDisconnectStyle: React.CSSProperties = {
-  ...btnConnectStyle,
-  background: '#ef4444'
-};

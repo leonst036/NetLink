@@ -1,5 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { User, Users, Monitor, Info, Shield, ChevronRight, Key, Plus, Trash2, Save, CheckSquare, Square } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Users, Monitor, Info, Shield, Key, Plus, Trash2, Save } from 'lucide-react';
+import { 
+  Box, 
+  Paper, 
+  List, 
+  ListItem, 
+  ListItemButton, 
+  ListItemIcon, 
+  ListItemText, 
+  Typography, 
+  TextField, 
+  Select, 
+  MenuItem, 
+  Switch, 
+  Button, 
+  IconButton,
+  Card,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
+  Divider,
+  useTheme
+} from '@mui/material';
 
 type TabId = 'general' | 'appearance' | 'logins' | 'security' | 'about' | 'users';
 
@@ -8,12 +38,13 @@ interface SettingsAppProps {
 }
 
 export default function SettingsApp({ token }: SettingsAppProps) {
+  const theme = useTheme();
   const [activeTab, setActiveTab] = useState<TabId>('general');
 
   // Load functional settings from localStorage
   const [username, setUsername] = useState(() => localStorage.getItem('netlink_username') || 'Admin');
   const [wallpaper, setWallpaper] = useState(() => localStorage.getItem('netlink_wallpaper') || 'default');
-  const [theme, setTheme] = useState(() => localStorage.getItem('netlink_theme') || 'Dark');
+  const [appTheme, setAppTheme] = useState(() => localStorage.getItem('netlink_theme') || 'Dark');
 
   const updateSetting = (key: string, value: string, setter: (val: string) => void) => {
     setter(value);
@@ -41,15 +72,15 @@ export default function SettingsApp({ token }: SettingsAppProps) {
   const canManageUsers = permissions.includes('manage_users');
 
   const tabs = [
-    { id: 'general', label: 'General', icon: <User size={18} /> },
-    { id: 'appearance', label: 'Appearance', icon: <Monitor size={18} /> },
-    { id: 'logins', label: 'Server Logins', icon: <Key size={18} /> },
-    { id: 'security', label: 'Security', icon: <Shield size={18} /> },
-    { id: 'about', label: 'About NetLink', icon: <Info size={18} /> },
+    { id: 'general', label: 'General', icon: <User size={20} /> },
+    { id: 'appearance', label: 'Appearance', icon: <Monitor size={20} /> },
+    { id: 'logins', label: 'Server Logins', icon: <Key size={20} /> },
+    { id: 'security', label: 'Security', icon: <Shield size={20} /> },
+    { id: 'about', label: 'About NetLink', icon: <Info size={20} /> },
   ];
 
   if (canManageUsers) {
-    tabs.splice(3, 0, { id: 'users', label: 'User Management', icon: <Users size={18} /> });
+    tabs.splice(3, 0, { id: 'users', label: 'User Management', icon: <Users size={20} /> });
   }
 
   const [logins, setLogins] = useState<any[]>([]);
@@ -205,557 +236,454 @@ export default function SettingsApp({ token }: SettingsAppProps) {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      height: '100%',
-      background: '#090d1a',
-      color: '#e2e8f0',
-      fontFamily: '"Inter", -apple-system, sans-serif',
-      overflow: 'hidden'
-    }}>
+    <Box sx={{ display: 'flex', height: '100%', bgcolor: 'background.default' }}>
       {/* Sidebar */}
-      <div style={{
-        width: '240px',
-        background: 'rgba(15, 23, 42, 0.4)',
-        borderRight: '1px solid rgba(255, 255, 255, 0.05)',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '16px 0'
-      }}>
-        <div style={{ padding: '0 20px', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, color: '#f8fafc' }}>Settings</h2>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '0 12px' }}>
+      <Paper 
+        square 
+        elevation={0}
+        sx={{ 
+          width: 260, 
+          bgcolor: 'background.paper', 
+          borderRight: `1px solid ${theme.palette.divider}`,
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
+        <Box sx={{ p: 3, pb: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Settings</Typography>
+        </Box>
+        <List sx={{ px: 1 }}>
           {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as TabId)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '10px 12px',
-                background: activeTab === tab.id ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
-                color: activeTab === tab.id ? '#38bdf8' : '#94a3b8',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                fontSize: '0.9rem',
-                fontWeight: activeTab === tab.id ? 600 : 500,
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                  e.currentTarget.style.color = '#cbd5e1';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = '#94a3b8';
-                }
-              }}
-            >
-              <div style={{ opacity: activeTab === tab.id ? 1 : 0.7 }}>
-                {tab.icon}
-              </div>
-              <span style={{ flex: 1 }}>{tab.label}</span>
-              {activeTab === tab.id && <ChevronRight size={16} />}
-            </button>
+            <ListItem disablePadding key={tab.id} sx={{ mb: 0.5 }}>
+              <ListItemButton 
+                selected={activeTab === tab.id}
+                onClick={() => setActiveTab(tab.id as TabId)}
+                sx={{ borderRadius: 2 }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, color: activeTab === tab.id ? 'primary.main' : 'inherit' }}>
+                  {tab.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={
+                    <Typography sx={{ 
+                      fontWeight: activeTab === tab.id ? 'bold' : 'medium',
+                      color: activeTab === tab.id ? 'primary.main' : 'inherit'
+                    }}>
+                      {tab.label}
+                    </Typography>
+                  } 
+                />
+              </ListItemButton>
+            </ListItem>
           ))}
-        </div>
-      </div>
+        </List>
+      </Paper>
 
       {/* Main Content Area */}
-      <div style={{
-        flex: 1,
-        padding: '32px 40px',
-        overflowY: 'auto',
-        background: 'radial-gradient(circle at top right, rgba(15, 23, 42, 0.5) 0%, transparent 50%)'
-      }}>
-        <div style={{ maxWidth: '600px' }}>
+      <Box sx={{ flex: 1, p: 4, overflowY: 'auto' }}>
+        <Box sx={{ maxWidth: 800 }}>
           {activeTab === 'general' && (
-            <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 24px 0', color: '#f8fafc' }}>General Settings</h3>
+            <Box>
+              <Typography variant="h5" sx={{ mb: 4, fontWeight: 'bold' }}>General Settings</Typography>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <SettingSection title="User Profile">
-                  <SettingRow label="Username">
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => updateSetting('netlink_username', e.target.value, setUsername)}
-                      style={inputStyle}
-                    />
-                  </SettingRow>
-                  <SettingRow label="Language">
-                    <select style={selectStyle}>
-                      <option>English (US)</option>
-                      <option>German (DE)</option>
-                      <option>French (FR)</option>
-                    </select>
-                  </SettingRow>
-                </SettingSection>
+              <Card variant="outlined" sx={{ mb: 3 }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    User Profile
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography>Username</Typography>
+                      <TextField 
+                        size="small" 
+                        value={username} 
+                        onChange={(e) => updateSetting('netlink_username', e.target.value, setUsername)}
+                        sx={{ width: 250 }}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography>Language</Typography>
+                      <Select size="small" value="en" sx={{ width: 250 }}>
+                        <MenuItem value="en">English (US)</MenuItem>
+                        <MenuItem value="de">German (DE)</MenuItem>
+                        <MenuItem value="fr">French (FR)</MenuItem>
+                      </Select>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
 
-                <SettingSection title="Desktop Behavior">
-                  <SettingToggle label="Show desktop icons" defaultChecked={true} />
-                  <SettingToggle label="Enable window animations" defaultChecked={true} />
-                  <SettingToggle label="Play notification sounds" defaultChecked={false} />
-                  <SettingToggle 
-                      label="Enable debug mode (VNC FPS/Latency)" 
-                      defaultChecked={localStorage.getItem('netlink_debug') === 'true'}
-                      onChange={(val) => {
-                          localStorage.setItem('netlink_debug', val.toString());
+              <Card variant="outlined">
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Desktop Behavior
+                  </Typography>
+                  <FormGroup sx={{ gap: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography>Show desktop icons</Typography>
+                      <Switch defaultChecked />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography>Enable window animations</Typography>
+                      <Switch defaultChecked />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography>Play notification sounds</Typography>
+                      <Switch />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography>Enable debug mode (VNC FPS/Latency)</Typography>
+                      <Switch 
+                        defaultChecked={localStorage.getItem('netlink_debug') === 'true'}
+                        onChange={(_e, checked) => {
+                          localStorage.setItem('netlink_debug', checked.toString());
                           window.dispatchEvent(new Event('settingsChange'));
-                      }}
-                  />
-                </SettingSection>
-              </div>
-            </div>
+                        }}
+                      />
+                    </Box>
+                  </FormGroup>
+                </CardContent>
+              </Card>
+            </Box>
           )}
 
           {activeTab === 'appearance' && (
-            <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 24px 0', color: '#f8fafc' }}>Appearance</h3>
+            <Box>
+              <Typography variant="h5" sx={{ mb: 4, fontWeight: 'bold' }}>Appearance</Typography>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <SettingSection title="Theme">
-                  <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                    <div onClick={() => updateSetting('netlink_theme', 'Dark', setTheme)}>
-                      <ThemeCard name="Dark" active={theme === 'Dark'} color="#0f172a" />
-                    </div>
-                    <div onClick={() => updateSetting('netlink_theme', 'Light', setTheme)}>
-                      <ThemeCard name="Light" active={theme === 'Light'} color="#f8fafc" textColor="#0f172a" />
-                    </div>
-                    <div onClick={() => updateSetting('netlink_theme', 'Hacker', setTheme)}>
-                      <ThemeCard name="Hacker" active={theme === 'Hacker'} color="#000000" accent="#22c55e" />
-                    </div>
-                  </div>
-                </SettingSection>
+              <Card variant="outlined" sx={{ mb: 3 }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Theme
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <ThemeCard name="Dark" active={appTheme === 'Dark'} color="#0f172a" onClick={() => updateSetting('netlink_theme', 'Dark', setAppTheme)} />
+                    <ThemeCard name="Light" active={appTheme === 'Light'} color="#f8fafc" textColor="#0f172a" onClick={() => updateSetting('netlink_theme', 'Light', setAppTheme)} />
+                    <ThemeCard name="Hacker" active={appTheme === 'Hacker'} color="#000000" accent="#22c55e" onClick={() => updateSetting('netlink_theme', 'Hacker', setAppTheme)} />
+                  </Box>
+                </CardContent>
+              </Card>
 
-                <SettingSection title="Wallpaper">
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '12px' }}>
-                    <div
-                      onClick={() => updateSetting('netlink_wallpaper', 'default', setWallpaper)}
-                      style={{ ...wallpaperThumbStyle, background: 'url("https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=200&auto=format&fit=crop") center/cover', border: wallpaper === 'default' ? '2px solid #38bdf8' : 'none' }}
-                    />
-                    <div
-                      onClick={() => updateSetting('netlink_wallpaper', 'wp1', setWallpaper)}
-                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', border: wallpaper === 'wp1' ? '2px solid #38bdf8' : 'none' }}
-                    />
-                    <div
-                      onClick={() => updateSetting('netlink_wallpaper', 'wp2', setWallpaper)}
-                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)', border: wallpaper === 'wp2' ? '2px solid #38bdf8' : 'none' }}
-                    />
-                    <div
-                      onClick={() => updateSetting('netlink_wallpaper', 'wp3', setWallpaper)}
-                      style={{ ...wallpaperThumbStyle, background: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)', border: wallpaper === 'wp3' ? '2px solid #38bdf8' : 'none' }}
-                    />
-                    <div
+              <Card variant="outlined" sx={{ mb: 3 }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Wallpaper
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <WallpaperThumb active={wallpaper === 'default'} bg='url("https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=200&auto=format&fit=crop") center/cover' onClick={() => updateSetting('netlink_wallpaper', 'default', setWallpaper)} />
+                    <WallpaperThumb active={wallpaper === 'wp1'} bg='linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp1', setWallpaper)} />
+                    <WallpaperThumb active={wallpaper === 'wp2'} bg='linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp2', setWallpaper)} />
+                    <WallpaperThumb active={wallpaper === 'wp3'} bg='linear-gradient(135deg, #064e3b 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp3', setWallpaper)} />
+                    <Box
                       onClick={() => updateSetting('netlink_wallpaper', 'solid', setWallpaper)}
-                      style={{ ...wallpaperThumbStyle, background: '#090d1a', border: wallpaper === 'solid' ? '2px solid #38bdf8' : '1px dashed rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                      sx={{ 
+                        width: 100, height: 60, borderRadius: 2, cursor: 'pointer',
+                        bgcolor: '#090d1a', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: 'text.secondary', border: wallpaper === 'solid' ? `2px solid ${theme.palette.primary.main}` : `1px dashed ${theme.palette.divider}`
+                      }}
+                    >
                       Solid
-                    </div>
-                  </div>
-                </SettingSection>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
 
-                <SettingSection title="Display Settings">
-                  <SettingRow label="UI Scale">
-                    <select style={selectStyle}>
-                      <option>100% (Default)</option>
-                      <option>125%</option>
-                      <option>150%</option>
-                    </select>
-                  </SettingRow>
-                </SettingSection>
-              </div>
-            </div>
+              <Card variant="outlined">
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Display Settings
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography>UI Scale</Typography>
+                    <Select size="small" value="100" sx={{ width: 250 }}>
+                      <MenuItem value="100">100% (Default)</MenuItem>
+                      <MenuItem value="125">125%</MenuItem>
+                      <MenuItem value="150">150%</MenuItem>
+                    </Select>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Box>
           )}
 
-
           {activeTab === 'logins' && (
-            <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 24px 0' }}>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: 0, color: '#f8fafc' }}>Server Logins</h3>
-                <button
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Server Logins</Typography>
+                <Button 
+                  variant="contained" 
+                  startIcon={<Plus size={16} />} 
                   onClick={() => setEditingLogin({ id: '', name: 'New Server', ip: '', port: '22', loginUsername: 'root', password: '', type: 'ssh' })}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    background: '#38bdf8', color: '#0f172a', border: 'none',
-                    padding: '8px 12px', borderRadius: '6px', cursor: 'pointer',
-                    fontSize: '0.85rem', fontWeight: 600
-                  }}
                 >
-                  <Plus size={16} /> Add Login
-                </button>
-              </div>
+                  Add Login
+                </Button>
+              </Box>
 
               {editingLogin ? (
-                <SettingSection title="Edit Server Login">
-                  <SettingRow label="Name">
-                    <input type="text" value={editingLogin.name} onChange={e => setEditingLogin({ ...editingLogin, name: e.target.value })} style={inputStyle} placeholder="My Server" />
-                  </SettingRow>
-                  <SettingRow label="IP Address">
-                    <input type="text" value={editingLogin.ip} onChange={e => setEditingLogin({ ...editingLogin, ip: e.target.value })} style={inputStyle} placeholder="192.168.1.1" />
-                  </SettingRow>
-                  <SettingRow label="Port">
-                    <input type="text" value={editingLogin.port} onChange={e => setEditingLogin({ ...editingLogin, port: e.target.value })} style={inputStyle} placeholder="22" />
-                  </SettingRow>
-                  <SettingRow label="Username">
-                    <input type="text" value={editingLogin.loginUsername} onChange={e => setEditingLogin({ ...editingLogin, loginUsername: e.target.value })} style={inputStyle} placeholder="root" />
-                  </SettingRow>
-                  <SettingRow label="Password">
-                    <input type="password" value={editingLogin.password} onChange={e => setEditingLogin({ ...editingLogin, password: e.target.value })} style={inputStyle} placeholder="password" />
-                  </SettingRow>
-                  <SettingRow label="Protocol">
-                    <select value={editingLogin.type} onChange={e => setEditingLogin({ ...editingLogin, type: e.target.value })} style={selectStyle}>
-                      <option value="ssh">SSH</option>
-                      <option value="vnc">VNC</option>
-                      <option value="sftp">SFTP</option>
-                    </select>
-                  </SettingRow>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                    <button onClick={saveLogin} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#10b981', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>
-                      <Save size={16} /> Save
-                    </button>
-                    <button onClick={() => setEditingLogin(null)} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                      Cancel
-                    </button>
-                  </div>
-                </SettingSection>
+                <Card variant="outlined">
+                  <CardContent sx={{ p: 3 }}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                      Edit Server Login
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <TextField label="Name" size="small" value={editingLogin.name} onChange={e => setEditingLogin({ ...editingLogin, name: e.target.value })} fullWidth />
+                      <TextField label="IP Address" size="small" value={editingLogin.ip} onChange={e => setEditingLogin({ ...editingLogin, ip: e.target.value })} fullWidth />
+                      <TextField label="Port" size="small" value={editingLogin.port} onChange={e => setEditingLogin({ ...editingLogin, port: e.target.value })} fullWidth />
+                      <TextField label="Username" size="small" value={editingLogin.loginUsername} onChange={e => setEditingLogin({ ...editingLogin, loginUsername: e.target.value })} fullWidth />
+                      <TextField label="Password" type="password" size="small" value={editingLogin.password} onChange={e => setEditingLogin({ ...editingLogin, password: e.target.value })} fullWidth />
+                      <Select size="small" value={editingLogin.type} onChange={e => setEditingLogin({ ...editingLogin, type: e.target.value })} fullWidth>
+                        <MenuItem value="ssh">SSH</MenuItem>
+                        <MenuItem value="vnc">VNC</MenuItem>
+                        <MenuItem value="sftp">SFTP</MenuItem>
+                      </Select>
+                      <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                        <Button variant="contained" color="success" startIcon={<Save size={16} />} onClick={saveLogin}>Save</Button>
+                        <Button variant="outlined" color="inherit" onClick={() => setEditingLogin(null)}>Cancel</Button>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {logins.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '32px', color: '#64748b', background: 'rgba(30, 41, 59, 0.3)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
-                      No saved logins yet. Click "Add Login" to create one.
-                    </div>
-                  ) : (
-                    logins.map(login => (
-                      <div key={login.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '12px' }}>
-                        <div>
-                          <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '1.05rem', marginBottom: '4px' }}>{login.name} <span style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', borderRadius: '4px', marginLeft: '8px', verticalAlign: 'middle', textTransform: 'uppercase' }}>{login.type}</span></div>
-                          <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{login.loginUsername}@{login.ip}:{login.port}</div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button onClick={() => setEditingLogin(login)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>Edit</button>
-                          <button onClick={() => deleteLogin(login.id)} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Name</TableCell>
+                        <TableCell>Type</TableCell>
+                        <TableCell>Address</TableCell>
+                        <TableCell align="right">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {logins.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>No saved logins yet. Click "Add Login" to create one.</TableCell>
+                        </TableRow>
+                      ) : (
+                        logins.map((login) => (
+                          <TableRow key={login.id}>
+                            <TableCell sx={{ fontWeight: 500 }}>{login.name}</TableCell>
+                            <TableCell><Chip label={login.type} size="small" color="primary" variant="outlined" sx={{ textTransform: 'uppercase' }} /></TableCell>
+                            <TableCell sx={{ color: 'text.secondary' }}>{login.loginUsername}@{login.ip}:{login.port}</TableCell>
+                            <TableCell align="right">
+                              <Button size="small" sx={{ minWidth: 'auto', mr: 1 }} onClick={() => setEditingLogin(login)}>Edit</Button>
+                              <IconButton size="small" color="error" onClick={() => deleteLogin(login.id)}>
+                                <Trash2 size={16} />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               )}
-            </div>
+            </Box>
           )}
 
           {activeTab === 'users' && canManageUsers && (
-            <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 24px 0' }}>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: 0, color: '#f8fafc' }}>User Management</h3>
-                <button
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>User Management</Typography>
+                <Button 
+                  variant="contained" 
+                  startIcon={<Plus size={16} />} 
                   onClick={() => setEditingUser({ username: '', password: '', role: 'user', permissions: [] })}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    background: '#38bdf8', color: '#0f172a', border: 'none',
-                    padding: '8px 12px', borderRadius: '6px', cursor: 'pointer',
-                    fontSize: '0.85rem', fontWeight: 600
-                  }}
                 >
-                  <Plus size={16} /> Add User
-                </button>
-              </div>
+                  Add User
+                </Button>
+              </Box>
 
               {editingUser ? (
-                <SettingSection title={usersList.find(u => u.username === editingUser.username) ? "Edit User" : "New User"}>
-                  <SettingRow label="Username">
-                    <input type="text" value={editingUser.username} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} style={inputStyle} placeholder="john_doe" disabled={!!usersList.find(u => u.username === editingUser.username)} />
-                  </SettingRow>
-                  <SettingRow label={usersList.find(u => u.username === editingUser.username) ? "New Password" : "Password"}>
-                    <input type="password" value={editingUser.password} onChange={e => setEditingUser({ ...editingUser, password: e.target.value })} style={inputStyle} placeholder={usersList.find(u => u.username === editingUser.username) ? "(Leave blank to keep current)" : "Secret Password"} />
-                  </SettingRow>
-
-                  <div style={{ marginTop: '16px' }}>
-                    <div style={{ fontSize: '0.95rem', color: '#cbd5e1', marginBottom: '12px' }}>Permissions</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {ALL_PERMISSIONS.map(perm => {
-                        const hasPerm = editingUser.permissions?.includes(perm.id);
-                        return (
-                          <div
-                            key={perm.id}
-                            onClick={() => togglePermission(perm.id)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '8px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
-                          >
-                            {hasPerm ? <CheckSquare size={18} color="#38bdf8" /> : <Square size={18} color="#64748b" />}
-                            <span style={{ fontSize: '0.9rem', color: hasPerm ? '#f8fafc' : '#94a3b8' }}>{perm.label}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                    <button onClick={saveUser} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#10b981', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>
-                      <Save size={16} /> Save
-                    </button>
-                    <button onClick={() => setEditingUser(null)} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                      Cancel
-                    </button>
-                  </div>
-                </SettingSection>
+                <Card variant="outlined">
+                  <CardContent sx={{ p: 3 }}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                      {usersList.find(u => u.username === editingUser.username) ? "Edit User" : "New User"}
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <TextField label="Username" size="small" value={editingUser.username} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} disabled={!!usersList.find(u => u.username === editingUser.username)} fullWidth />
+                      <TextField label={usersList.find(u => u.username === editingUser.username) ? "New Password (Leave blank to keep current)" : "Password"} type="password" size="small" value={editingUser.password} onChange={e => setEditingUser({ ...editingUser, password: e.target.value })} fullWidth />
+                      
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Permissions</Typography>
+                        <FormGroup>
+                          {ALL_PERMISSIONS.map(perm => (
+                            <FormControlLabel 
+                              key={perm.id}
+                              control={<Checkbox checked={editingUser.permissions?.includes(perm.id) || false} onChange={() => togglePermission(perm.id)} />}
+                              label={perm.label}
+                            />
+                          ))}
+                        </FormGroup>
+                      </Box>
+                      
+                      <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                        <Button variant="contained" color="success" startIcon={<Save size={16} />} onClick={saveUser}>Save</Button>
+                        <Button variant="outlined" color="inherit" onClick={() => setEditingUser(null)}>Cancel</Button>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {usersList.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '32px', color: '#64748b', background: 'rgba(30, 41, 59, 0.3)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
-                      No users found.
-                    </div>
-                  ) : (
-                    usersList.map(user => (
-                      <div key={user.username} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '12px' }}>
-                        <div>
-                          <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '1.05rem', marginBottom: '4px' }}>
-                            {user.username}
-                            {user.role === 'admin' && <span style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', borderRadius: '4px', marginLeft: '8px', verticalAlign: 'middle', textTransform: 'uppercase' }}>Admin</span>}
-                          </div>
-                          <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{user.permissions?.length || 0} Permissions Granted</div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button onClick={() => setEditingUser(user)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>Edit</button>
-                          <button onClick={() => deleteUser(user.username)} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Username</TableCell>
+                        <TableCell>Role</TableCell>
+                        <TableCell>Permissions</TableCell>
+                        <TableCell align="right">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {usersList.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>No users found.</TableCell>
+                        </TableRow>
+                      ) : (
+                        usersList.map((user) => (
+                          <TableRow key={user.username}>
+                            <TableCell sx={{ fontWeight: 500 }}>{user.username}</TableCell>
+                            <TableCell>
+                              {user.role === 'admin' ? <Chip label="Admin" size="small" color="error" variant="outlined" /> : <Chip label="User" size="small" variant="outlined" />}
+                            </TableCell>
+                            <TableCell sx={{ color: 'text.secondary' }}>{user.permissions?.length || 0} Granted</TableCell>
+                            <TableCell align="right">
+                              <Button size="small" sx={{ minWidth: 'auto', mr: 1 }} onClick={() => setEditingUser(user)}>Edit</Button>
+                              <IconButton size="small" color="error" onClick={() => deleteUser(user.username)}>
+                                <Trash2 size={16} />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               )}
-            </div>
+            </Box>
           )}
 
           {activeTab === 'security' && (
-            <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 24px 0', color: '#f8fafc' }}>Security Settings</h3>
+            <Box>
+              <Typography variant="h5" sx={{ mb: 4, fontWeight: 'bold' }}>Security Settings</Typography>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <SettingSection title="Authentication">
-                  <SettingToggle label="Require password on wake" defaultChecked={true} />
-                  <SettingToggle label="Save credentials securely" defaultChecked={true} />
-
-                  <div style={{ marginTop: '16px' }}>
-                    <button style={{
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      color: '#ef4444',
-                      border: '1px solid rgba(239, 68, 68, 0.2)',
-                      padding: '8px 16px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      fontWeight: 500
-                    }}>
-                      Clear Saved Credentials
-                    </button>
-                  </div>
-                </SettingSection>
-              </div>
-            </div>
+              <Card variant="outlined" sx={{ mb: 3 }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Authentication
+                  </Typography>
+                  <FormGroup sx={{ gap: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography>Require password on wake</Typography>
+                      <Switch defaultChecked />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography>Save credentials securely</Typography>
+                      <Switch defaultChecked />
+                    </Box>
+                  </FormGroup>
+                  <Divider sx={{ my: 3 }} />
+                  <Button variant="outlined" color="error">
+                    Clear Saved Credentials
+                  </Button>
+                </CardContent>
+              </Card>
+            </Box>
           )}
 
           {activeTab === 'about' && (
-            <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <div style={{
-                  width: '64px',
-                  height: '64px',
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 5 }}>
+                <Box sx={{
+                  width: 64, height: 64, borderRadius: 3,
                   background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)',
-                  borderRadius: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: '0 10px 25px -5px rgba(2, 132, 199, 0.5)'
                 }}>
                   <Monitor size={32} color="white" />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '1.75rem', fontWeight: 700, margin: '0 0 4px 0', color: '#f8fafc' }}>NetLink</h3>
-                  <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem' }}>Version 1.0.0-beta</p>
-                </div>
-              </div>
+                </Box>
+                <Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>NetLink</Typography>
+                  <Typography color="text.secondary">Version 1.0.0-beta</Typography>
+                </Box>
+              </Box>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <SettingSection title="System Information">
-                  <InfoRow label="Client Environment" value="Browser (Web Platform)" />
-                  <InfoRow label="Build Date" value={new Date().toLocaleDateString()} />
-                  <InfoRow label="License" value="MIT License" />
-                </SettingSection>
+              <Card variant="outlined" sx={{ mb: 3 }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    System Information
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography color="text.secondary">Client Environment</Typography>
+                      <Typography sx={{ fontWeight: 'medium' }}>Browser (Web Platform)</Typography>
+                    </Box>
+                    <Divider />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography color="text.secondary">Build Date</Typography>
+                      <Typography sx={{ fontWeight: 'medium' }}>{new Date().toLocaleDateString()}</Typography>
+                    </Box>
+                    <Divider />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography color="text.secondary">License</Typography>
+                      <Typography sx={{ fontWeight: 'medium' }}>MIT License</Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
 
-                <SettingSection title="Updates">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div>
-                      <div style={{ fontWeight: 500, color: '#f8fafc', marginBottom: '4px' }}>NetLink is up to date</div>
-                      <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Last checked: Just now</div>
-                    </div>
-                    <button style={{
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
-                      border: 'none',
-                      padding: '8px 16px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      fontWeight: 500
-                    }}>
-                      Check for Updates
-                    </button>
-                  </div>
-                </SettingSection>
-              </div>
-            </div>
+              <Card variant="outlined">
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Updates
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'rgba(255,255,255,0.02)', p: 2, borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
+                    <Box>
+                      <Typography sx={{ fontWeight: 'medium' }}>NetLink is up to date</Typography>
+                      <Typography variant="body2" color="text.secondary">Last checked: Just now</Typography>
+                    </Box>
+                    <Button variant="outlined" color="inherit">Check for Updates</Button>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Box>
           )}
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
-// Helper Components for Settings UI
-
-const SettingSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
-  <div style={{
-    background: 'rgba(30, 41, 59, 0.3)',
-    border: '1px solid rgba(255, 255, 255, 0.05)',
-    borderRadius: '12px',
-    overflow: 'hidden'
-  }}>
-    <div style={{
-      padding: '12px 20px',
-      borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-      background: 'rgba(15, 23, 42, 0.4)',
-      fontSize: '0.85rem',
-      fontWeight: 600,
-      color: '#94a3b8',
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em'
-    }}>
-      {title}
-    </div>
-    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {children}
-    </div>
-  </div>
-);
-
-const SettingRow = ({ label, children }: { label: string, children: React.ReactNode }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px' }}>
-    <span style={{ fontSize: '0.95rem', color: '#cbd5e1' }}>{label}</span>
-    <div style={{ flexShrink: 0, width: '200px' }}>{children}</div>
-  </div>
-);
-
-const SettingToggle = ({ label, defaultChecked, onChange }: { label: string, defaultChecked: boolean, onChange?: (val: boolean) => void }) => {
-  const [checked, setChecked] = useState(defaultChecked);
+// Subcomponents
+const ThemeCard = ({ name, active, color, textColor = 'white', accent, onClick }: { name: string, active: boolean, color: string, textColor?: string, accent?: string, onClick: () => void }) => {
+  const theme = useTheme();
   return (
-    <div
-      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-      onClick={() => {
-        const newChecked = !checked;
-        setChecked(newChecked);
-        if (onChange) onChange(newChecked);
-      }}
-    >
-      <span style={{ fontSize: '0.95rem', color: '#cbd5e1', userSelect: 'none' }}>{label}</span>
-      <div style={{
-        width: '44px',
-        height: '24px',
-        background: checked ? '#38bdf8' : 'rgba(255,255,255,0.1)',
-        borderRadius: '12px',
-        position: 'relative',
-        transition: 'background 0.2s',
-        flexShrink: 0
+    <Box sx={{ width: 100, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }} onClick={onClick}>
+      <Box sx={{
+        width: '100%', height: 64, bgcolor: color, borderRadius: 2,
+        border: active ? `2px solid ${theme.palette.primary.main}` : `1px solid ${theme.palette.divider}`,
+        p: 1, position: 'relative'
       }}>
-        <div style={{
-          width: '18px',
-          height: '18px',
-          background: 'white',
-          borderRadius: '50%',
-          position: 'absolute',
-          top: '3px',
-          left: checked ? '23px' : '3px',
-          transition: 'left 0.2s cubic-bezier(0.4, 0.0, 0.2, 1)',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-        }} />
-      </div>
-    </div>
+        <Box sx={{ width: '100%', height: 8, bgcolor: textColor === 'white' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', borderRadius: 1, mb: 1 }} />
+        <Box sx={{ width: '60%', height: 6, bgcolor: accent || (textColor === 'white' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'), borderRadius: 1 }} />
+      </Box>
+      <Typography variant="caption" sx={{ color: active ? 'primary.main' : 'text.secondary', fontWeight: active ? 'bold' : 'normal' }}>
+        {name}
+      </Typography>
+    </Box>
   );
 };
 
-const InfoRow = ({ label, value }: { label: string, value: string }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-    <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>{label}</span>
-    <span style={{ color: '#f8fafc', fontSize: '0.9rem', fontWeight: 500 }}>{value}</span>
-  </div>
-);
-
-const ThemeCard = ({ name, active, color, textColor = 'white', accent }: { name: string, active: boolean, color: string, textColor?: string, accent?: string }) => (
-  <div style={{
-    width: '100px',
-    cursor: 'pointer',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '8px'
-  }}>
-    <div style={{
-      width: '100%',
-      height: '64px',
-      background: color,
-      borderRadius: '8px',
-      border: active ? '2px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '8px',
-      boxShadow: active ? '0 0 15px rgba(56, 189, 248, 0.3)' : 'none',
-      position: 'relative'
-    }}>
-      {/* Mock UI elements */}
-      <div style={{ width: '100%', height: '8px', background: textColor === 'white' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', borderRadius: '4px', marginBottom: '8px' }} />
-      <div style={{ width: '60%', height: '6px', background: accent || (textColor === 'white' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'), borderRadius: '3px' }} />
-    </div>
-    <span style={{ fontSize: '0.85rem', color: active ? '#38bdf8' : '#94a3b8', fontWeight: active ? 600 : 400 }}>
-      {name}
-    </span>
-  </div>
-);
-
-// Shared Styles
-const inputStyle = {
-  width: '100%',
-  padding: '8px 12px',
-  background: 'rgba(15, 23, 42, 0.6)',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  borderRadius: '6px',
-  color: 'white',
-  fontSize: '0.9rem',
-  outline: 'none',
-  transition: 'border-color 0.2s',
-  boxSizing: 'border-box' as const
-};
-
-const selectStyle = {
-  ...inputStyle,
-  appearance: 'none' as const,
-  cursor: 'pointer'
-};
-
-const wallpaperThumbStyle = {
-  width: '100px',
-  height: '60px',
-  borderRadius: '8px',
-  cursor: 'pointer',
-  transition: 'transform 0.2s',
-  boxSizing: 'border-box' as const
+const WallpaperThumb = ({ bg, active, onClick }: { bg: string, active: boolean, onClick: () => void }) => {
+  const theme = useTheme();
+  return (
+    <Box
+      onClick={onClick}
+      sx={{ 
+        width: 100, height: 60, borderRadius: 2, cursor: 'pointer',
+        background: bg, border: active ? `2px solid ${theme.palette.primary.main}` : 'none'
+      }}
+    />
+  );
 };

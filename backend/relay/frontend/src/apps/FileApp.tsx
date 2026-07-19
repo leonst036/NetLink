@@ -1,5 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { Folder, File, ArrowLeft, RefreshCw, HardDrive, ShieldAlert, Upload, Download, Trash2, FolderPlus, X } from 'lucide-react';
+import { 
+  Box, 
+  Typography, 
+  TextField, 
+  Select, 
+  MenuItem, 
+  Button, 
+  IconButton, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  LinearProgress, 
+  Alert,
+  Card,
+  CardContent,
+  useTheme
+} from '@mui/material';
 
 interface FileAppProps {
   token: string;
@@ -22,6 +42,7 @@ interface FileItem {
 }
 
 export default function FileApp({ token, target, initialIp }: FileAppProps) {
+  const theme = useTheme();
   const [selectedIp, setSelectedIp] = useState(initialIp || '');
   const [username, setUsername] = useState('root');
   const [password, setPassword] = useState('');
@@ -88,7 +109,6 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     const remotePath = normalizePath(currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`);
     socketRef.current.send(JSON.stringify({ type: 'upload', path: remotePath }));
   };
-
 
   const cancelUpload = () => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -200,7 +220,6 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           socket.send(JSON.stringify({ type: 'list', path: startPath }));
         }
         else if (data.type === 'fileList') {
-          // Sort folders first, then files
           const sortedList = (data.data as FileItem[]).sort((a, b) => {
             if (a.type === 'd' && b.type !== 'd') return -1;
             if (a.type !== 'd' && b.type === 'd') return 1;
@@ -332,7 +351,6 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     };
   }, []);
 
-  // Fetch saved logins
   useEffect(() => {
     fetch('/api/server-logins', { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.json())
@@ -344,7 +362,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
       .catch(err => console.error('Failed to fetch logins', err));
   }, [token]);
 
-  const applyLogin = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const applyLogin = (e: any) => {
     const login = savedLogins.find(l => l.id === e.target.value);
     if (login) {
       setSelectedIp(login.ip);
@@ -358,7 +376,6 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     setAppError(null);
 
     let targetPath = path;
-    // Handle relative pathing
     if (path === '..') {
       const parts = currentPath.split('/').filter(Boolean);
       parts.pop();
@@ -397,576 +414,248 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%',
-      background: '#090d1a',
-      color: '#e2e8f0',
-      fontFamily: '"Inter", -apple-system, sans-serif'
-    }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.default' }}>
       {/* Login Screen */}
       {status === 'disconnected' && (
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '24px',
-          background: 'radial-gradient(circle at center, #0f172a 0%, #020617 100%)'
-        }}>
-          <div style={{
-            width: '100%',
-            maxWidth: '380px',
-            background: 'rgba(30, 41, 59, 0.4)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '16px',
-            padding: '28px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-              <div style={{
-                background: 'rgba(251, 146, 60, 0.1)',
-                padding: '12px',
-                borderRadius: '12px',
-                border: '1px solid rgba(251, 146, 60, 0.2)'
-              }}>
-                <Folder size={28} color="#fb923c" />
-              </div>
-            </div>
+        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3, background: 'radial-gradient(circle at center, #0f172a 0%, #020617 100%)' }}>
+          <Card sx={{ width: '100%', maxWidth: 380, bgcolor: 'rgba(30, 41, 59, 0.4)', backdropFilter: 'blur(16px)', border: `1px solid ${theme.palette.divider}`, borderRadius: 4, boxShadow: 24 }}>
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                <Box sx={{ bgcolor: 'warning.light', p: 1.5, borderRadius: 2, border: '1px solid rgba(251, 146, 60, 0.2)' }}>
+                  <Folder size={28} color={theme.palette.warning.main} />
+                </Box>
+              </Box>
 
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: 600, textAlign: 'center', color: '#f8fafc' }}>
-              SFTP File Client
-            </h3>
-            <p style={{ margin: '0 0 24px 0', fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center' }}>
-              Access remote files securely
-            </p>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }} align="center" gutterBottom>SFTP File Client</Typography>
+              <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 4 }}>Access remote files securely</Typography>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {savedLogins.length > 0 && (
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: '6px' }}>
-                    Saved Logins
-                  </label>
-                  <select
-                    onChange={applyLogin}
-                    defaultValue=""
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: 'rgba(15, 23, 42, 0.6)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '8px',
-                      color: 'white',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                      appearance: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="" disabled>Select a saved server...</option>
-                    {savedLogins.map(l => (
-                      <option key={l.id} value={l.id}>{l.name} ({l.ip})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                {savedLogins.length > 0 && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Saved Logins</Typography>
+                    <Select fullWidth size="small" value="" displayEmpty onChange={applyLogin}>
+                      <MenuItem value="" disabled>Select a saved server...</MenuItem>
+                      {savedLogins.map(l => <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>)}
+                    </Select>
+                  </Box>
+                )}
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: '6px' }}>
-                  Target IP / Hostname
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 192.168.1.10"
-                  value={selectedIp}
-                  onChange={(e) => setSelectedIp(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '0.9rem',
-                    outline: 'none',
-                    transition: 'border-color 0.2s'
-                  }}
-                />
-              </div>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Target IP / Hostname</Typography>
+                  <TextField fullWidth size="small" placeholder="e.g. 192.168.1.10" value={selectedIp} onChange={e => setSelectedIp(e.target.value)} />
+                </Box>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: '6px' }}>
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
-                />
-              </div>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Username</Typography>
+                  <TextField fullWidth size="small" value={username} onChange={e => setUsername(e.target.value)} />
+                </Box>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: '6px' }}>
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  placeholder="Enter password..."
-                  onChange={(e) => setPassword(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
-                />
-              </div>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Password</Typography>
+                  <TextField fullWidth size="small" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                </Box>
 
-              {statusMessage && (
-                <div style={{
-                  display: 'flex',
-                  gap: '8px',
-                  alignItems: 'center',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
-                  color: '#fca5a5',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  fontSize: '0.8rem',
-                  lineHeight: '1.4'
-                }}>
-                  <ShieldAlert size={16} style={{ flexShrink: 0 }} />
-                  <div>{statusMessage}</div>
-                </div>
-              )}
+                {statusMessage && (
+                  <Alert severity="error" icon={<ShieldAlert size={16} />}>{statusMessage}</Alert>
+                )}
 
-              <button
-                onClick={connectSftp}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: 'linear-gradient(135deg, #fb923c 0%, #ea580c 100%)',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: '0.95rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(234, 88, 12, 0.3)',
-                  transition: 'transform 0.1s, opacity 0.2s',
-                  marginTop: '6px'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-              >
-                Connect SFTP
-              </button>
-            </div>
-          </div>
-        </div>
+                <Button 
+                  variant="contained" 
+                  color="warning" 
+                  onClick={connectSftp} 
+                  sx={{ mt: 1, py: 1.2, fontWeight: 'bold' }}
+                >
+                  Connect SFTP
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
       )}
 
       {/* Connecting Loader */}
       {status === 'connecting' && (
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: '16px',
-          background: '#020617'
-        }}>
-          <RefreshCw className="animate-spin" size={32} color="#fb923c" style={{ animation: 'spin 2s linear infinite' }} />
-          <div style={{ fontSize: '0.9rem', color: '#94a3b8' }}>{statusMessage}</div>
-        </div>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 2, bgcolor: '#020617' }}>
+          <RefreshCw className="animate-spin" size={32} color={theme.palette.warning.main} />
+          <Typography color="text.secondary">{statusMessage}</Typography>
+        </Box>
       )}
 
       {/* Main File Explorer View */}
       {status === 'connected' && (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           {/* Action Header / Breadcrumb */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '12px 16px',
-            background: 'rgba(15, 23, 42, 0.4)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
-          }}>
-            <button
-              onClick={goBack}
-              disabled={history.length === 0}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '6px',
-                cursor: history.length === 0 ? 'not-allowed' : 'pointer',
-                opacity: history.length === 0 ? 0.3 : 1,
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center'
-              }}
-            >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, bgcolor: 'rgba(15, 23, 42, 0.4)', borderBottom: `1px solid ${theme.palette.divider}` }}>
+            <IconButton onClick={goBack} disabled={history.length === 0} sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
               <ArrowLeft size={16} />
-            </button>
+            </IconButton>
 
-            <button
-              onClick={refreshList}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '6px',
-                cursor: 'pointer',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center'
-              }}
-            >
+            <IconButton onClick={refreshList} sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
               <RefreshCw size={16} />
-            </button>
+            </IconButton>
 
             {/* Breadcrumb Path Bar */}
-            <div style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              background: 'rgba(2, 6, 23, 0.4)',
-              borderRadius: '8px',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
-              fontSize: '0.85rem',
-              color: '#38bdf8',
-              fontFamily: 'monospace',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
+            <Box sx={{ 
+              flex: 1, display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.8, 
+              bgcolor: 'rgba(2, 6, 23, 0.4)', borderRadius: 1, border: `1px solid ${theme.palette.divider}`,
+              fontFamily: 'monospace', color: 'info.main', overflow: 'hidden'
             }}>
               <HardDrive size={14} color="#64748b" />
-              <span>{currentPath}</span>
-            </div>
+              <Typography noWrap sx={{ fontFamily: 'inherit', fontSize: '0.85rem' }}>{currentPath}</Typography>
+            </Box>
 
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              style={{ display: 'none' }}
-              disabled={isUploading}
-            />
+            <input type="file" ref={fileInputRef} onChange={handleFileSelect} style={{ display: 'none' }} disabled={isUploading} />
 
-            <button
-              onClick={handleCreateFolder}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
+            <Button 
+              variant="outlined" 
+              color="inherit" 
+              onClick={handleCreateFolder} 
+              startIcon={<FolderPlus size={14} />}
+              sx={{ textTransform: 'none' }}
             >
-              <FolderPlus size={14} />
-              <span>New Folder</span>
-            </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: isUploading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                opacity: isUploading ? 0.5 : 1
-              }}
+              New Folder
+            </Button>
+            <Button 
+              variant="outlined" 
+              color="inherit" 
+              onClick={() => fileInputRef.current?.click()} 
+              disabled={isUploading} 
+              startIcon={<Upload size={14} />}
+              sx={{ textTransform: 'none' }}
             >
-              <Upload size={14} />
-              <span>{isUploading ? `Uploading ${uploadProgress}%` : 'Upload'}</span>
-            </button>
+              {isUploading ? `Uploading ${uploadProgress}%` : 'Upload'}
+            </Button>
 
-            <button
+            <Button 
+              variant="contained" 
+              color="error" 
               onClick={disconnectSftp}
-              style={{
-                background: '#ef4444',
-                color: 'white',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+              sx={{ textTransform: 'none' }}
             >
               Disconnect
-            </button>
-          </div>
+            </Button>
+          </Box>
 
           {appError && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
-              color: '#fca5a5',
-              padding: '10px 16px',
-              fontSize: '0.8rem',
-              fontWeight: 500
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShieldAlert size={16} style={{ flexShrink: 0 }} />
-                <span>{appError}</span>
-              </div>
-              <button
-                onClick={() => setAppError(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                  fontSize: '1rem',
-                  lineHeight: 1,
-                  padding: '4px'
-                }}
-              >
-                ✕
-              </button>
-            </div>
+            <Alert severity="error" onClose={() => setAppError(null)} sx={{ borderRadius: 0, '& .MuiAlert-message': { width: '100%' } }}>
+              {appError}
+            </Alert>
           )}
 
           {/* Upload Progress Bar */}
           {isUploading && uploadProgress !== null && (
-            <div style={{
-              padding: '12px 16px',
-              background: 'rgba(234, 88, 12, 0.1)',
-              borderBottom: '1px solid rgba(234, 88, 12, 0.2)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#fb923c' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>Uploading {uploadFileRef.current?.name}...</span>
-                  {transferSpeed && <span style={{ opacity: 0.8 }}>({transferSpeed})</span>}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span>{uploadProgress}%</span>
-                  <button onClick={cancelUpload} style={{ background: 'transparent', border: 'none', color: '#fca5a5', cursor: 'pointer', display: 'flex', padding: 0 }}><X size={14} /></button>
-                </div>
-              </div>
-              <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                <div style={{ width: `${uploadProgress}%`, height: '100%', background: '#fb923c', transition: 'width 0.2s' }} />
-              </div>
-            </div>
+            <Box sx={{ p: 1.5, bgcolor: 'rgba(234, 88, 12, 0.1)', borderBottom: `1px solid rgba(234, 88, 12, 0.2)` }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'warning.main', mb: 1, fontSize: '0.85rem' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2">Uploading {uploadFileRef.current?.name}...</Typography>
+                  {transferSpeed && <Typography variant="caption" sx={{ opacity: 0.8 }}>({transferSpeed})</Typography>}
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography variant="body2">{uploadProgress}%</Typography>
+                  <IconButton size="small" color="error" onClick={cancelUpload} sx={{ p: 0 }}><X size={14} /></IconButton>
+                </Box>
+              </Box>
+              <LinearProgress variant="determinate" value={uploadProgress} color="warning" />
+            </Box>
           )}
 
           {/* Download Progress Bar */}
           {isDownloading && (
-            <div style={{
-              padding: '12px 16px',
-              background: 'rgba(56, 189, 248, 0.1)',
-              borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#38bdf8' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>Downloading {downloadFileNameRef.current}...</span>
-                  {transferSpeed && <span style={{ opacity: 0.8 }}>({transferSpeed})</span>}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  {downloadProgress !== null ? <span>{downloadProgress}%</span> : <span>...</span>}
-                  <button onClick={cancelDownload} style={{ background: 'transparent', border: 'none', color: '#fca5a5', cursor: 'pointer', display: 'flex', padding: 0 }}><X size={14} /></button>
-                </div>
-              </div>
-              <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                <div style={{ width: `${downloadProgress || 0}%`, height: '100%', background: '#38bdf8', transition: 'width 0.2s' }} />
-              </div>
-            </div>
+            <Box sx={{ p: 1.5, bgcolor: 'rgba(56, 189, 248, 0.1)', borderBottom: `1px solid rgba(56, 189, 248, 0.2)` }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'info.main', mb: 1, fontSize: '0.85rem' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2">Downloading {downloadFileNameRef.current}...</Typography>
+                  {transferSpeed && <Typography variant="caption" sx={{ opacity: 0.8 }}>({transferSpeed})</Typography>}
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography variant="body2">{downloadProgress !== null ? `${downloadProgress}%` : '...'}</Typography>
+                  <IconButton size="small" color="error" onClick={cancelDownload} sx={{ p: 0 }}><X size={14} /></IconButton>
+                </Box>
+              </Box>
+              <LinearProgress variant={downloadProgress !== null ? "determinate" : "indeterminate"} value={downloadProgress || 0} color="info" />
+            </Box>
           )}
 
           {/* Files List Panel */}
-          <div style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '12px'
-          }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#64748b' }}>
-                  <th style={{ padding: '8px 12px', fontWeight: 600 }}>Name</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 600 }}>Size</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 600 }}>Permissions</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer component={Box} sx={{ flex: 1, overflowY: 'auto' }}>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Size</TableCell>
+                  <TableCell>Permissions</TableCell>
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {currentPath !== '/' && (
-                  <tr
-                    onClick={() => navigateTo('..')}
-                    style={{
-                      cursor: 'pointer',
-                      borderRadius: '6px',
-                      transition: 'background 0.15s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  <TableRow 
+                    hover 
+                    onClick={() => navigateTo('..')} 
+                    sx={{ cursor: 'pointer' }}
                   >
-                    <td style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#fb923c', fontWeight: 500 }}>
-                      <Folder size={16} />
-                      <span>..</span>
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#64748b' }}>--</td>
-                    <td style={{ padding: '10px 12px', color: '#64748b' }}>--</td>
-                    <td style={{ padding: '10px 12px', color: '#64748b' }}></td>
-                  </tr>
+                    <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main', fontWeight: 500 }}>
+                      <Folder size={16} /> ..
+                    </TableCell>
+                    <TableCell>--</TableCell>
+                    <TableCell>--</TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
                 )}
 
                 {files.map((file) => {
                   const isDir = file.type === 'd';
                   return (
-                    <tr
+                    <TableRow
                       key={file.name}
+                      hover
                       onClick={() => (file.type === 'd' || file.type === 'l') ? navigateTo(`${currentPath === '/' ? '' : currentPath}/${file.name}`) : triggerDownload(file.name, file.size)}
-                      style={{
-                        cursor: 'pointer',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
-                        transition: 'background 0.15s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      sx={{ cursor: 'pointer' }}
                     >
-                      <td style={{
-                        padding: '10px 12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        color: isDir ? '#facc15' : '#f1f5f9',
-                        fontWeight: isDir ? 500 : 400
-                      }}>
-                        {isDir ? <Folder size={16} color="#fb923c" /> : <File size={16} color="#94a3b8" />}
-                        <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                          {file.name}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#94a3b8' }}>
+                      <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1, color: isDir ? 'warning.main' : 'text.primary', fontWeight: isDir ? 500 : 400 }}>
+                        {isDir ? <Folder size={16} /> : <File size={16} color="#94a3b8" />}
+                        <Typography noWrap sx={{ maxWidth: 200, fontSize: '0.85rem' }}>{file.name}</Typography>
+                      </TableCell>
+                      <TableCell sx={{ color: 'text.secondary' }}>
                         {isDir ? '--' : formatSize(file.size)}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#64748b', fontFamily: 'monospace' }}>
+                      </TableCell>
+                      <TableCell sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>
                         {file.rights ? `${file.type}${file.rights.user}${file.rights.group}${file.rights.other}` : '--'}
-                      </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                      </TableCell>
+                      <TableCell align="right">
                         {!isDir && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              triggerDownload(file.name, file.size);
-                            }}
-                            title="Download File"
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#94a3b8',
-                              cursor: 'pointer',
-                              padding: '4px',
-                              borderRadius: '4px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'color 0.2s, background 0.2s',
-                              marginRight: '8px'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = '#38bdf8';
-                              e.currentTarget.style.background = 'rgba(56, 189, 248, 0.1)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = '#94a3b8';
-                              e.currentTarget.style.background = 'transparent';
-                            }}
+                          <IconButton 
+                            size="small" 
+                            color="info" 
+                            onClick={(e) => { e.stopPropagation(); triggerDownload(file.name, file.size); }}
+                            sx={{ mr: 1 }}
                           >
                             <Download size={14} />
-                          </button>
+                          </IconButton>
                         )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteItem(file.name);
-                          }}
-                          title="Delete"
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#94a3b8',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '4px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'color 0.2s, background 0.2s'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = '#ef4444';
-                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = '#94a3b8';
-                            e.currentTarget.style.background = 'transparent';
-                          }}
+                        <IconButton 
+                          size="small" 
+                          color="error" 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteItem(file.name); }}
                         >
                           <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
 
                 {files.length === 0 && (
-                  <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                       This folder is empty.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
       )}
 
       {/* Spin Animation Keyframe */}
@@ -976,6 +665,6 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </div>
+    </Box>
   );
 }

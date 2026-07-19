@@ -2,11 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 // @ts-ignore
 import RFB from '@novnc/novnc';
 import { Maximize } from 'lucide-react';
+import { Box, TextField, Select, MenuItem, Button, IconButton, Toolbar, Typography, Tooltip } from '@mui/material';
+
 interface VncAppProps {
     token: string;
     target: string;
     initialIp?: string;
 }
+
 export default function VncApp({ token, target, initialIp }: VncAppProps) {
     const [selectedIp, setSelectedIp] = useState(initialIp || '');
     const [vncPort, setVncPort] = useState('5900');
@@ -154,7 +157,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
             .catch(err => console.error('Failed to fetch logins', err));
     }, [token]);
 
-    const applyLogin = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const applyLogin = (e: any) => {
         const login = savedLogins.find(l => l.id === e.target.value);
         if (login) {
             setSelectedIp(login.ip);
@@ -193,75 +196,121 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     }, [selectedMonitor, isConnected]);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#050811' }}>
-            <div style={{ padding: '10px', background: 'rgba(15, 23, 42, 0.9)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#050811' }}>
+            <Toolbar 
+                variant="dense" 
+                sx={{ 
+                    bgcolor: 'rgba(15, 23, 42, 0.9)', 
+                    borderBottom: '1px solid rgba(255,255,255,0.05)', 
+                    display: 'flex', 
+                    gap: 1.5, 
+                    py: 1,
+                    px: '10px !important'
+                }}
+            >
                 {savedLogins.length > 0 && (
-                    <select onChange={applyLogin} defaultValue="" disabled={isConnected} style={{ ...inputStyle, width: 'auto' }}>
-                        <option value="" disabled>Saved Logins...</option>
+                    <Select
+                        size="small"
+                        value=""
+                        displayEmpty
+                        onChange={applyLogin}
+                        disabled={isConnected}
+                        sx={{ width: 140, '& .MuiSelect-select': { py: 0.8 } }}
+                    >
+                        <MenuItem value="" disabled>Saved Logins...</MenuItem>
                         {savedLogins.map(l => (
-                            <option key={l.id} value={l.id}>{l.name} ({l.ip})</option>
+                            <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>
                         ))}
-                    </select>
+                    </Select>
                 )}
-                <input
-                    type="text"
+                <TextField
+                    size="small"
                     value={selectedIp}
                     onChange={(e) => setSelectedIp(e.target.value)}
                     placeholder="Target IP"
                     disabled={isConnected}
-                    style={inputStyle}
+                    sx={{ width: 130, '& .MuiInputBase-input': { py: 0.8 } }}
                 />
-                <input
-                    type="text"
+                <TextField
+                    size="small"
                     value={vncPort}
                     onChange={(e) => setVncPort(e.target.value)}
                     placeholder="Port"
                     disabled={isConnected}
-                    style={{ ...inputStyle, width: '70px' }}
+                    sx={{ width: 80, '& .MuiInputBase-input': { py: 0.8 } }}
                 />
-                <input
+                <TextField
+                    size="small"
                     type="password"
                     value={vncPassword}
                     onChange={(e) => setVncPassword(e.target.value)}
                     placeholder="Password"
                     disabled={isConnected}
-                    style={{ ...inputStyle, width: '100px' }}
+                    sx={{ width: 110, '& .MuiInputBase-input': { py: 0.8 } }}
                 />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ color: 'white', fontSize: '0.85rem' }}>Monitor:</span>
-                    <input
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>Monitor:</Typography>
+                    <TextField
+                        size="small"
                         type="number"
-                        min="1"
+                        slotProps={{ htmlInput: { min: 1 } }}
                         value={selectedMonitor}
                         onChange={(e) => setSelectedMonitor(e.target.value)}
-                        style={{ ...inputStyle, width: '50px', padding: '6px' }}
+                        sx={{ width: 60, '& .MuiInputBase-input': { py: 0.8 } }}
                     />
-                </div>
+                </Box>
                 {isConnected ? (
                     <>
-                        <button style={btnDisconnectStyle} onClick={disconnectVnc}>Disconnect</button>
-                        <button style={btnIconStyle} onClick={toggleFullscreen} title="Fullscreen">
-                            <Maximize size={16} />
-                        </button>
+                        <Button 
+                            variant="contained" 
+                            color="error" 
+                            onClick={disconnectVnc}
+                            sx={{ textTransform: 'none', px: 2, ml: 'auto' }}
+                        >
+                            Disconnect
+                        </Button>
+                        <Tooltip title="Fullscreen">
+                            <IconButton onClick={toggleFullscreen} sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
+                                <Maximize size={16} />
+                            </IconButton>
+                        </Tooltip>
                     </>
                 ) : (
-                    <button style={btnConnectStyle} onClick={connectVnc} disabled={status === 'connecting' || !selectedIp}>
-                        {status === 'connecting' ? '...' : 'Connect VNC'}
-                    </button>
+                    <Button 
+                        variant="contained" 
+                        color="success" 
+                        onClick={connectVnc} 
+                        disabled={status === 'connecting' || !selectedIp}
+                        sx={{ textTransform: 'none', px: 2, ml: 'auto' }}
+                    >
+                        {status === 'connecting' ? 'Connecting...' : 'Connect VNC'}
+                    </Button>
                 )}
-            </div>
-            <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#000', position: 'relative' }}>
-                {status === 'disconnected' && <div style={{ color: '#64748b' }}>VNC Disconnected</div>}
+            </Toolbar>
+            
+            <Box 
+                ref={containerRef} 
+                sx={{ 
+                    flex: 1, 
+                    overflow: 'hidden', 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    bgcolor: '#000', 
+                    position: 'relative' 
+                }}
+            >
+                {status === 'disconnected' && <Typography color="text.secondary">VNC Disconnected</Typography>}
                 
                 {isDebug && isConnected && (
-                    <div style={{
+                    <Box sx={{
                         position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        background: 'rgba(0, 0, 0, 0.7)',
-                        color: '#38bdf8',
-                        padding: '8px 12px',
-                        borderRadius: '6px',
+                        top: 10,
+                        right: 10,
+                        bgcolor: 'rgba(0, 0, 0, 0.7)',
+                        color: 'info.main',
+                        p: 1,
+                        borderRadius: 1,
                         fontFamily: 'monospace',
                         fontSize: '0.85rem',
                         pointerEvents: 'none',
@@ -270,13 +319,9 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     }}>
                         <div>FPS: {stats.fps}</div>
                         <div>Ping: {stats.latency}ms</div>
-                    </div>
+                    </Box>
                 )}
-            </div>
-        </div>
+            </Box>
+        </Box>
     );
 }
-const inputStyle: React.CSSProperties = { background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '6px 10px', borderRadius: '6px', color: 'white', fontSize: '0.85rem', width: '120px' };
-const btnConnectStyle: React.CSSProperties = { background: '#10b981', border: 'none', padding: '6px 12px', borderRadius: '6px', color: 'white', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' };
-const btnDisconnectStyle: React.CSSProperties = { ...btnConnectStyle, background: '#ef4444' };
-const btnIconStyle: React.CSSProperties = { background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '6px', borderRadius: '6px', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };

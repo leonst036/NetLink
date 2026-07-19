@@ -17,6 +17,20 @@ import type {
 } from '@xyflow/react';
 import { Save, Plus, Search, Server as ServerIcon, Settings2, Pencil } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
+import { 
+  Box, 
+  Paper, 
+  Typography, 
+  TextField, 
+  InputAdornment, 
+  Button, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions,
+  List,
+  useTheme
+} from '@mui/material';
 
 interface ServerData {
   ip: string;
@@ -33,6 +47,7 @@ interface NetworkGraphProps {
 }
 
 export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpClick, token, target }: NetworkGraphProps) {
+  const theme = useTheme();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
@@ -88,13 +103,11 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
           setNodes(updatedNodes);
 
           if (data.nicknames && Object.keys(data.nicknames).length > 0) {
-            // Prefer the nicknames dictionary from the top-level
             setNicknames({ ...loadedNicknames, ...data.nicknames });
           } else {
             setNicknames(loadedNicknames);
           }
         } else {
-          // Default empty or just the relay server node
           setNodes([
             {
               id: 'nat',
@@ -116,7 +129,6 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
       .finally(() => setIsLoading(false));
   }, [target, token]);
 
-  // Handlers for React Flow
   const onNodesChange = useCallback(
     (changes: NodeChange<Node>[]) => {
       if (!isEditMode) {
@@ -185,10 +197,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      // Don't open connection modal in edit mode
       if (isEditMode) return;
-      
-      // Allow opening modal for any device, switch, or relay
       setSelectedDevice(node.id);
     },
     [isEditMode]
@@ -247,47 +256,60 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
   );
 
   return (
-    <div style={{ display: 'flex', height: '100%', width: '100%', minHeight: 0, background: '#050811' }}>
-
+    <Box sx={{ display: 'flex', height: '100%', width: '100%', minHeight: 0, bgcolor: 'background.default' }}>
       {/* Sidebar: Device List */}
-      <div style={{ width: '300px', background: '#0f172a', borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#f8fafc' }}>
-            <ServerIcon size={16} /> Discovered Devices
-          </h3>
-          <div style={{ position: 'relative' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: '#64748b' }} />
-            <input
-              type="text"
-              placeholder="Search IP or Hostname..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', padding: '8px 8px 8px 30px', background: 'rgba(2, 6, 23, 0.5)', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem' }}
-            />
-          </div>
-        </div>
+      <Paper 
+        square 
+        elevation={0}
+        sx={{ 
+          width: 320, 
+          borderRight: `1px solid ${theme.palette.divider}`, 
+          display: 'flex', 
+          flexDirection: 'column',
+          bgcolor: 'background.paper'
+        }}
+      >
+        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, fontWeight: 'bold' }}>
+            <ServerIcon size={18} /> Discovered Devices
+          </Typography>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search IP or Hostname..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search size={16} />
+                  </InputAdornment>
+                ),
+              }
+            }}
+          />
+        </Box>
 
-        <div 
-          style={{ flex: 1, overflowY: 'auto', padding: '10px', minHeight: 0 }}
-          onWheelCapture={(e) => e.stopPropagation()}
-        >
+        <List sx={{ flex: 1, overflowY: 'auto', p: 1 }} onWheelCapture={(e) => e.stopPropagation()}>
           {filteredServers.map(server => {
             const inGraph = nodes.some(n => n.id === server.ip);
             return (
-              <div key={server.ip} style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', marginBottom: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#38bdf8' }}>{server.ip}</div>
-                <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>{server.hostname || 'Unknown Host'}</div>
+              <Paper key={server.ip} variant="outlined" sx={{ p: 1.5, mb: 1, bgcolor: 'background.default' }}>
+                <Typography variant="subtitle2" color="primary">{server.ip}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                  {server.hostname || 'Unknown Host'}
+                </Typography>
 
                 {isEditMode && (
-                  <>
-                    <input
-                      type="text"
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
+                    <TextField
+                      size="small"
                       placeholder="Nickname..."
                       value={nicknames[server.ip] || ''}
                       onChange={e => {
                         const newVal = e.target.value;
                         setNicknames(prev => ({ ...prev, [server.ip]: newVal }));
-                        // Update node label if it's already in the graph
                         setNodes(nds => nds.map(n => {
                           if (n.id === server.ip) {
                             return { ...n, data: { ...n.data, nickname: newVal, label: newVal || server.ip } };
@@ -295,79 +317,101 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
                           return n;
                         }));
                       }}
-                      style={{ width: '100%', padding: '6px', background: 'rgba(0,0,0,0.2)', border: '1px solid #334155', borderRadius: '4px', color: 'white', fontSize: '0.8rem', marginBottom: '8px' }}
                     />
-
-                    <button
-                      onClick={() => addDeviceToGraph(server)}
+                    <Button
+                      variant={inGraph ? "outlined" : "contained"}
+                      size="small"
                       disabled={inGraph}
-                      style={{ width: '100%', padding: '6px', background: inGraph ? '#1e293b' : '#3b82f6', color: inGraph ? '#64748b' : 'white', border: 'none', borderRadius: '4px', cursor: inGraph ? 'not-allowed' : 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                      onClick={() => addDeviceToGraph(server)}
+                      startIcon={!inGraph && <Plus size={16} />}
+                      fullWidth
                     >
-                      {inGraph ? 'In Graph' : <><Plus size={14} /> Add to Graph</>}
-                    </button>
-                  </>
+                      {inGraph ? 'In Graph' : 'Add to Graph'}
+                    </Button>
+                  </Box>
                 )}
 
                 {/* Quick Connect Buttons */}
-                <div style={{ display: 'flex', gap: '5px', marginTop: '8px' }}>
-                  <button
+                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
                     onClick={() => onNodeClick(server.ip)}
-                    style={{ flex: 1, padding: '4px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
+                    sx={{ flex: 1, minWidth: 0 }}
                   >
                     SSH
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="success"
                     onClick={() => onVncClick(server.ip)}
-                    style={{ flex: 1, padding: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
+                    sx={{ flex: 1, minWidth: 0 }}
                   >
                     VNC
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="warning"
                     onClick={() => onSftpClick(server.ip)}
-                    style={{ flex: 1, padding: '4px', background: 'rgba(251, 146, 60, 0.1)', color: '#fb923c', border: '1px solid rgba(251, 146, 60, 0.3)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
+                    sx={{ flex: 1, minWidth: 0 }}
                   >
                     SFTP
-                  </button>
-                </div>
-              </div>
+                  </Button>
+                </Box>
+              </Paper>
             );
           })}
-          {filteredServers.length === 0 && <div style={{ textAlign: 'center', color: '#64748b', fontSize: '0.85rem', marginTop: '20px' }}>No devices found.</div>}
-        </div>
-      </div>
+          {filteredServers.length === 0 && (
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 4 }}>
+              No devices found.
+            </Typography>
+          )}
+        </List>
+      </Paper>
 
       {/* Main Graph Area */}
-      <div style={{ flex: 1, position: 'relative' }}>
+      <Box sx={{ flex: 1, position: 'relative' }}>
         {/* Toolbar */}
-        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button 
+        <Box sx={{ position: 'absolute', top: 16, left: 16, zIndex: 10, display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Button 
+            variant="contained" 
+            color={isEditMode ? "primary" : "inherit"}
             onClick={() => setIsEditMode(!isEditMode)} 
-            style={{ ...toolbarBtnStyle, background: isEditMode ? '#3b82f6' : '#1e293b', borderColor: isEditMode ? '#2563eb' : '#475569' }} 
-            title="Toggle Edit Mode"
+            startIcon={<Pencil size={16} />}
           >
-            <Pencil size={16} /> {isEditMode ? 'Exit Edit Mode' : 'Edit Mode'}
-          </button>
+            {isEditMode ? 'Exit Edit Mode' : 'Edit Mode'}
+          </Button>
           
           {isEditMode && (
             <>
-              <button onClick={addSwitch} style={toolbarBtnStyle} title="Add Switch / Router Node">
-                <Settings2 size={16} /> Add Switch
-              </button>
-              <button onClick={saveTopology} disabled={isSaving} style={{ ...toolbarBtnStyle, background: '#10b981', borderColor: '#059669', color: '#022c22' }} title="Save Topology to DB">
-                <Save size={16} /> {isSaving ? 'Saving...' : 'Save Topology'}
-              </button>
-              <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginLeft: '10px', background: 'rgba(15, 23, 42, 0.8)', padding: '6px 12px', borderRadius: '6px' }}>
-                Double-click to rename. Select and press Backspace to delete.
-              </div>
+              <Button variant="contained" color="secondary" onClick={addSwitch} startIcon={<Settings2 size={16} />}>
+                Add Switch
+              </Button>
+              <Button 
+                variant="contained" 
+                color="success" 
+                onClick={saveTopology} 
+                disabled={isSaving} 
+                startIcon={<Save size={16} />}
+              >
+                {isSaving ? 'Saving...' : 'Save Topology'}
+              </Button>
+              <Paper sx={{ px: 2, py: 0.5, bgcolor: 'rgba(15, 23, 42, 0.8)' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Double-click to rename. Select and press Backspace to delete.
+                </Typography>
+              </Paper>
             </>
           )}
-        </div>
+        </Box>
 
         {isLoading ? (
-          <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: '#38bdf8' }}>
-            <div className="animate-spin" style={{ marginRight: '10px', width: '20px', height: '20px', border: '2px solid transparent', borderTopColor: '#38bdf8', borderRadius: '50%' }}></div>
-            Loading Topology...
-          </div>
+          <Box sx={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: 'primary.main' }}>
+            <div className="animate-spin" style={{ marginRight: '10px', width: '20px', height: '20px', border: '2px solid transparent', borderTopColor: 'currentColor', borderRadius: '50%' }}></div>
+            <Typography>Loading Topology...</Typography>
+          </Box>
         ) : (
           <ReactFlow
             nodes={nodes}
@@ -390,103 +434,76 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
         )}
 
         {/* Protocol Selection Modal */}
-        {selectedDevice && (
-          <div style={{
-            position: 'absolute',
-            top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(2, 6, 23, 0.7)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
-            zIndex: 9999
-          }} onClick={() => setSelectedDevice(null)}>
-            <div style={{
-              background: '#0f172a',
-              border: '1px solid #38bdf8',
-              padding: '25px',
-              borderRadius: '12px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '15px',
-              minWidth: '280px',
-              transform: 'scale(1)',
-              animation: 'popIn 0.2s ease-out'
-            }} onClick={e => e.stopPropagation()}>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.2rem' }}>
-                  {selectedDevice === 'relay' ? 'Relay Server' : 
-                   selectedDevice === 'nat' ? 'NAT / Gateway' : 
-                   selectedDevice.startsWith('switch-') ? 'Network Switch' :
-                   (nicknames[selectedDevice] || selectedDevice)}
-                </h3>
-                <button onClick={() => setSelectedDevice(null)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}>&times;</button>
-              </div>
+        <Dialog 
+          open={!!selectedDevice} 
+          onClose={() => setSelectedDevice(null)}
+          sx={{
+            '& .MuiDialog-paper': {
+              bgcolor: 'background.paper',
+              backgroundImage: 'none',
+              border: `1px solid ${theme.palette.divider}`,
+              minWidth: 320
+            }
+          }}
+        >
+          {selectedDevice && (
+            <>
+              <DialogTitle sx={{ pb: 1 }}>
+                {selectedDevice === 'relay' ? 'Relay Server' : 
+                 selectedDevice === 'nat' ? 'NAT / Gateway' : 
+                 selectedDevice.startsWith('switch-') ? 'Network Switch' :
+                 (nicknames[selectedDevice] || selectedDevice)}
+              </DialogTitle>
+              <DialogContent sx={{ pb: 2 }}>
+                {selectedDevice !== 'relay' && selectedDevice !== 'nat' && !selectedDevice.startsWith('switch-') && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    IP: {selectedDevice}
+                  </Typography>
+                )}
 
-              {selectedDevice !== 'relay' && selectedDevice !== 'nat' && !selectedDevice.startsWith('switch-') && (
-                <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.85rem', marginTop: '-10px' }}>
-                  IP: {selectedDevice}
-                </p>
-              )}
-
-              {selectedDevice.startsWith('switch-') ? (
-                <div style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', padding: '10px 0' }}>
-                  No remote protocols available for this switch.
-                </div>
-              ) : selectedDevice === 'nat' ? (
-                <div style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', padding: '10px 0' }}>
-                  Gateway device. Connect via SSH if supported.
-                </div>
-              ) : null}
-
-              {(!selectedDevice.startsWith('switch-') && selectedDevice !== 'nat') && (
-                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                  <button
-                    onClick={() => { onNodeClick(selectedDevice === 'relay' ? '' : selectedDevice); setSelectedDevice(null); }}
-                    style={{ flex: 1, padding: '12px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 'bold', transition: 'all 0.2s' }}
-                    onMouseOver={e => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.2)'}
-                    onMouseOut={e => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.1)'}
-                  >
-                    SSH
-                  </button>
-                  <button
-                    onClick={() => { onVncClick(selectedDevice === 'relay' ? '' : selectedDevice); setSelectedDevice(null); }}
-                    style={{ flex: 1, padding: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 'bold', transition: 'all 0.2s' }}
-                    onMouseOver={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'}
-                    onMouseOut={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)'}
-                  >
-                    VNC
-                  </button>
-                  <button
-                    onClick={() => { onSftpClick(selectedDevice === 'relay' ? '' : selectedDevice); setSelectedDevice(null); }}
-                    style={{ flex: 1, padding: '12px', background: 'rgba(251, 146, 60, 0.1)', color: '#fb923c', border: '1px solid rgba(251, 146, 60, 0.4)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 'bold', transition: 'all 0.2s' }}
-                    onMouseOver={e => e.currentTarget.style.background = 'rgba(251, 146, 60, 0.2)'}
-                    onMouseOut={e => e.currentTarget.style.background = 'rgba(251, 146, 60, 0.1)'}
-                  >
-                    SFTP
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-    </div>
+                {selectedDevice.startsWith('switch-') ? (
+                  <Typography variant="body2" color="text.secondary" align="center">
+                    No remote protocols available for this switch.
+                  </Typography>
+                ) : selectedDevice === 'nat' ? (
+                  <Typography variant="body2" color="text.secondary" align="center">
+                    Gateway device. Connect via SSH if supported.
+                  </Typography>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={() => { onNodeClick(selectedDevice === 'relay' ? '' : selectedDevice); setSelectedDevice(null); }}
+                    >
+                      Connect via SSH
+                    </Button>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      color="success"
+                      onClick={() => { onVncClick(selectedDevice === 'relay' ? '' : selectedDevice); setSelectedDevice(null); }}
+                    >
+                      Connect via VNC
+                    </Button>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      color="warning"
+                      onClick={() => { onSftpClick(selectedDevice === 'relay' ? '' : selectedDevice); setSelectedDevice(null); }}
+                    >
+                      Browse via SFTP
+                    </Button>
+                  </Box>
+                )}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setSelectedDevice(null)} color="inherit">Close</Button>
+              </DialogActions>
+            </>
+          )}
+        </Dialog>
+      </Box>
+    </Box>
   );
 }
-
-const toolbarBtnStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '6px',
-  background: '#1e293b',
-  border: '1px solid #475569',
-  color: '#f8fafc',
-  padding: '8px 12px',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  fontSize: '0.85rem',
-  fontWeight: 500,
-  boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-};
