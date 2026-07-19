@@ -171,38 +171,42 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         return;
     }
 
-    // Install Script route
-    if (pathname === '/api/install.sh') {
+    // Install Script routes
+    if (pathname === '/api/install.sh' || pathname === '/api/install.ps1') {
         const isHttps = (req.socket as any).encrypted || req.headers['x-forwarded-proto'] === 'https';
         const protocol = isHttps ? 'https' : 'http';
         const host = req.headers.host || 'localhost';
         const relayUrl = `${protocol}://${host}`;
+        const isPs1 = pathname.endsWith('.ps1');
+        const scriptName = isPs1 ? 'install_local_server.ps1' : 'install_local_server.sh';
         try {
-            const scriptPath = path.join(__dirname, '../assets/scripts/install_local_server.sh');
+            const scriptPath = path.join(__dirname, `../assets/scripts/${scriptName}`);
             const script = fs.readFileSync(scriptPath, 'utf-8').replaceAll('${relayUrl}', relayUrl);
-            res.writeHead(200, { 'Content-Type': 'application/x-sh' });
+            res.writeHead(200, { 'Content-Type': isPs1 ? 'text/plain' : 'application/x-sh' });
             res.end(script);
         } catch (err: any) {
-            console.error('Error reading install script:', err.message, 'path:', path.join(__dirname, '../assets/scripts/install_local_server.sh'));
+            console.error(`Error reading install script ${scriptName}:`, err.message);
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('Script not found or error reading file');
         }
         return;
     }
 
-    // Demo Setup Script route
-    if (pathname === '/api/demo.sh') {
+    // Demo Setup Script routes
+    if (pathname === '/api/demo.sh' || pathname === '/api/demo.ps1') {
         const isHttps = (req.socket as any).encrypted || req.headers['x-forwarded-proto'] === 'https';
         const protocol = isHttps ? 'https' : 'http';
         const host = req.headers.host || 'localhost';
         const relayUrl = `${protocol}://${host}`;
+        const isPs1 = pathname.endsWith('.ps1');
+        const scriptName = isPs1 ? 'demo_setup.ps1' : 'demo_setup.sh';
         try {
-            const scriptPath = path.join(__dirname, '../assets/scripts/demo_setup.sh');
+            const scriptPath = path.join(__dirname, `../assets/scripts/${scriptName}`);
             const script = fs.readFileSync(scriptPath, 'utf-8').replaceAll('${relayUrl}', relayUrl);
-            res.writeHead(200, { 'Content-Type': 'application/x-sh' });
+            res.writeHead(200, { 'Content-Type': isPs1 ? 'text/plain' : 'application/x-sh' });
             res.end(script);
         } catch (err: any) {
-            console.error('Error reading demo script:', err.message, 'path:', path.join(__dirname, '../assets/scripts/demo_setup.sh'));
+            console.error(`Error reading demo script ${scriptName}:`, err.message);
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('Script not found or error reading file');
         }

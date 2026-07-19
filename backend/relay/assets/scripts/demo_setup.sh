@@ -1,35 +1,50 @@
+#!/bin/bash
+set -e
+
+# Error handling functions
+error_exit() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+# Check requirements
+command -v curl >/dev/null 2>&1 || error_exit "curl is required but it's not installed."
+command -v docker >/dev/null 2>&1 || error_exit "docker is required but it's not installed."
+command -v grep >/dev/null 2>&1 || error_exit "grep is required but it's not installed."
+
+docker info >/dev/null 2>&1 || error_exit "Docker is not running or you do not have permission. Please start Docker and try again."
+
 echo "====================================="
 echo "   NetLink Demo Node Installer       "
 echo "====================================="
 
 RELAY_URL="${relayUrl}"
 DOCKER_RELAY_URL="$RELAY_URL"
-if [[ "$DOCKER_RELAY_URL" == *"localhost"* ]]; then
+if [[ "$DOCKER_RELAY_URL" == *"localhost"* || "$DOCKER_RELAY_URL" == *"127.0.0.1"* ]]; then
     # Replace localhost with host.docker.internal for local docker testing
     DOCKER_RELAY_URL="${DOCKER_RELAY_URL//localhost/host.docker.internal}"
+    DOCKER_RELAY_URL="${DOCKER_RELAY_URL//127.0.0.1/host.docker.internal}"
 fi
 
 echo "Setting up temporary demo user..."
 
 # Request temporary credentials from the relay
-RESPONSE=$(curl -ks -X POST "$RELAY_URL/api/demo-setup")
+RESPONSE=$(curl -sS -k -X POST "$RELAY_URL/api/demo-setup") || error_exit "Failed to connect to the relay server at $RELAY_URL"
 
-USERNAME=$(echo "$RESPONSE" | grep -o '"username":"[^"]*' | grep -o '[^"]*$')
-PASSWORD=$(echo "$RESPONSE" | grep -o '"password":"[^"]*' | grep -o '[^"]*$')
-TARGET_ID=$(echo "$RESPONSE" | grep -o '"targetId":"[^"]*' | grep -o '[^"]*$')
-JWT_TOKEN=$(echo "$RESPONSE" | grep -o '"jwtToken":"[^"]*' | grep -o '[^"]*$')
+USERNAME=$(echo "$RESPONSE" | grep -o '"username":"[^"]*' | grep -o '[^"]*$' || true)
+PASSWORD=$(echo "$RESPONSE" | grep -o '"password":"[^"]*' | grep -o '[^"]*$' || true)
+TARGET_ID=$(echo "$RESPONSE" | grep -o '"targetId":"[^"]*' | grep -o '[^"]*$' || true)
+JWT_TOKEN=$(echo "$RESPONSE" | grep -o '"jwtToken":"[^"]*' | grep -o '[^"]*$' || true)
 
 if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ] || [ -z "$TARGET_ID" ] || [ -z "$JWT_TOKEN" ]; then
-    echo "Error: Failed to create demo user on the relay server."
-    echo "Response: $RESPONSE"
-    exit 1
+    error_exit "Failed to create demo user on the relay server. Response: $RESPONSE"
 fi
 
 echo "Success! Created temporary demo user."
 echo "Starting NetLink Node in Docker (Will automatically destruct after 24h)..."
 
 # Run docker container
-docker run -d --rm --network host --add-host=host.docker.internal:host-gateway --name netlink-demo-$TARGET_ID -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -e DEMO_TIMEOUT=86400 leon036/netlink-node:latest
+docker run -d --rm --network host --add-host=host.docker.internal:host-gateway --name netlink-demo-$TARGET_ID -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -e DEMO_TIMEOUT=86400 leon036/netlink-node:latest || error_exit "Failed to start the Docker container."
 
 echo ""
 echo "====================================="

@@ -107,8 +107,8 @@ function App() {
 
           <div className="docker-instructions" style={{ margin: '20px 0', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.85rem', color: '#ddd', position: 'relative' }}>
             <h4 style={{ margin: '0 0 10px 0', color: '#fff' }}>1. Start your temporary node</h4>
-            <p style={{ margin: '0 0 10px 0', lineHeight: '1.4' }}>Run this command on any Linux machine with Docker to generate your 24-hour demo credentials:</p>
-            <div style={{ position: 'relative' }}>
+            <p style={{ margin: '0 0 10px 0', lineHeight: '1.4' }}>Run this command on any machine with Docker to generate your 24-hour demo credentials:</p>
+            <div style={{ position: 'relative', marginBottom: '10px' }}>
               <code style={{ background: 'rgba(0,0,0,0.4)', padding: '12px', paddingRight: '40px', borderRadius: '4px', display: 'block', wordBreak: 'break-all', fontFamily: 'monospace', color: '#38bdf8', borderLeft: '4px solid #38bdf8' }}>
                 curl -ks {window.location.origin}/api/demo.sh | bash
               </code>
@@ -121,6 +121,10 @@ function App() {
                 ?
               </button>
             </div>
+            <p style={{ margin: '0 0 5px 0', fontSize: '0.8rem', color: '#aaa' }}>Windows (PowerShell):</p>
+            <code style={{ background: 'rgba(0,0,0,0.4)', padding: '8px', borderRadius: '4px', display: 'block', wordBreak: 'break-all', fontFamily: 'monospace', color: '#38bdf8', borderLeft: '4px solid #38bdf8', fontSize: '0.8rem' }}>
+              Invoke-Expression (Invoke-WebRequest -Uri "{window.location.origin}/api/demo.ps1" -UseBasicParsing).Content
+            </code>
           </div>
 
           <h4 style={{ margin: '0 0 15px 0', color: '#fff', textAlign: 'center' }}>2. Login to manage your machine</h4>
