@@ -45,6 +45,18 @@ else
     error_exit "Target ID '$TARGET_ID' is already taken or invalid. Response: $VALIDATION"
 fi
 
-docker run -d --network host --add-host=host.docker.internal:host-gateway --name netlink-node -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -v /var/run/docker.sock:/var/run/docker.sock leon036/netlink-node:latest || error_exit "Failed to start the Docker container."
+echo "Detecting local network CIDR for scanning..."
+DEFAULT_IFACE=$(ip route show default | awk '/default/ {print $5}')
+if [ -n "$DEFAULT_IFACE" ]; then
+    SCAN_CIDR=$(ip -o -f inet addr show "$DEFAULT_IFACE" | awk '{print $4}')
+fi
+if [ -z "$SCAN_CIDR" ]; then
+    SCAN_CIDR="192.168.1.0/24"
+    echo "Could not auto-detect network CIDR, defaulting to $SCAN_CIDR"
+else
+    echo "Detected network CIDR: $SCAN_CIDR"
+fi
+
+docker run -d --network host --add-host=host.docker.internal:host-gateway --name netlink-node -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -e SCAN_CIDR="$SCAN_CIDR" -v /var/run/docker.sock:/var/run/docker.sock leon036/netlink-node:latest || error_exit "Failed to start the Docker container."
 
 echo "Installation complete! Your node is connecting to NetLink."

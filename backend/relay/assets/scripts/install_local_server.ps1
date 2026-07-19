@@ -54,8 +54,23 @@ if ($VALIDATION.valid -eq $true) {
     Show-Error "Target ID '$TARGET_ID' is already taken or invalid."
 }
 
+Write-Host "Detecting local network CIDR for scanning..."
 try {
-    docker run -d --network host --add-host=host.docker.internal:host-gateway --name netlink-node -e "RELAY_URL=$DOCKER_RELAY_URL" -e "RELAY_TOKEN=$JWT_TOKEN" -v /var/run/docker.sock:/var/run/docker.sock leon036/netlink-node:latest
+    $DefaultRoute = Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction Stop | Select-Object -First 1
+    if ($DefaultRoute) {
+        $IPInfo = Get-NetIPAddress -InterfaceIndex $DefaultRoute.InterfaceIndex -AddressFamily IPv4 -ErrorAction Stop | Select-Object -First 1
+        $SCAN_CIDR = "$($IPInfo.IPAddress)/$($IPInfo.PrefixLength)"
+        Write-Host "Detected network CIDR: $SCAN_CIDR"
+    } else {
+        throw "No default route found"
+    }
+} catch {
+    $SCAN_CIDR = "192.168.1.0/24"
+    Write-Host "Could not auto-detect network CIDR, defaulting to $SCAN_CIDR" -ForegroundColor Yellow
+}
+
+try {
+    docker run -d --network host --add-host=host.docker.internal:host-gateway --name netlink-node -e "RELAY_URL=$DOCKER_RELAY_URL" -e "RELAY_TOKEN=$JWT_TOKEN" -e "SCAN_CIDR=$SCAN_CIDR" -v /var/run/docker.sock:/var/run/docker.sock leon036/netlink-node:latest
     if ($LASTEXITCODE -ne 0) { throw "Docker run failed." }
 } catch {
     Show-Error "Failed to start the Docker container. $_"

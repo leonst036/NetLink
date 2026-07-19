@@ -41,10 +41,23 @@ if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ] || [ -z "$TARGET_ID" ] || [ -z "$JWT
 fi
 
 echo "Success! Created temporary demo user."
+
+echo "Detecting local network CIDR for scanning..."
+DEFAULT_IFACE=$(ip route show default | awk '/default/ {print $5}')
+if [ -n "$DEFAULT_IFACE" ]; then
+    SCAN_CIDR=$(ip -o -f inet addr show "$DEFAULT_IFACE" | awk '{print $4}')
+fi
+if [ -z "$SCAN_CIDR" ]; then
+    SCAN_CIDR="192.168.1.0/24"
+    echo "Could not auto-detect network CIDR, defaulting to $SCAN_CIDR"
+else
+    echo "Detected network CIDR: $SCAN_CIDR"
+fi
+
 echo "Starting NetLink Node in Docker (Will automatically destruct after 24h)..."
 
 # Run docker container
-docker run -d --rm --network host --add-host=host.docker.internal:host-gateway --name netlink-demo-$TARGET_ID -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -e DEMO_TIMEOUT=86400 leon036/netlink-node:latest || error_exit "Failed to start the Docker container."
+docker run -d --rm --network host --add-host=host.docker.internal:host-gateway --name netlink-demo-$TARGET_ID -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -e DEMO_TIMEOUT=86400 -e SCAN_CIDR="$SCAN_CIDR" leon036/netlink-node:latest || error_exit "Failed to start the Docker container."
 
 echo ""
 echo "====================================="
