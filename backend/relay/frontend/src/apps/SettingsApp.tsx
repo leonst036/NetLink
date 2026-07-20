@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Users, Monitor, Info, Shield, Key, Plus, Trash2, Save } from 'lucide-react';
+import { User, Users, Monitor, Shield, Key, Plus, Trash2, Save } from 'lucide-react';
 import {
   Box,
   Paper,
