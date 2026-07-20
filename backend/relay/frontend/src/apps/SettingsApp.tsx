@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
 import { User, Users, Monitor, Info, Shield, Key, Plus, Trash2, Save } from 'lucide-react';
-import { 
-  Box, 
-  Paper, 
-  List, 
-  ListItem, 
-  ListItemButton, 
-  ListItemIcon, 
-  ListItemText, 
-  Typography, 
-  TextField, 
-  Select, 
-  MenuItem, 
-  Switch, 
-  Button, 
+import {
+  Box,
+  Paper,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  TextField,
+  Select,
+  MenuItem,
+  Switch,
+  Button,
   IconButton,
   Card,
   CardContent,
@@ -31,7 +31,7 @@ import {
   useTheme
 } from '@mui/material';
 
-type TabId = 'general' | 'appearance' | 'logins' | 'security' | 'about' | 'users';
+type TabId = 'general' | 'appearance' | 'logins' | 'security' | 'users';
 
 interface SettingsAppProps {
   token: string;
@@ -76,7 +76,6 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     { id: 'appearance', label: 'Appearance', icon: <Monitor size={20} /> },
     { id: 'logins', label: 'Server Logins', icon: <Key size={20} /> },
     { id: 'security', label: 'Security', icon: <Shield size={20} /> },
-    { id: 'about', label: 'About NetLink', icon: <Info size={20} /> },
   ];
 
   if (canManageUsers) {
@@ -238,12 +237,12 @@ export default function SettingsApp({ token }: SettingsAppProps) {
   return (
     <Box sx={{ display: 'flex', height: '100%', bgcolor: 'background.default' }}>
       {/* Sidebar */}
-      <Paper 
-        square 
+      <Paper
+        square
         elevation={0}
-        sx={{ 
-          width: 260, 
-          bgcolor: 'background.paper', 
+        sx={{
+          width: 260,
+          bgcolor: 'background.paper',
           borderRight: `1px solid ${theme.palette.divider}`,
           display: 'flex',
           flexDirection: 'column'
@@ -255,7 +254,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
         <List sx={{ px: 1 }}>
           {tabs.map(tab => (
             <ListItem disablePadding key={tab.id} sx={{ mb: 0.5 }}>
-              <ListItemButton 
+              <ListItemButton
                 selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id as TabId)}
                 sx={{ borderRadius: 2 }}
@@ -263,15 +262,15 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                 <ListItemIcon sx={{ minWidth: 40, color: activeTab === tab.id ? 'primary.main' : 'inherit' }}>
                   {tab.icon}
                 </ListItemIcon>
-                <ListItemText 
+                <ListItemText
                   primary={
-                    <Typography sx={{ 
+                    <Typography sx={{
                       fontWeight: activeTab === tab.id ? 'bold' : 'medium',
                       color: activeTab === tab.id ? 'primary.main' : 'inherit'
                     }}>
                       {tab.label}
                     </Typography>
-                  } 
+                  }
                 />
               </ListItemButton>
             </ListItem>
@@ -294,9 +293,9 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography>Username</Typography>
-                      <TextField 
-                        size="small" 
-                        value={username} 
+                      <TextField
+                        size="small"
+                        value={username}
                         onChange={(e) => updateSetting('netlink_username', e.target.value, setUsername)}
                         sx={{ width: 250 }}
                       />
@@ -333,7 +332,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography>Enable debug mode (logs &amp; VNC FPS/Latency)</Typography>
-                      <Switch 
+                      <Switch
                         defaultChecked={localStorage.getItem('netlink_debug') === 'true'}
                         onChange={(_e, checked) => {
                           localStorage.setItem('netlink_debug', checked.toString());
@@ -359,7 +358,6 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                   <Box sx={{ display: 'flex', gap: 2 }}>
                     <ThemeCard name="Dark" active={appTheme === 'Dark'} color="#0f172a" onClick={() => updateSetting('netlink_theme', 'Dark', setAppTheme)} />
                     <ThemeCard name="Light" active={appTheme === 'Light'} color="#f8fafc" textColor="#0f172a" onClick={() => updateSetting('netlink_theme', 'Light', setAppTheme)} />
-                    <ThemeCard name="Hacker" active={appTheme === 'Hacker'} color="#000000" accent="#22c55e" onClick={() => updateSetting('netlink_theme', 'Hacker', setAppTheme)} />
                   </Box>
                 </CardContent>
               </Card>
@@ -376,7 +374,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                     <WallpaperThumb active={wallpaper === 'wp3'} bg='linear-gradient(135deg, #064e3b 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp3', setWallpaper)} />
                     <Box
                       onClick={() => updateSetting('netlink_wallpaper', 'solid', setWallpaper)}
-                      sx={{ 
+                      sx={{
                         width: 100, height: 60, borderRadius: 2, cursor: 'pointer',
                         bgcolor: '#090d1a', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         color: 'text.secondary', border: wallpaper === 'solid' ? `2px solid ${theme.palette.primary.main}` : `1px dashed ${theme.palette.divider}`
@@ -410,9 +408,9 @@ export default function SettingsApp({ token }: SettingsAppProps) {
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Server Logins</Typography>
-                <Button 
-                  variant="contained" 
-                  startIcon={<Plus size={16} />} 
+                <Button
+                  variant="contained"
+                  startIcon={<Plus size={16} />}
                   onClick={() => setEditingLogin({ id: '', name: 'New Server', ip: '', port: '22', loginUsername: 'root', password: '', type: 'ssh' })}
                 >
                   Add Login
@@ -485,9 +483,9 @@ export default function SettingsApp({ token }: SettingsAppProps) {
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>User Management</Typography>
-                <Button 
-                  variant="contained" 
-                  startIcon={<Plus size={16} />} 
+                <Button
+                  variant="contained"
+                  startIcon={<Plus size={16} />}
                   onClick={() => setEditingUser({ username: '', password: '', role: 'user', permissions: [] })}
                 >
                   Add User
@@ -503,12 +501,12 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                       <TextField label="Username" size="small" value={editingUser.username} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} disabled={!!usersList.find(u => u.username === editingUser.username)} fullWidth />
                       <TextField label={usersList.find(u => u.username === editingUser.username) ? "New Password (Leave blank to keep current)" : "Password"} type="password" size="small" value={editingUser.password} onChange={e => setEditingUser({ ...editingUser, password: e.target.value })} fullWidth />
-                      
+
                       <Box>
                         <Typography variant="subtitle2" sx={{ mb: 1 }}>Permissions</Typography>
                         <FormGroup>
                           {ALL_PERMISSIONS.map(perm => (
-                            <FormControlLabel 
+                            <FormControlLabel
                               key={perm.id}
                               control={<Checkbox checked={editingUser.permissions?.includes(perm.id) || false} onChange={() => togglePermission(perm.id)} />}
                               label={perm.label}
@@ -516,7 +514,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                           ))}
                         </FormGroup>
                       </Box>
-                      
+
                       <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
                         <Button variant="contained" color="success" startIcon={<Save size={16} />} onClick={saveUser}>Save</Button>
                         <Button variant="outlined" color="inherit" onClick={() => setEditingUser(null)}>Cancel</Button>
@@ -592,63 +590,6 @@ export default function SettingsApp({ token }: SettingsAppProps) {
             </Box>
           )}
 
-          {activeTab === 'about' && (
-            <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 5 }}>
-                <Box sx={{
-                  width: 64, height: 64, borderRadius: 3,
-                  background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 10px 25px -5px rgba(2, 132, 199, 0.5)'
-                }}>
-                  <Monitor size={32} color="white" />
-                </Box>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>NetLink</Typography>
-                  <Typography color="text.secondary">Version 1.0.0-beta</Typography>
-                </Box>
-              </Box>
-
-              <Card variant="outlined" sx={{ mb: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
-                    System Information
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography color="text.secondary">Client Environment</Typography>
-                      <Typography sx={{ fontWeight: 'medium' }}>Browser (Web Platform)</Typography>
-                    </Box>
-                    <Divider />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography color="text.secondary">Build Date</Typography>
-                      <Typography sx={{ fontWeight: 'medium' }}>{new Date().toLocaleDateString()}</Typography>
-                    </Box>
-                    <Divider />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography color="text.secondary">License</Typography>
-                      <Typography sx={{ fontWeight: 'medium' }}>MIT License</Typography>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-
-              <Card variant="outlined">
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
-                    Updates
-                  </Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'rgba(255,255,255,0.02)', p: 2, borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
-                    <Box>
-                      <Typography sx={{ fontWeight: 'medium' }}>NetLink is up to date</Typography>
-                      <Typography variant="body2" color="text.secondary">Last checked: Just now</Typography>
-                    </Box>
-                    <Button variant="outlined" color="inherit">Check for Updates</Button>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Box>
-          )}
         </Box>
       </Box>
     </Box>
@@ -680,7 +621,7 @@ const WallpaperThumb = ({ bg, active, onClick }: { bg: string, active: boolean, 
   return (
     <Box
       onClick={onClick}
-      sx={{ 
+      sx={{
         width: 100, height: 60, borderRadius: 2, cursor: 'pointer',
         background: bg, border: active ? `2px solid ${theme.palette.primary.main}` : 'none'
       }}

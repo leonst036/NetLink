@@ -15,7 +15,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   const [sshUsername, setSshUsername] = useState('');
   const [sshPassword, setSshPassword] = useState('');
   const [savedLogins, setSavedLogins] = useState<any[]>([]);
-  
+
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [isConnected, setIsConnected] = useState(false);
 
@@ -59,7 +59,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(terminalRef.current);
-    
+
     // Slight delay for fit addon to get correct dimensions in RND wrapper
     setTimeout(() => fitAddon.fit(), 100);
 
@@ -111,7 +111,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
         console.log('Debug: Error parsing WebSocket message: ', err);
         // Not a JSON control message
       }
-      
+
       term.write(textData);
     };
 
@@ -140,7 +140,9 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
       if (fitAddonRef.current) {
         try {
           fitAddonRef.current.fit();
-        } catch (err) {}
+        } catch (err) {
+          console.error('Error while resizing terminal window:', err)
+        }
       }
     };
 
@@ -149,7 +151,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
       console.log('Debug: Terminal resized');
       handleResize();
     });
-    
+
     if (terminalRef.current) {
       observer.observe(terminalRef.current);
     }
@@ -191,13 +193,13 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#050811' }}>
-      <Toolbar 
-        variant="dense" 
-        sx={{ 
-          bgcolor: 'rgba(15, 23, 42, 0.9)', 
-          borderBottom: '1px solid rgba(255,255,255,0.05)', 
-          display: 'flex', 
-          gap: 1.5, 
+      <Toolbar
+        variant="dense"
+        sx={{
+          bgcolor: 'rgba(15, 23, 42, 0.9)',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
+          display: 'flex',
+          gap: 1.5,
           py: 1,
           px: '10px !important'
         }}
@@ -243,19 +245,19 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
           sx={{ width: 120, '& .MuiInputBase-input': { py: 0.8 } }}
         />
         {isConnected ? (
-          <Button 
-            variant="contained" 
-            color="error" 
+          <Button
+            variant="contained"
+            color="error"
             onClick={disconnectTerminal}
             sx={{ textTransform: 'none', px: 2 }}
           >
             Disconnect
           </Button>
         ) : (
-          <Button 
-            variant="contained" 
-            color="primary" 
-            onClick={connectTerminal} 
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={connectTerminal}
             disabled={status === 'connecting' || !selectedIp || !sshUsername}
             sx={{ textTransform: 'none', px: 2 }}
           >
@@ -263,13 +265,13 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
           </Button>
         )}
       </Toolbar>
-      <Box 
-        ref={terminalRef} 
-        sx={{ 
-          flex: 1, 
+      <Box
+        ref={terminalRef}
+        sx={{
+          flex: 1,
           p: 1.5,
           '& .xterm': { padding: '4px' }
-        }} 
+        }}
       />
     </Box>
   );
