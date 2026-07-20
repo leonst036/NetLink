@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
   Typography,
   TextField,
   Button,
   Alert,
-  Link,
   CssBaseline
 } from '@mui/material';
 import Desktop from './Desktop';
@@ -26,7 +23,6 @@ function App() {
   });
 
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -117,7 +113,6 @@ function App() {
     localStorage.removeItem('netlink_allowed_targets');
     setToken(null);
     setUsername('');
-    setEmail('');
     setPassword('');
     setAllowedTargets([]);
   };
