@@ -304,8 +304,6 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                       <Typography>Language</Typography>
                       <Select size="small" value="en" sx={{ width: 250 }}>
                         <MenuItem value="en">English (US)</MenuItem>
-                        <MenuItem value="de">German (DE)</MenuItem>
-                        <MenuItem value="fr">French (FR)</MenuItem>
                       </Select>
                     </Box>
                   </Box>
