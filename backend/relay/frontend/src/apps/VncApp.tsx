@@ -243,11 +243,11 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     }, [selectedMonitor, isConnected]);
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#050811' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'transparent' }}>
             <Toolbar 
                 variant="dense" 
                 sx={{ 
-                    bgcolor: 'rgba(15, 23, 42, 0.9)', 
+                    bgcolor: 'rgba(255,255,255,0.03)', 
                     borderBottom: '1px solid rgba(255,255,255,0.05)', 
                     display: 'flex', 
                     gap: 1.5, 
@@ -343,7 +343,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     display: 'flex', 
                     justifyContent: 'center', 
                     alignItems: 'center', 
-                    bgcolor: '#000', 
+                    bgcolor: 'transparent', 
                     position: 'relative' 
                 }}
             >

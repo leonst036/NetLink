@@ -256,17 +256,17 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
   );
 
   return (
-    <Box sx={{ display: 'flex', height: '100%', width: '100%', minHeight: 0, bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', height: '100%', width: '100%', minHeight: 0, bgcolor: 'transparent' }}>
       {/* Sidebar: Device List */}
       <Paper 
-        square 
         elevation={0}
         sx={{ 
           width: 320, 
-          borderRight: `1px solid ${theme.palette.divider}`, 
+          borderRight: `1px solid rgba(255,255,255,0.05)`, 
           display: 'flex', 
           flexDirection: 'column',
-          bgcolor: 'background.paper'
+          bgcolor: 'rgba(0,0,0,0.2)',
+          borderRadius: 0,
         }}
       >
         <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>

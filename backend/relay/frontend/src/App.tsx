@@ -8,6 +8,7 @@ import {
   CssBaseline
 } from '@mui/material';
 import Desktop from './Desktop';
+import GeminiLoader from './components/GeminiLoader';
 import './App.css';
 
 function App() {
@@ -263,35 +264,41 @@ function App() {
                 sx={textFieldSx}
               />
 
-              <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                disableElevation
-                disabled={loading}
-                sx={{
-                  mt: 3, py: 2,
-                  borderRadius: 0,
-                  bgcolor: '#fff',
-                  color: '#000',
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  textTransform: 'none',
-                  fontFamily: "'Outfit', sans-serif",
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    bgcolor: 'rgba(255,255,255,0.85)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 10px 20px -10px rgba(255,255,255,0.3)'
-                  },
-                  '&:disabled': {
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                    color: 'rgba(255,255,255,0.3)'
-                  }
-                }}
-              >
-                {loading ? 'Authenticating...' : 'Sign in'}
-              </Button>
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
+                  <GeminiLoader size={48} />
+                </Box>
+              ) : (
+                <Button
+                  type="submit"
+                  variant="contained"
+                  fullWidth
+                  disableElevation
+                  disabled={loading}
+                  sx={{
+                    mt: 3, py: 2,
+                    borderRadius: '24px',
+                    bgcolor: '#fff',
+                    color: '#000',
+                    fontWeight: 600,
+                    fontSize: '1rem',
+                    textTransform: 'none',
+                    fontFamily: "'Outfit', sans-serif",
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255,255,255,0.95)',
+                      transform: 'translateY(-2px) scale(1.02)',
+                      boxShadow: '0 8px 20px rgba(255,255,255,0.3)'
+                    },
+                    '&:disabled': {
+                      bgcolor: 'rgba(255,255,255,0.1)',
+                      color: 'rgba(255,255,255,0.3)'
+                    }
+                  }}
+                >
+                  Sign in
+                </Button>
+              )}
             </Box>
 
             {/*

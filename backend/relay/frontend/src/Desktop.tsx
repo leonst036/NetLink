@@ -83,11 +83,11 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
 
     const getBackgroundStyle = () => {
         switch (settings.wallpaper) {
-            case 'wp1': return 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)';
-            case 'wp2': return 'linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)';
-            case 'wp3': return 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)';
-            case 'solid': return '#090d1a';
-            default: return 'url("https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop") center/cover no-repeat';
+            case 'wp1': return 'linear-gradient(135deg, #0f172a 0%, #020617 100%)';
+            case 'wp2': return 'linear-gradient(135deg, #312e81 0%, #020617 100%)';
+            case 'wp3': return 'linear-gradient(135deg, #064e3b 0%, #020617 100%)';
+            case 'solid': return '#020617';
+            default: return 'url("/login-bg.png") center/cover no-repeat';
         }
     };
 
@@ -198,7 +198,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
             flexDirection: 'column'
         }}>
             {/* Desktop overlay filter */}
-            <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(2, 6, 23, 0.4)', pointerEvents: 'none', zIndex: 0 }} />
+            <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(0, 0, 0, 0.4)', pointerEvents: 'none', zIndex: 0 }} />
 
             {/* Notifications */}
             <Box sx={{
@@ -225,8 +225,8 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
 
             {/* Top Menu Bar */}
             <AppBar position="static" color="transparent" elevation={0} sx={{ 
-                bgcolor: 'rgba(2, 6, 23, 0.6)', 
-                backdropFilter: 'blur(10px)',
+                bgcolor: 'rgba(15, 23, 42, 0.65)', 
+                backdropFilter: 'blur(16px)',
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
                 zIndex: 9999
             }}>
@@ -390,11 +390,11 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                 bottom: 20,
                 left: '50%',
                 transform: 'translateX(-50%)',
-                bgcolor: 'rgba(15, 23, 42, 0.6)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                bgcolor: 'rgba(15, 23, 42, 0.65)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255,255,255,0.05)',
                 padding: '10px 16px',
-                borderRadius: 6,
+                borderRadius: '24px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
@@ -545,9 +545,9 @@ function DockIcon({
                 sx={{
                     width: 48,
                     height: 48,
-                    bgcolor: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: 3,
+                    bgcolor: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    borderRadius: '16px',
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',

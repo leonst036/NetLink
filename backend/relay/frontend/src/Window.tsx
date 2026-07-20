@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Rnd } from 'react-rnd';
 import { X, Minus, Maximize2 } from 'lucide-react';
-import { Box, Paper, IconButton, Typography, useTheme } from '@mui/material';
+import { Box, Paper, IconButton, Typography } from '@mui/material';
 
 interface WindowProps {
   id: string;
@@ -29,7 +29,6 @@ export default function Window({
   defaultPosition = { x: 50, y: 50 },
   defaultSize = { width: 800, height: 500 }
 }: WindowProps) {
-  const theme = useTheme();
   const [size, setSize] = useState<{ width: number | string; height: number | string }>(defaultSize);
   const [position, setPosition] = useState<{ x: number; y: number }>(defaultPosition);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -91,10 +90,11 @@ export default function Window({
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          borderRadius: isMaximized ? 0 : 3,
+          borderRadius: isMaximized ? 0 : '16px',
           overflow: 'hidden',
           bgcolor: 'background.paper',
-          border: isMaximized ? 'none' : `1px solid ${theme.palette.divider}`,
+          border: isMaximized ? 'none' : `1px solid rgba(255,255,255,0.05)`,
+          boxShadow: isActive ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 10px 30px -5px rgba(0, 0, 0, 0.5)',
           transition: 'box-shadow 0.2s',
         }}
       >
@@ -102,9 +102,9 @@ export default function Window({
         <Box
           className="window-handle"
           sx={{
-            height: 40,
-            bgcolor: 'rgba(0, 0, 0, 0.2)',
-            borderBottom: `1px solid ${theme.palette.divider}`,
+            height: 48,
+            bgcolor: 'rgba(15, 23, 42, 0.4)',
+            borderBottom: `1px solid rgba(255,255,255,0.05)`,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',

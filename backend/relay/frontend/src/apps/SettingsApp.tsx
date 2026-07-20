@@ -235,17 +235,17 @@ export default function SettingsApp({ token }: SettingsAppProps) {
   };
 
   return (
-    <Box sx={{ display: 'flex', height: '100%', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', height: '100%', bgcolor: 'transparent' }}>
       {/* Sidebar */}
       <Paper
-        square
         elevation={0}
         sx={{
           width: 260,
-          bgcolor: 'background.paper',
-          borderRight: `1px solid ${theme.palette.divider}`,
+          bgcolor: 'rgba(0,0,0,0.2)',
+          borderRight: `1px solid rgba(255,255,255,0.05)`,
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          borderRadius: 0,
         }}
       >
         <Box sx={{ p: 3, pb: 1 }}>
@@ -285,7 +285,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
             <Box>
               <Typography variant="h5" sx={{ mb: 4, fontWeight: 'bold' }}>General Settings</Typography>
 
-              <Card variant="outlined" sx={{ mb: 3 }}>
+              <Card variant="outlined" sx={{ mb: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
                     User Profile
@@ -312,7 +312,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                 </CardContent>
               </Card>
 
-              <Card variant="outlined">
+              <Card variant="outlined" sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
                     Desktop Behavior
@@ -350,7 +350,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
             <Box>
               <Typography variant="h5" sx={{ mb: 4, fontWeight: 'bold' }}>Appearance</Typography>
 
-              <Card variant="outlined" sx={{ mb: 3 }}>
+              <Card variant="outlined" sx={{ mb: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
                     Theme
@@ -362,7 +362,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                 </CardContent>
               </Card>
 
-              <Card variant="outlined" sx={{ mb: 3 }}>
+              <Card variant="outlined" sx={{ mb: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
                     Wallpaper
@@ -386,7 +386,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                 </CardContent>
               </Card>
 
-              <Card variant="outlined">
+              <Card variant="outlined" sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
                     Display Settings
@@ -418,7 +418,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
               </Box>
 
               {editingLogin ? (
-                <Card variant="outlined">
+                <Card variant="outlined" sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                   <CardContent sx={{ p: 3 }}>
                     <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
                       Edit Server Login
@@ -442,7 +442,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                   </CardContent>
                 </Card>
               ) : (
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -493,7 +493,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
               </Box>
 
               {editingUser ? (
-                <Card variant="outlined">
+                <Card variant="outlined" sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                   <CardContent sx={{ p: 3 }}>
                     <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
                       {usersList.find(u => u.username === editingUser.username) ? "Edit User" : "New User"}
@@ -523,7 +523,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                   </CardContent>
                 </Card>
               ) : (
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -566,7 +566,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
             <Box>
               <Typography variant="h5" sx={{ mb: 4, fontWeight: 'bold' }}>Security Settings</Typography>
 
-              <Card variant="outlined" sx={{ mb: 3 }}>
+              <Card variant="outlined" sx={{ mb: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
                     Authentication

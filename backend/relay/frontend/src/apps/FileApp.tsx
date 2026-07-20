@@ -20,6 +20,7 @@ import {
   CardContent,
   useTheme
 } from '@mui/material';
+import GeminiLoader from '../components/GeminiLoader';
 
 interface FileAppProps {
   token: string;
@@ -415,10 +416,10 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'transparent' }}>
       {/* Login Screen */}
       {status === 'disconnected' && (
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3, background: 'radial-gradient(circle at center, #0f172a 0%, #020617 100%)' }}>
+        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3, background: 'transparent' }}>
           <Card sx={{ width: '100%', maxWidth: 380, bgcolor: 'rgba(30, 41, 59, 0.4)', backdropFilter: 'blur(16px)', border: `1px solid ${theme.palette.divider}`, borderRadius: 4, boxShadow: 24 }}>
             <CardContent sx={{ p: 4 }}>
               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
@@ -476,9 +477,9 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
 
       {/* Connecting Loader */}
       {status === 'connecting' && (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 2, bgcolor: '#020617' }}>
-          <RefreshCw className="animate-spin" size={32} color={theme.palette.warning.main} />
-          <Typography color="text.secondary">{statusMessage}</Typography>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 3, bgcolor: 'transparent' }}>
+          <GeminiLoader size={64} />
+          <Typography color="text.secondary" sx={{ fontWeight: 500, letterSpacing: '0.02em' }}>{statusMessage}</Typography>
         </Box>
       )}
 
@@ -486,7 +487,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
       {status === 'connected' && (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           {/* Action Header / Breadcrumb */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, bgcolor: 'rgba(15, 23, 42, 0.4)', borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
             <IconButton onClick={goBack} disabled={history.length === 0} sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
               <ArrowLeft size={16} />
             </IconButton>
@@ -498,7 +499,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             {/* Breadcrumb Path Bar */}
             <Box sx={{ 
               flex: 1, display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.8, 
-              bgcolor: 'rgba(2, 6, 23, 0.4)', borderRadius: 1, border: `1px solid ${theme.palette.divider}`,
+              bgcolor: 'rgba(0, 0, 0, 0.3)', borderRadius: 1, border: `1px solid rgba(255,255,255,0.05)`,
               fontFamily: 'monospace', color: 'info.main', overflow: 'hidden'
             }}>
               <HardDrive size={14} color="#64748b" />
@@ -595,8 +596,10 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                     onClick={() => navigateTo('..')} 
                     sx={{ cursor: 'pointer' }}
                   >
-                    <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main', fontWeight: 500 }}>
-                      <Folder size={16} /> ..
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main', fontWeight: 500 }}>
+                        <Folder size={16} /> ..
+                      </Box>
                     </TableCell>
                     <TableCell>--</TableCell>
                     <TableCell>--</TableCell>
@@ -613,9 +616,11 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                       onClick={() => (file.type === 'd' || file.type === 'l') ? navigateTo(`${currentPath === '/' ? '' : currentPath}/${file.name}`) : triggerDownload(file.name, file.size)}
                       sx={{ cursor: 'pointer' }}
                     >
-                      <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1, color: isDir ? 'warning.main' : 'text.primary', fontWeight: isDir ? 500 : 400 }}>
-                        {isDir ? <Folder size={16} /> : <File size={16} color="#94a3b8" />}
-                        <Typography noWrap sx={{ maxWidth: 200, fontSize: '0.85rem' }}>{file.name}</Typography>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: isDir ? 'warning.main' : 'text.primary', fontWeight: isDir ? 500 : 400 }}>
+                          {isDir ? <Folder size={16} /> : <File size={16} color="#94a3b8" />}
+                          <Typography noWrap sx={{ maxWidth: 200, fontSize: '0.85rem' }}>{file.name}</Typography>
+                        </Box>
                       </TableCell>
                       <TableCell sx={{ color: 'text.secondary' }}>
                         {isDir ? '--' : formatSize(file.size)}

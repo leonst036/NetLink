@@ -192,11 +192,11 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#050811' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'transparent' }}>
       <Toolbar
         variant="dense"
         sx={{
-          bgcolor: 'rgba(15, 23, 42, 0.9)',
+          bgcolor: 'rgba(255,255,255,0.03)',
           borderBottom: '1px solid rgba(255,255,255,0.05)',
           display: 'flex',
           gap: 1.5,
