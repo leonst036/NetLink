@@ -351,7 +351,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
               <Card variant="outlined" sx={{ mb: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
-                    Theme
+                    Theme (Beta)
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 2 }}>
                     <ThemeCard name="Dark" active={appTheme === 'Dark'} color="#0f172a" onClick={() => updateSetting('netlink_theme', 'Dark', setAppTheme)} />
