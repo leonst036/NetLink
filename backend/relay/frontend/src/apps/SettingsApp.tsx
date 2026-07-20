@@ -368,7 +368,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                     Wallpaper
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                    <WallpaperThumb active={wallpaper === 'default'} bg='url("https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=200&auto=format&fit=crop") center/cover' onClick={() => updateSetting('netlink_wallpaper', 'default', setWallpaper)} />
+                    <WallpaperThumb active={wallpaper === 'default'} bg='url("/login-bg.png") center/cover' onClick={() => updateSetting('netlink_wallpaper', 'default', setWallpaper)} />
                     <WallpaperThumb active={wallpaper === 'wp1'} bg='linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp1', setWallpaper)} />
                     <WallpaperThumb active={wallpaper === 'wp2'} bg='linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp2', setWallpaper)} />
                     <WallpaperThumb active={wallpaper === 'wp3'} bg='linear-gradient(135deg, #064e3b 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp3', setWallpaper)} />
