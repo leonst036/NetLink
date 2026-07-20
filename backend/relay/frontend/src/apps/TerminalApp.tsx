@@ -30,10 +30,13 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
       socketRef.current = null;
     }
     if (termRef.current) {
-      termRef.current.write('\r\n[Disconnected from server]\r\n');
-      termRef.current.dispose();
+      try {
+        termRef.current.write('\r\n[Disconnected from server]\r\n');
+        termRef.current.dispose();
+      } catch (e) {}
       termRef.current = null;
     }
+    fitAddonRef.current = null;
     setStatus('disconnected');
     setIsConnected(false);
   };
@@ -108,8 +111,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
           return;
         }
       } catch (err) {
-        console.log('Debug: Error parsing WebSocket message: ', err);
-        // Not a JSON control message
+        // Not a JSON control message, treat as standard terminal output
       }
 
       term.write(textData);
@@ -136,20 +138,23 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   };
 
   useEffect(() => {
+    let timeout: any;
     const handleResize = () => {
-      if (fitAddonRef.current) {
+      if (fitAddonRef.current && termRef.current?.element) {
         try {
           fitAddonRef.current.fit();
         } catch (err) {
-          console.error('Error while resizing terminal window:', err)
+          // ignore error if terminal is destroyed during resize
         }
       }
     };
 
-    // Resize observer on terminalRef to auto-fit when window resizes
+    // Use a debounced ResizeObserver to prevent infinite resize loops
     const observer = new ResizeObserver(() => {
-      console.log('Debug: Terminal resized');
-      handleResize();
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        handleResize();
+      }, 100);
     });
 
     if (terminalRef.current) {
@@ -157,9 +162,12 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     }
 
     return () => {
+      clearTimeout(timeout);
       observer.disconnect();
       if (socketRef.current) socketRef.current.close();
-      if (termRef.current) termRef.current.dispose();
+      if (termRef.current) {
+        try { termRef.current.dispose(); } catch (e) {}
+      }
     };
   }, []);
 
