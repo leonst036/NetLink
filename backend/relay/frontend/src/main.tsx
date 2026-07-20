@@ -71,8 +71,8 @@ const darkTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          backgroundColor: 'rgba(15, 23, 42, 0.65)',
-          backdropFilter: 'blur(16px)',
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          // backdropFilter: 'blur(16px)', // Disabled for window dragging performance
           border: '1px solid rgba(255,255,255,0.05)',
         },
       },

@@ -27,15 +27,18 @@ interface DesktopProps {
     allowedTargets: string[];
 }
 
+function Clock() {
+    const [time, setTime] = useState(new Date());
+    useEffect(() => {
+        const timer = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+    return <Typography variant="caption">{time.toLocaleTimeString()}</Typography>;
+}
+
 export default function Desktop({ token, onLogout, target, setTarget, allowedTargets }: DesktopProps) {
     const [servers, setServers] = useState<any[]>([]);
     const [isScanning, setIsScanning] = useState(false);
-    const [currentTime, setCurrentTime] = useState(new Date());
-
-    useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        return () => clearInterval(timer);
-    }, []);
 
     interface AppNotification {
         id: string;
@@ -256,7 +259,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         <Typography variant="caption" color="primary.light">{settings.username}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Typography variant="caption">{currentTime.toLocaleTimeString()}</Typography>
+                        <Clock />
                         <Button size="small" color="error" startIcon={<LogOut size={14} />} onClick={onLogout} sx={{ textTransform: 'none' }}>
                             Logout
                         </Button>

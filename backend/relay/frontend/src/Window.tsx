@@ -96,6 +96,8 @@ export default function Window({
           border: isMaximized ? 'none' : `1px solid rgba(255,255,255,0.05)`,
           boxShadow: isActive ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 10px 30px -5px rgba(0, 0, 0, 0.5)',
           transition: 'box-shadow 0.2s',
+          willChange: 'transform, width, height',
+          transform: 'translateZ(0)',
         }}
       >
         {/* Window Header */}
