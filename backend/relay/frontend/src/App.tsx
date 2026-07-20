@@ -1,9 +1,17 @@
 import { useState } from 'react';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Alert,
+  CssBaseline
+} from '@mui/material';
 import Desktop from './Desktop';
-import './App.css'; // ensure global styles remain intact if needed
+import GeminiLoader from './components/GeminiLoader';
+import './App.css';
 
 function App() {
-  // Authentication State
   const [token, setToken] = useState<string | null>(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
@@ -16,16 +24,15 @@ function App() {
   });
 
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [registerSuccess, setRegisterSuccess] = useState('');
+  // const [isRegistering, setIsRegistering] = useState(false);
+  // const [registerSuccess, setRegisterSuccess] = useState('');
 
   const [target, setTarget] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('target') || localStorage.getItem('netlink_target') || ''; // Default to empty so we can pick from saved
+    return urlParams.get('target') || localStorage.getItem('netlink_target') || '';
   });
 
   const [allowedTargets, setAllowedTargets] = useState<string[]>(() => {
@@ -36,31 +43,24 @@ function App() {
     }
   });
 
-  // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
 
     setLoading(true);
     setLoginError('');
-    setRegisterSuccess('');
+    // setRegisterSuccess('');
 
     try {
       const response = await fetch('/api/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, target: target.trim() || undefined }),
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Login failed');
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
-      // If user didn't specify a target but has saved ones, pick the first
       let activeTarget = target.trim();
       if (!activeTarget && data.targets && data.targets.length > 0) {
         activeTarget = data.targets[0];
@@ -79,7 +79,7 @@ function App() {
     }
   };
 
-  // Handle Register
+  /*
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !email || !password) return;
@@ -91,17 +91,12 @@ function App() {
     try {
       const response = await fetch('/api/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password }),
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
+      if (!response.ok) throw new Error(data.error || 'Registration failed');
 
       setRegisterSuccess('Registration successful! You can now log in.');
       setIsRegistering(false);
@@ -111,6 +106,7 @@ function App() {
       setLoading(false);
     }
   };
+  */
 
   const handleLogout = () => {
     localStorage.removeItem('netlink_token');
@@ -118,107 +114,230 @@ function App() {
     localStorage.removeItem('netlink_allowed_targets');
     setToken(null);
     setUsername('');
-    setEmail('');
     setPassword('');
     setAllowedTargets([]);
   };
 
-  // Render Login Page if not authenticated
   if (!token) {
+    const textFieldSx = {
+      '& .MuiInput-underline:before': {
+        borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+      },
+      '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
+        borderBottomColor: 'rgba(255, 255, 255, 0.5)',
+      },
+      '& .MuiInput-underline:after': {
+        borderBottomColor: '#fff',
+      },
+      '& .MuiInputLabel-root': {
+        color: 'rgba(255, 255, 255, 0.5)',
+        fontFamily: "'Outfit', sans-serif",
+        fontSize: '0.95rem',
+        '&.Mui-focused': { color: '#fff' }
+      },
+      '& .MuiInputBase-input': {
+        color: '#fff',
+        fontFamily: "'Outfit', sans-serif",
+        paddingBottom: '12px',
+        fontSize: '1.1rem'
+      }
+    };
+
     return (
-      <div style={{ display: 'flex', width: '100vw', minHeight: '100vh', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-        <div className="bg-glow"></div>
-        <div className="bg-glow-2"></div>
-        <div className="glass-card">
-          <h1 className="logo-title">NetLink</h1>
-          <p className="subtitle">Secure OS Environment</p>
+      <Box sx={{ display: 'flex', width: '100vw', minHeight: '100vh', bgcolor: '#000' }}>
+        <CssBaseline />
 
-          {loginError && <div className="alert-error" style={{ color: '#ff4d4f', background: 'rgba(255,77,79,0.1)', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>{loginError}</div>}
-          {registerSuccess && <div className="alert-success" style={{ color: '#52c41a', background: 'rgba(82,196,26,0.1)', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>{registerSuccess}</div>}
+        {/* Left Side: Brand & Visuals (Hidden on mobile) */}
+        <Box sx={{
+          display: { xs: 'none', md: 'flex' },
+          flex: 1,
+          position: 'relative',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          p: 8,
+          '&::before': {
+            content: '""',
+            position: 'absolute', inset: 0,
+            background: 'url(/login-bg.png) center/cover no-repeat',
+            opacity: 0.7,
+            zIndex: 0,
+            filter: 'contrast(1.1) brightness(0.9)'
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(90deg, rgba(0,0,0,0.1) 0%, #000 100%)',
+            zIndex: 0
+          }
+        }}>
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            <Typography variant="h6" sx={{
+              fontWeight: 700, color: '#fff', letterSpacing: '2px',
+              display: 'flex', alignItems: 'center', gap: 1.5,
+              textTransform: 'uppercase', fontFamily: "'Outfit', sans-serif"
+            }}>
+              <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#fff', boxShadow: '0 0 15px 2px rgba(255,255,255,0.8)' }} />
+              NetLink Login
+            </Typography>
+          </Box>
+          <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 600 }}>
+            <Typography variant="h2" sx={{ fontWeight: 600, color: '#fff', mb: 3, letterSpacing: '-2px', lineHeight: 1.1, fontFamily: "'Outfit', sans-serif" }}>
+              NetLink <br />
+            </Typography>
+            <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', lineHeight: 1.6, fontFamily: "'Outfit', sans-serif" }}>
+              Connect to your home network from everywhere, without VPN.
+            </Typography>
+          </Box>
+        </Box>
 
-          <form onSubmit={isRegistering ? handleRegister : handleLogin}>
-            <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label className="form-label" htmlFor="username" style={{ display: 'block', marginBottom: '5px', color: '#eee' }}>Username</label>
-              <input
-                className="form-input"
-                id="username"
-                type="text"
+        {/* Right Side: Clean Login Form */}
+        <Box sx={{
+          flex: { xs: 1, md: '0 0 520px', lg: '0 0 600px' },
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          p: { xs: 4, sm: 8, md: 10 },
+          bgcolor: '#000',
+          position: 'relative',
+          zIndex: 1,
+          borderLeft: { md: '1px solid rgba(255,255,255,0.08)' }
+        }}>
+          <Box sx={{ maxWidth: 400, width: '100%', mx: 'auto' }}>
+            <Typography variant="h4" sx={{ color: '#fff', fontWeight: 600, mb: 1, fontFamily: "'Outfit', sans-serif", letterSpacing: '-1px' }}>
+              Welcome back
+            </Typography>
+            <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.4)', mb: 6, fontFamily: "'Outfit', sans-serif" }}>
+              Enter your credentials to access your environment.
+            </Typography>
+
+            {loginError && (
+              <Alert severity="error" sx={{ mb: 4, bgcolor: 'transparent', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', borderRadius: 0 }}>
+                {loginError}
+              </Alert>
+            )}
+            
+            {/*
+            {registerSuccess && (
+              <Alert severity="success" sx={{ mb: 4, bgcolor: 'transparent', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#86efac', borderRadius: 0 }}>
+                {registerSuccess}
+              </Alert>
+            )}
+            */}
+
+            <Box component="form" onSubmit={handleLogin} sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <TextField
+                label="Username"
+                variant="standard"
+                fullWidth
+                required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
-                required
                 disabled={loading}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
+                sx={textFieldSx}
               />
-            </div>
 
-            {isRegistering && (
-              <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label className="form-label" htmlFor="email" style={{ display: 'block', marginBottom: '5px', color: '#eee' }}>Email</label>
-                <input
-                  className="form-input"
-                  id="email"
+              {/*
+              {isRegistering && (
+                <TextField
+                  label="Email"
                   type="email"
+                  variant="standard"
+                  fullWidth
+                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter email address"
-                  required={isRegistering}
                   disabled={loading}
-                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
+                  sx={textFieldSx}
                 />
-              </div>
-            )}
+              )}
+              */}
 
-            <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label className="form-label" htmlFor="password" style={{ display: 'block', marginBottom: '5px', color: '#eee' }}>Password</label>
-              <input
-                className="form-input"
-                id="password"
+              <TextField
+                label="Password"
                 type="password"
+                variant="standard"
+                fullWidth
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                required
                 disabled={loading}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
+                sx={textFieldSx}
               />
-            </div>
 
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '10px', borderRadius: '4px', background: '#177ddc', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-              {loading ? (isRegistering ? 'Registering...' : 'Authenticating...') : (isRegistering ? 'Register' : 'Sign In')}
-            </button>
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
+                  <GeminiLoader size={48} />
+                </Box>
+              ) : (
+                <Button
+                  type="submit"
+                  variant="contained"
+                  fullWidth
+                  disableElevation
+                  disabled={loading}
+                  sx={{
+                    mt: 3, py: 2,
+                    borderRadius: '24px',
+                    bgcolor: '#fff',
+                    color: '#000',
+                    fontWeight: 600,
+                    fontSize: '1rem',
+                    textTransform: 'none',
+                    fontFamily: "'Outfit', sans-serif",
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255,255,255,0.95)',
+                      transform: 'translateY(-2px) scale(1.02)',
+                      boxShadow: '0 8px 20px rgba(255,255,255,0.3)'
+                    },
+                    '&:disabled': {
+                      bgcolor: 'rgba(255,255,255,0.1)',
+                      color: 'rgba(255,255,255,0.3)'
+                    }
+                  }}
+                >
+                  Sign in
+                </Button>
+              )}
+            </Box>
 
-            <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '0.9rem' }}>
-              <span style={{ color: '#aaa' }}>{isRegistering ? 'Already have an account? ' : 'Need an account? '}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsRegistering(!isRegistering);
-                  setLoginError('');
-                  setRegisterSuccess('');
+            {/*
+            <Typography variant="body2" sx={{ mt: 6, color: 'rgba(255,255,255,0.4)', textAlign: 'center', fontFamily: "'Outfit', sans-serif" }}>
+              {isRegistering ? 'Already have an account?' : "Don't have an account?"}
+              <Link
+                component="button"
+                onClick={() => { setIsRegistering(!isRegistering); setLoginError(''); setRegisterSuccess(''); }}
+                sx={{
+                  ml: 1, color: '#fff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.3)',
+                  transition: 'border-color 0.2s', '&:hover': { borderBottom: '1px solid #fff' }
                 }}
-                style={{ background: 'none', border: 'none', color: '#177ddc', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
               >
-                {isRegistering ? 'Log in' : 'Register'}
-              </button>
-            </div>
-          </form>
+                {isRegistering ? 'Sign in' : 'Sign up'}
+              </Link>
+            </Typography>
+            */}
 
-          {isRegistering && (
-            <div className="docker-instructions" style={{ marginTop: '30px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.85rem', color: '#ddd' }}>
-              <h4 style={{ margin: '0 0 10px 0', color: '#fff' }}>Connect Local Server via Docker</h4>
-              <p style={{ margin: '0 0 10px 0', lineHeight: '1.4' }}>Run this command on your server to download and execute the NetLink setup script:</p>
-              <code style={{ background: 'rgba(0,0,0,0.4)', padding: '8px', borderRadius: '4px', display: 'block', wordBreak: 'break-all', fontFamily: 'monospace' }}>
-                curl -ks {window.location.origin}/api/install.sh | bash
-              </code>
-            </div>
-          )}
-        </div>
-      </div>
+            {/*
+            {isRegistering && (
+              <Box sx={{ mt: 6, pt: 4, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', mb: 2, fontFamily: "'Outfit', sans-serif" }}>
+                  Deploy Node
+                </Typography>
+                <Box component="code" sx={{
+                  bgcolor: 'rgba(255,255,255,0.03)', p: 2, borderRadius: 0, border: '1px solid rgba(255,255,255,0.1)',
+                  display: 'block', wordBreak: 'break-all', fontFamily: "'Fira Code', monospace", fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)'
+                }}>
+                  curl -ks {window.location.origin}/api/install.sh | bash
+                </Box>
+              </Box>
+            )}
+            */}
+          </Box>
+        </Box>
+      </Box>
     );
   }
 
-  // Render Desktop Environment
   return <Desktop token={token} onLogout={handleLogout} target={target} setTarget={setTarget} allowedTargets={allowedTargets} />;
 }
 
