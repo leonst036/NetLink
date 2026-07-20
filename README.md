@@ -86,3 +86,6 @@ To clean up generated TypeScript build artifacts (JavaScript and source maps) in
 ```bash
 ./clean_generated.sh
 ```
+
+---
+If you have trouble opening the frontend folder, go to backend/relay/frontend .
