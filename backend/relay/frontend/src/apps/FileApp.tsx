@@ -80,6 +80,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   };
 
   const triggerDownload = (fileName: string, fileSize: number = 0) => {
+    console.log(`Debug: Triggering download for ${fileName} of size ${fileSize}`);
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
     setAppError(null);
     const fullPath = normalizePath(currentPath === '/' ? `/${fileName}` : `${currentPath}/${fileName}`);

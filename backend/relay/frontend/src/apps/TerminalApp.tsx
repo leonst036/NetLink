@@ -45,7 +45,6 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     if (termRef.current) termRef.current.dispose();
 
     setStatus('connecting');
-
     const term = new Terminal({
       cursorBlink: true,
       fontFamily: '"Fira Code", Menlo, Monaco, Consolas, monospace',
@@ -68,6 +67,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     fitAddonRef.current = fitAddon;
 
     term.write('Connecting to NetLink Relay Server...\r\n');
+    console.log('Debug: Connecting to WebSocket')
 
     const isSecure = window.location.protocol === 'https:';
     const protocol = isSecure ? 'wss:' : 'ws:';
@@ -79,12 +79,14 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     socketRef.current = socket;
 
     socket.onopen = () => {
+      console.log('Debug: WebSocket connected');
       setStatus('connected');
       setIsConnected(true);
       term.write('\r\n*** Connected to Relay Server. Ready for SSH session ***\r\n\r\n');
     };
 
     socket.onmessage = async (event) => {
+      console.log('Debug: Message received from WebSocket');
       let textData = event.data;
       if (event.data instanceof Blob) {
         textData = await event.data.text();
@@ -102,9 +104,11 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
             username: sshUsername,
             password: sshPassword
           }));
+          console.log('Debug: Sending connection request');
           return;
         }
       } catch (err) {
+        console.log('Debug: Error parsing WebSocket message: ', err);
         // Not a JSON control message
       }
       
@@ -113,6 +117,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
 
     socket.onclose = (event) => {
       setStatus('disconnected');
+      console.log(`Debug: WebSocket closed with code ${event.code}`);
       setIsConnected(false);
       term.write(`\r\nConnection closed. Code: ${event.code}\r\n`);
     };
@@ -141,6 +146,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
 
     // Resize observer on terminalRef to auto-fit when window resizes
     const observer = new ResizeObserver(() => {
+      console.log('Debug: Terminal resized');
       handleResize();
     });
     

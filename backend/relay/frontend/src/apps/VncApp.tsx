@@ -25,6 +25,12 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     const rfbRef = useRef<RFB | null>(null);
     const statIntervalRef = useRef<any>(null);
 
+    const debugLog = (...args: unknown[]) => {
+        if (window.localStorage.getItem('netlink_debug') === 'true') {
+            console.log('[VNC Debug]', ...args);
+        }
+    };
+
     useEffect(() => {
         const handleSettingsChange = () => setIsDebug(localStorage.getItem('netlink_debug') === 'true');
         window.addEventListener('settingsChange', handleSettingsChange);
@@ -33,6 +39,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
 
     const disconnectVnc = () => {
         if (rfbRef.current) {
+            debugLog('Disconnecting existing VNC session');
             rfbRef.current.disconnect();
             rfbRef.current = null;
         }
@@ -45,14 +52,22 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     };
 
     const connectVnc = () => {
-        if (!token || !containerRef.current || !selectedIp) return;
+        if (!token || !containerRef.current || !selectedIp) {
+            debugLog('VNC connection skipped due to missing prerequisites', { tokenPresent: !!token, hasContainer: !!containerRef.current, selectedIp });
+            return;
+        }
+
         disconnectVnc();
         setStatus('connecting');
+        debugLog('Starting VNC connection attempt', { target, selectedIp, vncPort, hasPassword: !!vncPassword, monitor: selectedMonitor });
+
         const isSecure = window.location.protocol === 'https:';
         const protocol = isSecure ? 'wss:' : 'ws:';
         let host = window.location.host;
         if (host.includes('localhost:5173')) host = 'localhost:4535'; // Dev mode fallback
         const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
+        debugLog('Connecting web socket', { socketUrl });
+
         const ws = new window.WebSocket(socketUrl, ['binary']);
 
         let isBackendReady = false;
@@ -61,11 +76,25 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
 
         ws.send = function (data: any) {
             if (!isBackendReady) {
+                debugLog('Queuing outbound websocket message until backend is ready', { dataType: typeof data, queuedCount: sendBuffer.length + 1 });
                 sendBuffer.push(data);
             } else {
+                debugLog('Sending websocket message', { dataType: typeof data });
                 originalSend(data);
             }
         };
+
+        ws.addEventListener('open', () => {
+            debugLog('Websocket opened');
+        });
+
+        ws.addEventListener('close', (event) => {
+            debugLog('Websocket closed', { code: event.code, reason: event.reason });
+        });
+
+        ws.addEventListener('error', (event) => {
+            debugLog('Websocket error', event);
+        });
 
         let frames = 0;
         let lastTime = performance.now();
@@ -94,14 +123,19 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                 text = e.data;
             }
 
+            debugLog('Received websocket message', { backendReady: isBackendReady, textSnippet: text.slice(0, 200) });
+
             if (!isBackendReady && text.includes('ready_for_credentials')) {
-                originalSend(JSON.stringify({ type: 'connect_vnc', ip: selectedIp, port: parseInt(vncPort, 10) || 5900 }));
+                const credentialsPayload = JSON.stringify({ type: 'connect_vnc', ip: selectedIp, port: parseInt(vncPort, 10) || 5900 });
+                debugLog('Backend requested credentials; sending VNC connect request', { payload: credentialsPayload });
+                originalSend(credentialsPayload);
                 e.stopImmediatePropagation();
                 return;
             }
 
             if (!isBackendReady && text.includes('vnc_started')) {
                 isBackendReady = true;
+                debugLog('Backend reported VNC started; flushing buffered messages', { bufferedCount: sendBuffer.length });
                 sendBuffer.forEach(data => originalSend(data));
                 sendBuffer = [];
                 e.stopImmediatePropagation();
@@ -120,22 +154,24 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         rfb.resizeSession = true;
 
         rfb.addEventListener('connect', () => {
+            debugLog('noVNC connected', { selectedIp, vncPort, monitor: selectedMonitor });
             setStatus('connected');
             setIsConnected(true);
 
-            // Send setMonitor as soon as connected
             try {
                 if (typeof rfb.sendSetMonitor === 'function') {
                     const monitorNumber = parseInt(selectedMonitor, 10);
                     if (!isNaN(monitorNumber)) {
+                        debugLog('Sending initial monitor selection', { monitorNumber });
                         rfb.sendSetMonitor(monitorNumber);
                     }
                 }
             } catch (e) {
-                console.error("Failed to send set monitor message", e);
+                console.error('Failed to send set monitor message', e);
             }
         });
         rfb.addEventListener('disconnect', () => {
+            debugLog('noVNC disconnected');
             setStatus('disconnected');
             setIsConnected(false);
         });
@@ -147,19 +183,26 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
 
     // Fetch saved logins
     useEffect(() => {
+        debugLog('Fetching saved VNC logins');
         fetch('/api/server-logins', { headers: { 'Authorization': `Bearer ${token}` } })
             .then(res => res.json())
             .then(data => {
                 if (data.logins) {
-                    setSavedLogins(data.logins.filter((l: any) => l.type === 'vnc'));
+                    const vncLogins = data.logins.filter((l: any) => l.type === 'vnc');
+                    debugLog('Loaded saved VNC logins', { count: vncLogins.length });
+                    setSavedLogins(vncLogins);
                 }
             })
-            .catch(err => console.error('Failed to fetch logins', err));
+            .catch(err => {
+                debugLog('Failed to fetch saved VNC logins', err);
+                console.error('Failed to fetch logins', err);
+            });
     }, [token]);
 
     const applyLogin = (e: any) => {
         const login = savedLogins.find(l => l.id === e.target.value);
         if (login) {
+            debugLog('Applying saved VNC login', { name: login.name, ip: login.ip, port: login.port || '5900' });
             setSelectedIp(login.ip);
             setVncPort(login.port || '5900');
             setVncPassword(login.password);
@@ -169,10 +212,12 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     const toggleFullscreen = () => {
         if (!containerRef.current) return;
         if (!document.fullscreenElement) {
+            debugLog('Entering fullscreen');
             containerRef.current.requestFullscreen().catch(err => {
                 console.error(`Error attempting to enable fullscreen: ${err.message}`);
             });
         } else {
+            debugLog('Exiting fullscreen');
             document.exitFullscreen();
         }
     };
@@ -180,17 +225,19 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     // Send updated monitor number to backend when it changes if we are connected
     useEffect(() => {
         if (isConnected && rfbRef.current) {
+            debugLog('Monitor selection changed; updating connected session', { selectedMonitor });
             try {
                 // @ts-ignore
                 if (typeof rfbRef.current.sendSetMonitor === 'function') {
                     const monitorNumber = parseInt(selectedMonitor, 10);
                     if (!isNaN(monitorNumber)) {
                         // @ts-ignore
+                        debugLog('Sending updated monitor selection', { monitorNumber });
                         rfbRef.current.sendSetMonitor(monitorNumber);
                     }
                 }
             } catch (e) {
-                console.error("Failed to send set monitor message", e);
+                console.error('Failed to send set monitor message', e);
             }
         }
     }, [selectedMonitor, isConnected]);

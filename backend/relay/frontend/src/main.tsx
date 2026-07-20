@@ -4,6 +4,26 @@ import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import './index.css'
 import App from './App.tsx'
 
+const patchConsoleLogForDebug = () => {
+  const globalWindow = window as Window & { __netlinkConsoleLogPatched?: boolean };
+  if (globalWindow.__netlinkConsoleLogPatched) return;
+
+  globalWindow.__netlinkConsoleLogPatched = true;
+
+  const originalLog = console.log.bind(console);
+  console.log = (...args: unknown[]) => {
+    const firstArg = args[0];
+    const isDebugMessage = typeof firstArg === 'string' && firstArg.trimStart().toLowerCase().startsWith('debug:');
+    const debugEnabled = localStorage.getItem('netlink_debug') === 'true';
+
+    if (!debugEnabled && isDebugMessage) return;
+
+    originalLog(...args);
+  };
+};
+
+patchConsoleLogForDebug();
+
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',

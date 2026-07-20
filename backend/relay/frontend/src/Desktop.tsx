@@ -66,11 +66,16 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
 
     useEffect(() => {
         const handleSettingsChange = () => {
+            console.log('debug: Settings changed, updating desktop settings...');
+            try {
             setSettings({
                 username: localStorage.getItem('netlink_username') || 'Admin',
                 wallpaper: localStorage.getItem('netlink_wallpaper') || 'default',
                 theme: localStorage.getItem('netlink_theme') || 'Dark',
-            });
+            }); 
+        } catch (err) {
+            console.error('Failed to update settings from localStorage', err);
+        }
         };
         window.addEventListener('settingsChange', handleSettingsChange);
         return () => window.removeEventListener('settingsChange', handleSettingsChange);
@@ -99,13 +104,12 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     const [terminals, setTerminals] = useState<TerminalInstance[]>([]);
     const [vncWindows, setVncWindows] = useState<{ id: string; ip: string; isMinimized: boolean }[]>([]);
     const [sftpWindows, setSftpWindows] = useState<{ id: string; ip: string; isMinimized: boolean }[]>([]);
-
     const openVnc = (ip: string) => {
         const id = `vnc-${ip}-${Date.now()}`;
         setVncWindows(prev => [...prev, { id, ip, isMinimized: false }]);
         bringToFront(id);
     };
-
+    
     const openSftp = (ip: string) => {
         const id = `sftp-${ip}-${Date.now()}`;
         setSftpWindows(prev => [...prev, { id, ip, isMinimized: false }]);
@@ -114,11 +118,15 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
 
     const fetchServers = async () => {
         setIsScanning(true);
+        console.log(`Debug: Fetching servers for target: ${target}`);
         try {
             const res = await fetch(`/api/servers?target=${encodeURIComponent(target)}`);
             const data = await res.json();
             if (data.devices) {
                 setServers(data.devices);
+                console.log('Debug: Servers fetched successfully:');
+            } else {
+                console.log('Debug: Failed to fetch servers or server list was empty');
             }
         } catch (err) {
             console.error('Failed to fetch servers', err);

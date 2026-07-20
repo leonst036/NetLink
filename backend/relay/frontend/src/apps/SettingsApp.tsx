@@ -332,7 +332,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                       <Switch />
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography>Enable debug mode (VNC FPS/Latency)</Typography>
+                      <Typography>Enable debug mode (logs &amp; VNC FPS/Latency)</Typography>
                       <Switch 
                         defaultChecked={localStorage.getItem('netlink_debug') === 'true'}
                         onChange={(_e, checked) => {
