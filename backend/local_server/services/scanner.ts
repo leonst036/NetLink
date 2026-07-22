@@ -1,5 +1,12 @@
 import * as os from 'os';
 import ipLib from 'ip';
+import { exec } from 'child_process';
+import * as dns from 'dns';
+
+export interface Device {
+    ip: string;
+    hostname?: string | undefined;
+}
 
 /**
  * Gets the current machine's local IPv4 and subnet mask.
@@ -22,14 +29,6 @@ function getLocalNetworkDetails(): { address: string; netmask: string } | null {
         }
     }
     return null;
-}
-
-import { exec } from 'child_process';
-import * as dns from 'dns';
-
-export interface Device {
-    ip: string;
-    hostname?: string | undefined;
 }
 
 /**

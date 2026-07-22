@@ -83,7 +83,7 @@ export function downloadFile(ws: WebSocket, sftp: SftpClient, path: string) {
 
         stream.on('data', (chunk: Buffer) => {
             stream.pause();
-            ws.send(JSON.stringify({ type: 'fileDataDownload', data: chunk.toString('base64') }), (err) => { // Use 64 bit for more speed
+            ws.send(JSON.stringify({ type: 'fileDataDownload', data: chunk.toString('base64') }), (err) => {
                 if (err) {
                     stream.destroy(err);
                     return;
@@ -183,7 +183,6 @@ export function uploadFile(ws: WebSocket, sftp: SftpClient, path: string) {
         ws.on('message', onMessage);
         ws.on('close', onClose);
 
-        // Tell the client we are ready to receive chunks
         ws.send(JSON.stringify({ type: 'uploadReady' }));
     } catch (err) {
         if (ws.readyState === WebSocket.OPEN) {
@@ -215,5 +214,47 @@ export async function createDirectory(ws: WebSocket, sftp: SftpClient, path: str
         ws.send(JSON.stringify({ type: 'mkdirSuccess' }));
     } catch (err) {
         ws.send(JSON.stringify({ type: 'error', message: err instanceof Error ? err.message : err }));
+    }
+}
+
+export async function startSftp(ws: WebSocket, host: string, username: string, password: string): Promise<void> {
+    console.log(`Initiating SFTP session to ${host} as ${username}...`);
+    try {
+        const sftp = await connectToSftp(ws, {
+            host,
+            port: 22,
+            username,
+            password
+        });
+
+        const onSftpMessage = async (message: any) => {
+            try {
+                const data = JSON.parse(message.toString());
+                if (data.type === 'list') {
+                    await listDirectory(ws, sftp, data.path || '.');
+                } else if (data.type === 'download') {
+                    await downloadFile(ws, sftp, data.path);
+                } else if (data.type === 'upload') {
+                    uploadFile(ws, sftp, data.path);
+                } else if (data.type === 'delete') {
+                    await deleteItem(ws, sftp, data.path);
+                } else if (data.type === 'mkdir') {
+                    await createDirectory(ws, sftp, data.path);
+                } else if (data.type === 'disconnect') {
+                    await disconnectSftp(ws, sftp);
+                }
+            } catch (err) {
+                // Ignore parse/handler errors
+            }
+        };
+
+        ws.on('message', onSftpMessage);
+
+        ws.on('close', () => {
+            sftp.end().catch(() => { });
+        });
+    } catch (err: any) {
+        console.error('Failed to initialize SFTP connection:', err);
+        ws.close();
     }
 }

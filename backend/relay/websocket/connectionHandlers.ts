@@ -1,4 +1,5 @@
 import { WebSocket } from 'ws';
+import crypto from 'crypto';
 import { 
     controlConnections, 
     pendingSessions, 
@@ -81,7 +82,7 @@ export function handleClientConnection(
     // Initiate session using the control connection
     const controlWs = controlConnections.get(targetId);
     if (controlWs && controlWs.readyState === WebSocket.OPEN) {
-        const newSessionId = Math.random().toString(36).substring(2, 15);
+        const newSessionId = crypto.randomUUID();
         pendingSessions.set(newSessionId, ws);
         console.log(`Requesting new data connection from local server: ${targetId} (Session: ${newSessionId})`);
         

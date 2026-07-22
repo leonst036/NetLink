@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
-import { handleSshConnection } from '../connectionHandler.js';
-import { runNetworkScan } from '../../network/scanner.js';
+import { handleWebSocketConnection } from '../protocols/router.js';
+import { runNetworkScan } from './scanner.js';
 
 /**
  * Helper to construct the relay connection URL.
@@ -76,7 +76,7 @@ export function handleRelayConnection(token: string): void {
 
                 sessionWs.on('open', () => {
                     console.log(`Data connection established for session: ${message.sessionId}`);
-                    handleSshConnection(sessionWs);
+                    handleWebSocketConnection(sessionWs);
                 });
 
                 sessionWs.on('error', (err) => {
