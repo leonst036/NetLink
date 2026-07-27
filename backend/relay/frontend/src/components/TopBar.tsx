@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
 import { AppBar, Toolbar, Typography, Box, Select, MenuItem, Button } from '@mui/material';
+import { styled } from '@mui/material/styles';
 
 interface TopBarProps {
     target: string;
@@ -21,44 +22,87 @@ function Clock() {
 
 export default function TopBar({ target, setTarget, allowedTargets, username, onLogout }: TopBarProps) {
     return (
-        <AppBar position="static" color="transparent" elevation={0} sx={{ 
-            bgcolor: 'rgba(15, 23, 42, 0.65)', 
-            backdropFilter: 'blur(16px)',
-            borderBottom: '1px solid rgba(255,255,255,0.05)',
-            zIndex: 9999
-        }}>
-            <Toolbar variant="dense" sx={{ justifyContent: 'space-between', minHeight: '32px !important' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary' }}>NetLink OS</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <TopBarAppBar position="static" color="transparent" elevation={0}>
+            <TopBarToolbar variant="dense">
+                <LeftSection>
+                    <BrandText variant="subtitle2">NetLink OS</BrandText>
+                    <TargetWrapper>
                         <Typography variant="caption" color="text.secondary">Target:</Typography>
                         {allowedTargets && allowedTargets.length > 0 ? (
-                            <Select
+                            <TargetSelect
                                 size="small"
                                 value={target}
                                 onChange={(e) => {
-                                    setTarget(e.target.value);
-                                    localStorage.setItem('netlink_target', e.target.value);
+                                    setTarget(e.target.value as string);
+                                    localStorage.setItem('netlink_target', e.target.value as string);
                                 }}
-                                sx={{ height: 24, fontSize: '0.8rem', color: 'text.primary', '& .MuiSelect-select': { py: 0 } }}
                             >
                                 {allowedTargets.map(t => (
                                     <MenuItem key={t} value={t}>{t}</MenuItem>
                                 ))}
-                            </Select>
+                            </TargetSelect>
                         ) : (
                             <Typography variant="caption">{target}</Typography>
                         )}
-                    </Box>
+                    </TargetWrapper>
                     <Typography variant="caption" color="primary.light">{username}</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                </LeftSection>
+                <RightSection>
                     <Clock />
-                    <Button size="small" color="error" startIcon={<LogOut size={14} />} onClick={onLogout} sx={{ textTransform: 'none' }}>
+                    <LogoutButton size="small" color="error" startIcon={<LogOut size={14} />} onClick={onLogout}>
                         Logout
-                    </Button>
-                </Box>
-            </Toolbar>
-        </AppBar>
+                    </LogoutButton>
+                </RightSection>
+            </TopBarToolbar>
+        </TopBarAppBar>
     );
 }
+
+const TopBarAppBar = styled(AppBar)({
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backdropFilter: 'blur(16px)',
+    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    zIndex: 9999
+});
+
+const TopBarToolbar = styled(Toolbar)({
+    justifyContent: 'space-between',
+    minHeight: '32px !important'
+});
+
+const LeftSection = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(2)
+}));
+
+const BrandText = styled(Typography)(({ theme }) => ({
+    fontWeight: 'bold',
+    color: theme.palette.text.primary
+}));
+
+const TargetWrapper = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(1)
+}));
+
+const TargetSelect = styled(Select)(({ theme }) => ({
+    height: 24,
+    fontSize: '0.8rem',
+    color: theme.palette.text.primary,
+    '& .MuiSelect-select': {
+        paddingTop: 0,
+        paddingBottom: 0
+    }
+}));
+
+const RightSection = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(2)
+}));
+
+const LogoutButton = styled(Button)({
+    textTransform: 'none'
+});

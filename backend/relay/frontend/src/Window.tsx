@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Rnd } from 'react-rnd';
 import { X, Minus, Maximize2 } from 'lucide-react';
 import { Box, Paper, IconButton, Typography } from '@mui/material';
+import { styled } from '@mui/material/styles';
 
 interface WindowProps {
   id: string;
@@ -83,63 +84,105 @@ export default function Window({
         flexDirection: 'column',
       }}
     >
-      <Paper
+      <WindowPaper
         elevation={isActive ? 12 : 4}
-        sx={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          borderRadius: isMaximized ? 0 : '16px',
-          overflow: 'hidden',
-          bgcolor: 'background.paper',
-          border: isMaximized ? 'none' : `1px solid rgba(255,255,255,0.05)`,
-          boxShadow: isActive ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 10px 30px -5px rgba(0, 0, 0, 0.5)',
-          transition: 'box-shadow 0.2s',
-          willChange: 'transform, width, height',
-          transform: 'translateZ(0)',
-        }}
+        $isActive={isActive}
+        $isMaximized={isMaximized}
       >
         {/* Window Header */}
-        <Box
+        <WindowHeader
           className="window-handle"
-          sx={{
-            height: 48,
-            bgcolor: 'rgba(15, 23, 42, 0.4)',
-            borderBottom: `1px solid rgba(255,255,255,0.05)`,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            px: 2,
-            cursor: isMaximized ? 'default' : 'grab',
-            userSelect: 'none'
-          }}
+          $isMaximized={isMaximized}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <HeaderTitleSection>
             {icon}
-            <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
+            <HeaderTitleText variant="body2">
               {title}
-            </Typography>
-          </Box>
+            </HeaderTitleText>
+          </HeaderTitleSection>
 
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <IconButton size="small" onClick={onMinimize} title="Minimize" sx={{ color: 'text.secondary' }}>
+          <HeaderControls>
+            <HeaderIconButton size="small" onClick={onMinimize} title="Minimize">
               <Minus size={14} />
-            </IconButton>
-            <IconButton size="small" onClick={toggleMaximize} title={isMaximized ? "Restore" : "Maximize"} sx={{ color: 'text.secondary' }}>
+            </HeaderIconButton>
+            <HeaderIconButton size="small" onClick={toggleMaximize} title={isMaximized ? "Restore" : "Maximize"}>
               <Maximize2 size={12} />
-            </IconButton>
+            </HeaderIconButton>
             <IconButton size="small" onClick={onClose} title="Close" color="error">
               <X size={14} />
             </IconButton>
-          </Box>
-        </Box>
+          </HeaderControls>
+        </WindowHeader>
 
         {/* Window Content */}
-        <Box sx={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <WindowContent>
           {children}
-        </Box>
-      </Paper>
+        </WindowContent>
+      </WindowPaper>
     </Rnd>
   );
 }
+
+// Styled Components
+interface WindowPaperProps {
+  $isActive: boolean;
+  $isMaximized: boolean;
+}
+
+const WindowPaper = styled(Paper)<WindowPaperProps>(({ theme, $isActive, $isMaximized }) => ({
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  borderRadius: $isMaximized ? 0 : '16px',
+  overflow: 'hidden',
+  backgroundColor: theme.palette.background.paper,
+  border: $isMaximized ? 'none' : '1px solid rgba(255, 255, 255, 0.05)',
+  boxShadow: $isActive ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 10px 30px -5px rgba(0, 0, 0, 0.5)',
+  transition: 'box-shadow 0.2s',
+  willChange: 'transform, width, height',
+  transform: 'translateZ(0)',
+}));
+
+interface WindowHeaderProps {
+  $isMaximized: boolean;
+}
+
+const WindowHeader = styled(Box)<WindowHeaderProps>(({ theme, $isMaximized }) => ({
+  height: 48,
+  backgroundColor: 'rgba(15, 23, 42, 0.4)',
+  borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingLeft: theme.spacing(2),
+  paddingRight: theme.spacing(2),
+  cursor: $isMaximized ? 'default' : 'grab',
+  userSelect: 'none',
+}));
+
+const HeaderTitleSection = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+}));
+
+const HeaderTitleText = styled(Typography)(({ theme }) => ({
+  fontWeight: 500,
+  color: theme.palette.text.primary,
+}));
+
+const HeaderControls = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  gap: theme.spacing(0.5),
+}));
+
+const HeaderIconButton = styled(IconButton)(({ theme }) => ({
+  color: theme.palette.text.secondary,
+}));
+
+const WindowContent = styled(Box)({
+  flex: 1,
+  overflow: 'hidden',
+  position: 'relative',
+});

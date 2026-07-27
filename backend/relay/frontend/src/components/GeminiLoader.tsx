@@ -1,17 +1,13 @@
 import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
+
+interface LoaderContainerProps {
+  $size: number;
+}
 
 export default function GeminiLoader({ size = 48 }: { size?: number }) {
   return (
-    <Box 
-      sx={{ 
-        width: size, 
-        height: size,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'relative'
-      }}
-    >
+    <LoaderContainer $size={size}>
       <style>
         {`
           @keyframes gemini-color-shift {
@@ -47,6 +43,15 @@ export default function GeminiLoader({ size = 48 }: { size?: number }) {
       </style>
       <div className="gemini-blob"></div>
       <div className="gemini-core"></div>
-    </Box>
+    </LoaderContainer>
   );
 }
+
+const LoaderContainer = styled(Box)<LoaderContainerProps>(({ $size }) => ({
+  width: $size,
+  height: $size,
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  position: 'relative',
+}));

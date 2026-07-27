@@ -17,20 +17,20 @@ import type {
 } from '@xyflow/react';
 import { Save, Plus, Search, Server as ServerIcon, Settings2, Pencil } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  TextField, 
-  InputAdornment, 
-  Button, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  InputAdornment,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
   DialogActions,
-  List,
-  useTheme
+  List
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
 
 interface ServerData {
   ip: string;
@@ -47,7 +47,6 @@ interface NetworkGraphProps {
 }
 
 export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpClick, token, target }: NetworkGraphProps) {
-  const theme = useTheme();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
@@ -140,7 +139,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
     },
     [isEditMode]
   );
-  
+
   const onEdgesChange = useCallback(
     (changes: EdgeChange<Edge>[]) => {
       if (!isEditMode) {
@@ -152,7 +151,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
     },
     [isEditMode]
   );
-  
+
   const onConnect = useCallback(
     (params: Edge | Connection) => {
       if (!isEditMode) return;
@@ -250,29 +249,19 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
   };
 
   const filteredServers = servers.filter(s =>
-    s.ip.includes(search) || 
+    s.ip.includes(search) ||
     (s.hostname || '').toLowerCase().includes(search.toLowerCase()) ||
     (nicknames[s.ip] || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <Box sx={{ display: 'flex', height: '100%', width: '100%', minHeight: 0, bgcolor: 'transparent' }}>
+    <RootContainer>
       {/* Sidebar: Device List */}
-      <Paper 
-        elevation={0}
-        sx={{ 
-          width: 320, 
-          borderRight: `1px solid rgba(255,255,255,0.05)`, 
-          display: 'flex', 
-          flexDirection: 'column',
-          bgcolor: 'rgba(0,0,0,0.2)',
-          borderRadius: 0,
-        }}
-      >
-        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, fontWeight: 'bold' }}>
+      <SidebarContainer elevation={0}>
+        <SidebarHeader>
+          <HeaderTitle variant="subtitle1">
             <ServerIcon size={18} /> Discovered Devices
-          </Typography>
+          </HeaderTitle>
           <TextField
             fullWidth
             size="small"
@@ -289,20 +278,20 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
               }
             }}
           />
-        </Box>
+        </SidebarHeader>
 
-        <List sx={{ flex: 1, overflowY: 'auto', p: 1 }} onWheelCapture={(e) => e.stopPropagation()}>
+        <DeviceList onWheelCapture={(e) => e.stopPropagation()}>
           {filteredServers.map(server => {
             const inGraph = nodes.some(n => n.id === server.ip);
             return (
-              <Paper key={server.ip} variant="outlined" sx={{ p: 1.5, mb: 1, bgcolor: 'background.default' }}>
+              <DevicePaper key={server.ip} variant="outlined">
                 <Typography variant="subtitle2" color="primary">{server.ip}</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                <DeviceHostname variant="caption" color="text.secondary">
                   {server.hostname || 'Unknown Host'}
-                </Typography>
+                </DeviceHostname>
 
                 {isEditMode && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
+                  <EditActionsContainer>
                     <TextField
                       size="small"
                       placeholder="Nickname..."
@@ -328,90 +317,87 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
                     >
                       {inGraph ? 'In Graph' : 'Add to Graph'}
                     </Button>
-                  </Box>
+                  </EditActionsContainer>
                 )}
 
                 {/* Quick Connect Buttons */}
-                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                  <Button
+                <QuickConnectContainer>
+                  <QuickConnectButton
                     size="small"
                     variant="outlined"
                     onClick={() => onNodeClick(server.ip)}
-                    sx={{ flex: 1, minWidth: 0 }}
                   >
                     SSH
-                  </Button>
-                  <Button
+                  </QuickConnectButton>
+                  <QuickConnectButton
                     size="small"
                     variant="outlined"
                     color="success"
                     onClick={() => onVncClick(server.ip)}
-                    sx={{ flex: 1, minWidth: 0 }}
                   >
                     VNC
-                  </Button>
-                  <Button
+                  </QuickConnectButton>
+                  <QuickConnectButton
                     size="small"
                     variant="outlined"
                     color="warning"
                     onClick={() => onSftpClick(server.ip)}
-                    sx={{ flex: 1, minWidth: 0 }}
                   >
                     SFTP
-                  </Button>
-                </Box>
-              </Paper>
+                  </QuickConnectButton>
+                </QuickConnectContainer>
+              </DevicePaper>
             );
           })}
           {filteredServers.length === 0 && (
-            <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 4 }}>
+            <NoDevicesText variant="body2" color="text.secondary" align="center">
               No devices found.
-            </Typography>
+            </NoDevicesText>
           )}
-        </List>
-      </Paper>
+        </DeviceList>
+      </SidebarContainer>
 
       {/* Main Graph Area */}
-      <Box sx={{ flex: 1, position: 'relative' }}>
+      <GraphArea>
         {/* Toolbar */}
-        <Box sx={{ position: 'absolute', top: 16, left: 16, zIndex: 10, display: 'flex', gap: 1, alignItems: 'center' }}>
-          <Button 
-            variant="contained" 
+        <ToolbarContainer>
+          <Button
+            variant="contained"
             color={isEditMode ? "primary" : "inherit"}
-            onClick={() => setIsEditMode(!isEditMode)} 
+            onClick={() => setIsEditMode(!isEditMode)}
             startIcon={<Pencil size={16} />}
           >
             {isEditMode ? 'Exit Edit Mode' : 'Edit Mode'}
           </Button>
-          
+
           {isEditMode && (
             <>
               <Button variant="contained" color="secondary" onClick={addSwitch} startIcon={<Settings2 size={16} />}>
                 Add Switch
               </Button>
-              <Button 
-                variant="contained" 
-                color="success" 
-                onClick={saveTopology} 
-                disabled={isSaving} 
+              <Button
+                variant="contained"
+                color="success"
+                onClick={saveTopology}
+                disabled={isSaving}
                 startIcon={<Save size={16} />}
               >
                 {isSaving ? 'Saving...' : 'Save Topology'}
               </Button>
-              <Paper sx={{ px: 2, py: 0.5, bgcolor: 'rgba(15, 23, 42, 0.8)' }}>
+              <InfoPaper>
                 <Typography variant="caption" color="text.secondary">
                   Double-click to rename. Select and press Backspace to delete.
                 </Typography>
-              </Paper>
+              </InfoPaper>
             </>
           )}
-        </Box>
+        </ToolbarContainer>
 
         {isLoading ? (
-          <Box sx={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: 'primary.main' }}>
+          <LoadingContainer>
             <div className="animate-spin" style={{ marginRight: '10px', width: '20px', height: '20px', border: '2px solid transparent', borderTopColor: 'currentColor', borderRadius: '50%' }}></div>
             <Typography>Loading Topology...</Typography>
-          </Box>
+          </LoadingContainer>
         ) : (
           <ReactFlow
             nodes={nodes}
@@ -434,31 +420,23 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
         )}
 
         {/* Protocol Selection Modal */}
-        <Dialog 
-          open={!!selectedDevice} 
+        <StyledDialog
+          open={!!selectedDevice}
           onClose={() => setSelectedDevice(null)}
-          sx={{
-            '& .MuiDialog-paper': {
-              bgcolor: 'background.paper',
-              backgroundImage: 'none',
-              border: `1px solid ${theme.palette.divider}`,
-              minWidth: 320
-            }
-          }}
         >
           {selectedDevice && (
             <>
-              <DialogTitle sx={{ pb: 1 }}>
-                {selectedDevice === 'relay' ? 'Relay Server' : 
-                 selectedDevice === 'nat' ? 'NAT / Gateway' : 
+              <StyledDialogTitle>
+                {selectedDevice === 'relay' ? 'Relay Server' :
+                 selectedDevice === 'nat' ? 'NAT / Gateway' :
                  selectedDevice.startsWith('switch-') ? 'Network Switch' :
                  (nicknames[selectedDevice] || selectedDevice)}
-              </DialogTitle>
-              <DialogContent sx={{ pb: 2 }}>
+              </StyledDialogTitle>
+              <StyledDialogContent>
                 {selectedDevice !== 'relay' && selectedDevice !== 'nat' && !selectedDevice.startsWith('switch-') && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  <DialogText variant="body2" color="text.secondary">
                     IP: {selectedDevice}
-                  </Typography>
+                  </DialogText>
                 )}
 
                 {selectedDevice.startsWith('switch-') ? (
@@ -470,7 +448,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
                     Gateway device. Connect via SSH if supported.
                   </Typography>
                 ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <DialogActionsContainer>
                     <Button
                       fullWidth
                       variant="outlined"
@@ -494,16 +472,144 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
                     >
                       Browse via SFTP
                     </Button>
-                  </Box>
+                  </DialogActionsContainer>
                 )}
-              </DialogContent>
+              </StyledDialogContent>
               <DialogActions>
                 <Button onClick={() => setSelectedDevice(null)} color="inherit">Close</Button>
               </DialogActions>
             </>
           )}
-        </Dialog>
-      </Box>
-    </Box>
+        </StyledDialog>
+      </GraphArea>
+    </RootContainer>
   );
 }
+
+// Styled Components
+const RootContainer = styled(Box)({
+  display: 'flex',
+  height: '100%',
+  width: '100%',
+  minHeight: 0,
+  backgroundColor: 'transparent',
+});
+
+const SidebarContainer = styled(Paper)({
+  width: 320,
+  borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+  display: 'flex',
+  flexDirection: 'column',
+  backgroundColor: 'rgba(0, 0, 0, 0.2)',
+  borderRadius: 0,
+});
+
+const SidebarHeader = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(2),
+  borderBottom: `1px solid ${theme.palette.divider}`,
+}));
+
+const HeaderTitle = styled(Typography)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  marginBottom: theme.spacing(1),
+  fontWeight: 'bold',
+}));
+
+const DeviceList = styled(List)(({ theme }) => ({
+  flex: 1,
+  overflowY: 'auto',
+  padding: theme.spacing(1),
+}));
+
+const DevicePaper = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(1.5),
+  marginBottom: theme.spacing(1),
+  backgroundColor: theme.palette.background.default,
+}));
+
+const DeviceHostname = styled(Typography)(({ theme }) => ({
+  display: 'block',
+  marginBottom: theme.spacing(1),
+}));
+
+const EditActionsContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: theme.spacing(1),
+  marginBottom: theme.spacing(1),
+}));
+
+const QuickConnectContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  gap: theme.spacing(1),
+  marginTop: theme.spacing(1),
+}));
+
+const QuickConnectButton = styled(Button)({
+  flex: 1,
+  minWidth: 0,
+});
+
+const NoDevicesText = styled(Typography)(({ theme }) => ({
+  marginTop: theme.spacing(4),
+}));
+
+const GraphArea = styled(Box)({
+  flex: 1,
+  position: 'relative',
+});
+
+const ToolbarContainer = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  top: 16,
+  left: 16,
+  zIndex: 10,
+  display: 'flex',
+  gap: theme.spacing(1),
+  alignItems: 'center',
+}));
+
+const InfoPaper = styled(Paper)(({ theme }) => ({
+  paddingLeft: theme.spacing(2),
+  paddingRight: theme.spacing(2),
+  paddingTop: theme.spacing(0.5),
+  paddingBottom: theme.spacing(0.5),
+  backgroundColor: 'rgba(15, 23, 42, 0.8)',
+}));
+
+const LoadingContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  height: '100%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  color: theme.palette.primary.main,
+}));
+
+const StyledDialog = styled(Dialog)(({ theme }) => ({
+  '& .MuiDialog-paper': {
+    backgroundColor: theme.palette.background.paper,
+    backgroundImage: 'none',
+    border: `1px solid ${theme.palette.divider}`,
+    minWidth: 320,
+  },
+}));
+
+const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
+  paddingBottom: theme.spacing(1),
+}));
+
+const StyledDialogContent = styled(DialogContent)(({ theme }) => ({
+  paddingBottom: theme.spacing(2),
+}));
+
+const DialogText = styled(Typography)(({ theme }) => ({
+  marginBottom: theme.spacing(2),
+}));
+
+const DialogActionsContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: theme.spacing(1),
+}));

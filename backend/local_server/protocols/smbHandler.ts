@@ -1,9 +1,9 @@
-const SMB2 = require('@marsaud/smb2');
 import type { ConnectConfig } from 'ssh2';
 
-
+// Note: Requires @marsaud/smb2 package if SMB feature is enabled
 export function connectSMB(ws: WebSocket, connectConfig: ConnectConfig) {
     try {
+        const SMB2 = require('@marsaud/smb2');
         const shareName = (connectConfig as any).share || 'C$';
         const smb2Client = new SMB2({
             share: `\\\\${connectConfig.host}\\${shareName}`,
@@ -13,7 +13,6 @@ export function connectSMB(ws: WebSocket, connectConfig: ConnectConfig) {
             autoCloseTimeout: 0
         });
 
-        // Test the connection
         smb2Client.readdir('', (err: any) => {
             if (err) {
                 ws.send(JSON.stringify({ type: 'error', message: err.message || err }));
@@ -69,7 +68,6 @@ export function downloadFile(ws: WebSocket, smb2Client: any, path: string) {
 
 export function uploadFile(ws: WebSocket, smb2Client: any, path: string) {
     try {
-        // Warning: this is just a placeholder since writing a file requires data.
         smb2Client.writeFile(path, 'data', (err: any) => {
             if (err) {
                 ws.send(JSON.stringify({ type: 'error', message: err }));

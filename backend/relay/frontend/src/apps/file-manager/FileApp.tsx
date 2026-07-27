@@ -1,26 +1,27 @@
 import { useState, useEffect, useRef } from 'react';
 import { Folder, File, ArrowLeft, RefreshCw, HardDrive, ShieldAlert, Upload, Download, Trash2, FolderPlus, X } from 'lucide-react';
-import { 
-  Box, 
-  Typography, 
-  TextField, 
-  Select, 
-  MenuItem, 
-  Button, 
-  IconButton, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  LinearProgress, 
+import {
+  Box,
+  Typography,
+  TextField,
+  Select,
+  MenuItem,
+  Button,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  LinearProgress,
   Alert,
   Card,
   CardContent,
   useTheme
 } from '@mui/material';
-import GeminiLoader from '../components/GeminiLoader';
+import { styled } from '@mui/material/styles';
+import GeminiLoader from '../../components/GeminiLoader';
 
 interface FileAppProps {
   token: string;
@@ -248,7 +249,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
               bytes[i] = binaryString.charCodeAt(i);
             }
             downloadChunksRef.current.push(new Blob([bytes]));
-            
+
             downloadReceivedRef.current += bytes.byteLength;
             if (downloadTotalSizeRef.current > 0) {
               setDownloadProgress(Math.min(100, Math.round((downloadReceivedRef.current / downloadTotalSizeRef.current) * 100)));
@@ -416,25 +417,25 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'transparent' }}>
+    <RootContainer>
       {/* Login Screen */}
       {status === 'disconnected' && (
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3, background: 'transparent' }}>
-          <Card sx={{ width: '100%', maxWidth: 380, bgcolor: 'rgba(30, 41, 59, 0.4)', backdropFilter: 'blur(16px)', border: `1px solid ${theme.palette.divider}`, borderRadius: 4, boxShadow: 24 }}>
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                <Box sx={{ bgcolor: 'warning.light', p: 1.5, borderRadius: 2, border: '1px solid rgba(251, 146, 60, 0.2)' }}>
+        <LoginContainer>
+          <LoginCard>
+            <LoginCardContent>
+              <IconWrapper>
+                <IconContainer>
                   <Folder size={28} color={theme.palette.warning.main} />
-                </Box>
-              </Box>
+                </IconContainer>
+              </IconWrapper>
 
-              <Typography variant="h6" sx={{ fontWeight: 'bold' }} align="center" gutterBottom>SFTP File Client</Typography>
-              <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 4 }}>Access remote files securely</Typography>
+              <LoginTitle variant="h6" align="center" gutterBottom>SFTP File Client</LoginTitle>
+              <LoginSubtitle variant="body2" color="text.secondary" align="center">Access remote files securely</LoginSubtitle>
 
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <LoginForm>
                 {savedLogins.length > 0 && (
                   <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Saved Logins</Typography>
+                    <FormLabelText variant="caption" color="text.secondary">Saved Logins</FormLabelText>
                     <Select fullWidth size="small" value="" displayEmpty onChange={applyLogin}>
                       <MenuItem value="" disabled>Select a saved server...</MenuItem>
                       {savedLogins.map(l => <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>)}
@@ -443,17 +444,17 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                 )}
 
                 <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Target IP / Hostname</Typography>
+                  <FormLabelText variant="caption" color="text.secondary">Target IP / Hostname</FormLabelText>
                   <TextField fullWidth size="small" placeholder="e.g. 192.168.1.10" value={selectedIp} onChange={e => setSelectedIp(e.target.value)} />
                 </Box>
 
                 <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Username</Typography>
+                  <FormLabelText variant="caption" color="text.secondary">Username</FormLabelText>
                   <TextField fullWidth size="small" value={username} onChange={e => setUsername(e.target.value)} />
                 </Box>
 
                 <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Password</Typography>
+                  <FormLabelText variant="caption" color="text.secondary">Password</FormLabelText>
                   <TextField fullWidth size="small" type="password" value={password} onChange={e => setPassword(e.target.value)} />
                 </Box>
 
@@ -461,125 +462,117 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                   <Alert severity="error" icon={<ShieldAlert size={16} />}>{statusMessage}</Alert>
                 )}
 
-                <Button 
-                  variant="contained" 
-                  color="warning" 
-                  onClick={connectSftp} 
-                  sx={{ mt: 1, py: 1.2, fontWeight: 'bold' }}
+                <ConnectButton
+                  variant="contained"
+                  color="warning"
+                  onClick={connectSftp}
                 >
                   Connect SFTP
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
+                </ConnectButton>
+              </LoginForm>
+            </LoginCardContent>
+          </LoginCard>
+        </LoginContainer>
       )}
 
       {/* Connecting Loader */}
       {status === 'connecting' && (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 3, bgcolor: 'transparent' }}>
+        <LoadingContainer>
           <GeminiLoader size={64} />
-          <Typography color="text.secondary" sx={{ fontWeight: 500, letterSpacing: '0.02em' }}>{statusMessage}</Typography>
-        </Box>
+          <LoadingText color="text.secondary">{statusMessage}</LoadingText>
+        </LoadingContainer>
       )}
 
       {/* Main File Explorer View */}
       {status === 'connected' && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <ExplorerContainer>
           {/* Action Header / Breadcrumb */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
-            <IconButton onClick={goBack} disabled={history.length === 0} sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
+          <Toolbar>
+            <ToolbarIconButton onClick={goBack} disabled={history.length === 0}>
               <ArrowLeft size={16} />
-            </IconButton>
+            </ToolbarIconButton>
 
-            <IconButton onClick={refreshList} sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
+            <ToolbarIconButton onClick={refreshList}>
               <RefreshCw size={16} />
-            </IconButton>
+            </ToolbarIconButton>
 
             {/* Breadcrumb Path Bar */}
-            <Box sx={{ 
-              flex: 1, display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.8, 
-              bgcolor: 'rgba(0, 0, 0, 0.3)', borderRadius: 1, border: `1px solid rgba(255,255,255,0.05)`,
-              fontFamily: 'monospace', color: 'info.main', overflow: 'hidden'
-            }}>
+            <PathBar>
               <HardDrive size={14} color="#64748b" />
-              <Typography noWrap sx={{ fontFamily: 'inherit', fontSize: '0.85rem' }}>{currentPath}</Typography>
-            </Box>
+              <PathText noWrap>{currentPath}</PathText>
+            </PathBar>
 
             <input type="file" ref={fileInputRef} onChange={handleFileSelect} style={{ display: 'none' }} disabled={isUploading} />
 
-            <Button 
-              variant="outlined" 
-              color="inherit" 
-              onClick={handleCreateFolder} 
+            <ToolbarButton
+              variant="outlined"
+              color="inherit"
+              onClick={handleCreateFolder}
               startIcon={<FolderPlus size={14} />}
-              sx={{ textTransform: 'none' }}
             >
               New Folder
-            </Button>
-            <Button 
-              variant="outlined" 
-              color="inherit" 
-              onClick={() => fileInputRef.current?.click()} 
-              disabled={isUploading} 
+            </ToolbarButton>
+            <ToolbarButton
+              variant="outlined"
+              color="inherit"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
               startIcon={<Upload size={14} />}
-              sx={{ textTransform: 'none' }}
             >
               {isUploading ? `Uploading ${uploadProgress}%` : 'Upload'}
-            </Button>
+            </ToolbarButton>
 
-            <Button 
-              variant="contained" 
-              color="error" 
+            <ToolbarButton
+              variant="contained"
+              color="error"
               onClick={disconnectSftp}
-              sx={{ textTransform: 'none' }}
             >
               Disconnect
-            </Button>
-          </Box>
+            </ToolbarButton>
+          </Toolbar>
 
           {appError && (
-            <Alert severity="error" onClose={() => setAppError(null)} sx={{ borderRadius: 0, '& .MuiAlert-message': { width: '100%' } }}>
+            <StyledAlert severity="error" onClose={() => setAppError(null)}>
               {appError}
-            </Alert>
+            </StyledAlert>
           )}
 
           {/* Upload Progress Bar */}
           {isUploading && uploadProgress !== null && (
-            <Box sx={{ p: 1.5, bgcolor: 'rgba(234, 88, 12, 0.1)', borderBottom: `1px solid rgba(234, 88, 12, 0.2)` }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'warning.main', mb: 1, fontSize: '0.85rem' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <UploadProgressContainer>
+              <ProgressHeader $colorType="warning">
+                <ProgressLabelSection>
                   <Typography variant="body2">Uploading {uploadFileRef.current?.name}...</Typography>
-                  {transferSpeed && <Typography variant="caption" sx={{ opacity: 0.8 }}>({transferSpeed})</Typography>}
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  {transferSpeed && <TransferSpeedText variant="caption">({transferSpeed})</TransferSpeedText>}
+                </ProgressLabelSection>
+                <ProgressActionsSection>
                   <Typography variant="body2">{uploadProgress}%</Typography>
-                  <IconButton size="small" color="error" onClick={cancelUpload} sx={{ p: 0 }}><X size={14} /></IconButton>
-                </Box>
-              </Box>
+                  <CancelIconButton size="small" color="error" onClick={cancelUpload}><X size={14} /></CancelIconButton>
+                </ProgressActionsSection>
+              </ProgressHeader>
               <LinearProgress variant="determinate" value={uploadProgress} color="warning" />
-            </Box>
+            </UploadProgressContainer>
           )}
 
           {/* Download Progress Bar */}
           {isDownloading && (
-            <Box sx={{ p: 1.5, bgcolor: 'rgba(56, 189, 248, 0.1)', borderBottom: `1px solid rgba(56, 189, 248, 0.2)` }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'info.main', mb: 1, fontSize: '0.85rem' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <DownloadProgressContainer>
+              <ProgressHeader $colorType="info">
+                <ProgressLabelSection>
                   <Typography variant="body2">Downloading {downloadFileNameRef.current}...</Typography>
-                  {transferSpeed && <Typography variant="caption" sx={{ opacity: 0.8 }}>({transferSpeed})</Typography>}
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  {transferSpeed && <TransferSpeedText variant="caption">({transferSpeed})</TransferSpeedText>}
+                </ProgressLabelSection>
+                <ProgressActionsSection>
                   <Typography variant="body2">{downloadProgress !== null ? `${downloadProgress}%` : '...'}</Typography>
-                  <IconButton size="small" color="error" onClick={cancelDownload} sx={{ p: 0 }}><X size={14} /></IconButton>
-                </Box>
-              </Box>
+                  <CancelIconButton size="small" color="error" onClick={cancelDownload}><X size={14} /></CancelIconButton>
+                </ProgressActionsSection>
+              </ProgressHeader>
               <LinearProgress variant={downloadProgress !== null ? "determinate" : "indeterminate"} value={downloadProgress || 0} color="info" />
-            </Box>
+            </DownloadProgressContainer>
           )}
 
           {/* Files List Panel */}
-          <TableContainer component={Box} sx={{ flex: 1, overflowY: 'auto' }}>
+          <StyledTableContainer component={Box}>
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
@@ -591,77 +584,74 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
               </TableHead>
               <TableBody>
                 {currentPath !== '/' && (
-                  <TableRow 
-                    hover 
-                    onClick={() => navigateTo('..')} 
-                    sx={{ cursor: 'pointer' }}
+                  <StyledTableRow
+                    hover
+                    onClick={() => navigateTo('..')}
                   >
                     <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main', fontWeight: 500 }}>
+                      <UpFolderContainer>
                         <Folder size={16} /> ..
-                      </Box>
+                      </UpFolderContainer>
                     </TableCell>
                     <TableCell>--</TableCell>
                     <TableCell>--</TableCell>
                     <TableCell></TableCell>
-                  </TableRow>
+                  </StyledTableRow>
                 )}
 
                 {files.map((file) => {
                   const isDir = file.type === 'd';
                   return (
-                    <TableRow
+                    <StyledTableRow
                       key={file.name}
                       hover
                       onClick={() => (file.type === 'd' || file.type === 'l') ? navigateTo(`${currentPath === '/' ? '' : currentPath}/${file.name}`) : triggerDownload(file.name, file.size)}
-                      sx={{ cursor: 'pointer' }}
                     >
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: isDir ? 'warning.main' : 'text.primary', fontWeight: isDir ? 500 : 400 }}>
+                        <FileItemContainer $isDir={isDir}>
                           {isDir ? <Folder size={16} /> : <File size={16} color="#94a3b8" />}
-                          <Typography noWrap sx={{ maxWidth: 200, fontSize: '0.85rem' }}>{file.name}</Typography>
-                        </Box>
+                          <FileNameText noWrap>{file.name}</FileNameText>
+                        </FileItemContainer>
                       </TableCell>
-                      <TableCell sx={{ color: 'text.secondary' }}>
+                      <SecondaryTableCell>
                         {isDir ? '--' : formatSize(file.size)}
-                      </TableCell>
-                      <TableCell sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>
+                      </SecondaryTableCell>
+                      <MonospaceTableCell>
                         {file.rights ? `${file.type}${file.rights.user}${file.rights.group}${file.rights.other}` : '--'}
-                      </TableCell>
+                      </MonospaceTableCell>
                       <TableCell align="right">
                         {!isDir && (
-                          <IconButton 
-                            size="small" 
-                            color="info" 
+                          <ActionIconButton
+                            size="small"
+                            color="info"
                             onClick={(e) => { e.stopPropagation(); triggerDownload(file.name, file.size); }}
-                            sx={{ mr: 1 }}
                           >
                             <Download size={14} />
-                          </IconButton>
+                          </ActionIconButton>
                         )}
-                        <IconButton 
-                          size="small" 
-                          color="error" 
+                        <IconButton
+                          size="small"
+                          color="error"
                           onClick={(e) => { e.stopPropagation(); handleDeleteItem(file.name); }}
                         >
                           <Trash2 size={14} />
                         </IconButton>
                       </TableCell>
-                    </TableRow>
+                    </StyledTableRow>
                   );
                 })}
 
                 {files.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                    <EmptyTableCell colSpan={4} align="center">
                       This folder is empty.
-                    </TableCell>
+                    </EmptyTableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-          </TableContainer>
-        </Box>
+          </StyledTableContainer>
+        </ExplorerContainer>
       )}
 
       {/* Spin Animation Keyframe */}
@@ -671,6 +661,242 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </Box>
+    </RootContainer>
   );
 }
+
+// Styled Components
+const RootContainer = styled(Box)({
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+  backgroundColor: 'transparent',
+});
+
+const LoginContainer = styled(Box)(({ theme }) => ({
+  flex: 1,
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: theme.spacing(3),
+  background: 'transparent',
+}));
+
+const LoginCard = styled(Card)(({ theme }) => ({
+  width: '100%',
+  maxWidth: 380,
+  backgroundColor: 'rgba(30, 41, 59, 0.4)',
+  backdropFilter: 'blur(16px)',
+  border: `1px solid ${theme.palette.divider}`,
+  borderRadius: 16,
+  boxShadow: theme.shadows[24],
+}));
+
+const LoginCardContent = styled(CardContent)(({ theme }) => ({
+  padding: theme.spacing(4),
+  '&:last-child': {
+    paddingBottom: theme.spacing(4),
+  },
+}));
+
+const IconWrapper = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  justifyContent: 'center',
+  marginBottom: theme.spacing(2),
+}));
+
+const IconContainer = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.warning.light,
+  padding: theme.spacing(1.5),
+  borderRadius: 8,
+  border: '1px solid rgba(251, 146, 60, 0.2)',
+}));
+
+const LoginTitle = styled(Typography)({
+  fontWeight: 'bold',
+});
+
+const LoginSubtitle = styled(Typography)(({ theme }) => ({
+  marginBottom: theme.spacing(4),
+}));
+
+const LoginForm = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: theme.spacing(2.5),
+}));
+
+const FormLabelText = styled(Typography)(({ theme }) => ({
+  fontWeight: 'bold',
+  textTransform: 'uppercase',
+  marginBottom: theme.spacing(1),
+  display: 'block',
+}));
+
+const ConnectButton = styled(Button)(({ theme }) => ({
+  marginTop: theme.spacing(1),
+  paddingTop: theme.spacing(1.2),
+  paddingBottom: theme.spacing(1.2),
+  fontWeight: 'bold',
+}));
+
+const LoadingContainer = styled(Box)(({ theme }) => ({
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: theme.spacing(3),
+  backgroundColor: 'transparent',
+}));
+
+const LoadingText = styled(Typography)({
+  fontWeight: 500,
+  letterSpacing: '0.02em',
+});
+
+const ExplorerContainer = styled(Box)({
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+});
+
+const Toolbar = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1.5),
+  padding: theme.spacing(1.5),
+  backgroundColor: 'rgba(255,255,255,0.03)',
+  borderBottom: '1px solid rgba(255,255,255,0.05)',
+}));
+
+const ToolbarIconButton = styled(IconButton)({
+  backgroundColor: 'rgba(255,255,255,0.05)',
+  borderRadius: 4,
+});
+
+const PathBar = styled(Box)(({ theme }) => ({
+  flex: 1,
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  paddingLeft: theme.spacing(1.5),
+  paddingRight: theme.spacing(1.5),
+  paddingTop: theme.spacing(0.8),
+  paddingBottom: theme.spacing(0.8),
+  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  borderRadius: 4,
+  border: '1px solid rgba(255,255,255,0.05)',
+  fontFamily: 'monospace',
+  color: theme.palette.info.main,
+  overflow: 'hidden',
+}));
+
+const PathText = styled(Typography)({
+  fontFamily: 'inherit',
+  fontSize: '0.85rem',
+});
+
+const ToolbarButton = styled(Button)({
+  textTransform: 'none',
+});
+
+const StyledAlert = styled(Alert)({
+  borderRadius: 0,
+  '& .MuiAlert-message': {
+    width: '100%',
+  },
+});
+
+const UploadProgressContainer = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(1.5),
+  backgroundColor: 'rgba(234, 88, 12, 0.1)',
+  borderBottom: '1px solid rgba(234, 88, 12, 0.2)',
+}));
+
+const DownloadProgressContainer = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(1.5),
+  backgroundColor: 'rgba(56, 189, 248, 0.1)',
+  borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
+}));
+
+const ProgressHeader = styled(Box, {
+  shouldForwardProp: (prop) => prop !== '$colorType',
+})<{ $colorType?: 'warning' | 'info' }>(({ theme, $colorType }) => ({
+  display: 'flex',
+  justifyContent: 'space-between',
+  color: $colorType === 'warning' ? theme.palette.warning.main : theme.palette.info.main,
+  marginBottom: theme.spacing(1),
+  fontSize: '0.85rem',
+}));
+
+const ProgressLabelSection = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+}));
+
+const ProgressActionsSection = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1.5),
+}));
+
+const TransferSpeedText = styled(Typography)({
+  opacity: 0.8,
+});
+
+const CancelIconButton = styled(IconButton)({
+  padding: 0,
+});
+
+const StyledTableContainer = styled(TableContainer)({
+  flex: 1,
+  overflowY: 'auto',
+}) as typeof TableContainer;
+
+const StyledTableRow = styled(TableRow)({
+  cursor: 'pointer',
+});
+
+const UpFolderContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  color: theme.palette.warning.main,
+  fontWeight: 500,
+}));
+
+const FileItemContainer = styled(Box, {
+  shouldForwardProp: (prop) => prop !== '$isDir',
+})<{ $isDir: boolean }>(({ theme, $isDir }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  color: $isDir ? theme.palette.warning.main : theme.palette.text.primary,
+  fontWeight: $isDir ? 500 : 400,
+}));
+
+const FileNameText = styled(Typography)({
+  maxWidth: 200,
+  fontSize: '0.85rem',
+});
+
+const SecondaryTableCell = styled(TableCell)(({ theme }) => ({
+  color: theme.palette.text.secondary,
+}));
+
+const MonospaceTableCell = styled(TableCell)(({ theme }) => ({
+  color: theme.palette.text.secondary,
+  fontFamily: 'monospace',
+}));
+
+const ActionIconButton = styled(IconButton)(({ theme }) => ({
+  marginRight: theme.spacing(1),
+}));
+
+const EmptyTableCell = styled(TableCell)(({ theme }) => ({
+  paddingTop: theme.spacing(6),
+  paddingBottom: theme.spacing(6),
+  color: theme.palette.text.secondary,
+}));

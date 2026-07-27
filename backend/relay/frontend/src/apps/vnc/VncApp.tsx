@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import RFB from '@novnc/novnc';
 import { Maximize } from 'lucide-react';
 import { Box, TextField, Select, MenuItem, Button, IconButton, Toolbar, Typography, Tooltip } from '@mui/material';
+import { styled } from '@mui/material/styles';
 
 interface VncAppProps {
     token: string;
@@ -101,7 +102,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         statIntervalRef.current = setInterval(() => {
             const now = performance.now();
             const currentFps = Math.round((frames * 1000) / (now - lastTime));
-            
+
             const startPing = performance.now();
             fetch('/health').then(() => {
                 const latency = Math.round(performance.now() - startPing);
@@ -109,7 +110,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
             }).catch(() => {
                 setStats({ fps: currentFps, latency: 0 });
             });
-            
+
             frames = 0;
             lastTime = now;
         }, 1000);
@@ -243,132 +244,180 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     }, [selectedMonitor, isConnected]);
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'transparent' }}>
-            <Toolbar 
-                variant="dense" 
-                sx={{ 
-                    bgcolor: 'rgba(255,255,255,0.03)', 
-                    borderBottom: '1px solid rgba(255,255,255,0.05)', 
-                    display: 'flex', 
-                    gap: 1.5, 
-                    py: 1,
-                    px: '10px !important'
-                }}
-            >
+        <VncContainer>
+            <VncToolbar variant="dense">
                 {savedLogins.length > 0 && (
-                    <Select
+                    <VncSelect
                         size="small"
                         value=""
                         displayEmpty
                         onChange={applyLogin}
                         disabled={isConnected}
-                        sx={{ width: 140, '& .MuiSelect-select': { py: 0.8 } }}
                     >
                         <MenuItem value="" disabled>Saved Logins...</MenuItem>
                         {savedLogins.map(l => (
                             <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>
                         ))}
-                    </Select>
+                    </VncSelect>
                 )}
-                <TextField
+                <VncTextField
                     size="small"
                     value={selectedIp}
                     onChange={(e) => setSelectedIp(e.target.value)}
                     placeholder="Target IP"
                     disabled={isConnected}
-                    sx={{ width: 130, '& .MuiInputBase-input': { py: 0.8 } }}
+                    $width={130}
                 />
-                <TextField
+                <VncTextField
                     size="small"
                     value={vncPort}
                     onChange={(e) => setVncPort(e.target.value)}
                     placeholder="Port"
                     disabled={isConnected}
-                    sx={{ width: 80, '& .MuiInputBase-input': { py: 0.8 } }}
+                    $width={80}
                 />
-                <TextField
+                <VncTextField
                     size="small"
                     type="password"
                     value={vncPassword}
                     onChange={(e) => setVncPassword(e.target.value)}
                     placeholder="Password"
                     disabled={isConnected}
-                    sx={{ width: 110, '& .MuiInputBase-input': { py: 0.8 } }}
+                    $width={110}
                 />
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>Monitor:</Typography>
-                    <TextField
+                <MonitorContainer>
+                    <MonitorLabel variant="body2">Monitor:</MonitorLabel>
+                    <VncTextField
                         size="small"
                         type="number"
                         slotProps={{ htmlInput: { min: 1 } }}
                         value={selectedMonitor}
                         onChange={(e) => setSelectedMonitor(e.target.value)}
-                        sx={{ width: 60, '& .MuiInputBase-input': { py: 0.8 } }}
+                        $width={60}
                     />
-                </Box>
+                </MonitorContainer>
                 {isConnected ? (
                     <>
-                        <Button 
-                            variant="contained" 
-                            color="error" 
+                        <VncButton
+                            variant="contained"
+                            color="error"
                             onClick={disconnectVnc}
-                            sx={{ textTransform: 'none', px: 2, ml: 'auto' }}
                         >
                             Disconnect
-                        </Button>
+                        </VncButton>
                         <Tooltip title="Fullscreen">
-                            <IconButton onClick={toggleFullscreen} sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
+                            <FullscreenIconButton onClick={toggleFullscreen}>
                                 <Maximize size={16} />
-                            </IconButton>
+                            </FullscreenIconButton>
                         </Tooltip>
                     </>
                 ) : (
-                    <Button 
-                        variant="contained" 
-                        color="success" 
-                        onClick={connectVnc} 
+                    <VncButton
+                        variant="contained"
+                        color="success"
+                        onClick={connectVnc}
                         disabled={status === 'connecting' || !selectedIp}
-                        sx={{ textTransform: 'none', px: 2, ml: 'auto' }}
                     >
                         {status === 'connecting' ? 'Connecting...' : 'Connect VNC'}
-                    </Button>
+                    </VncButton>
                 )}
-            </Toolbar>
-            
-            <Box 
-                ref={containerRef} 
-                sx={{ 
-                    flex: 1, 
-                    overflow: 'hidden', 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center', 
-                    bgcolor: 'transparent', 
-                    position: 'relative' 
-                }}
-            >
+            </VncToolbar>
+
+            <VncScreenContainer ref={containerRef}>
                 {status === 'disconnected' && <Typography color="text.secondary">VNC Disconnected</Typography>}
-                
+
                 {isDebug && isConnected && (
-                    <Box sx={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        bgcolor: 'rgba(0, 0, 0, 0.7)',
-                        color: 'info.main',
-                        p: 1,
-                        borderRadius: 1,
-                        fontFamily: 'monospace',
-                        fontSize: '0.85rem',
-                        pointerEvents: 'none',
-                        zIndex: 1000,
-                        border: '1px solid rgba(56, 189, 248, 0.3)'
-                    }}>
+                    <DebugStatsContainer>
                         <div>FPS: {stats.fps}</div>
                         <div>Ping: {stats.latency}ms</div>
-                    </Box>
+                    </DebugStatsContainer>
                 )}
-            </Box>
-        </Box>
+            </VncScreenContainer>
+        </VncContainer>
     );
 }
+
+const VncContainer = styled(Box)({
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+  backgroundColor: 'transparent',
+});
+
+const VncToolbar = styled(Toolbar)(({ theme }) => ({
+  backgroundColor: 'rgba(255,255,255,0.03)',
+  borderBottom: '1px solid rgba(255,255,255,0.05)',
+  display: 'flex',
+  gap: theme.spacing(1.5),
+  paddingTop: theme.spacing(1),
+  paddingBottom: theme.spacing(1),
+  paddingLeft: '10px !important',
+  paddingRight: '10px !important',
+}));
+
+const VncSelect = styled(Select)(({ theme }) => ({
+  width: 140,
+  '& .MuiSelect-select': {
+    paddingTop: theme.spacing(0.8),
+    paddingBottom: theme.spacing(0.8),
+  },
+}));
+
+interface VncTextFieldProps {
+  $width?: number | string;
+}
+
+const VncTextField = styled(TextField)<VncTextFieldProps>(({ theme, $width }) => ({
+  width: $width,
+  '& .MuiInputBase-input': {
+    paddingTop: theme.spacing(0.8),
+    paddingBottom: theme.spacing(0.8),
+  },
+}));
+
+const MonitorContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+}));
+
+const MonitorLabel = styled(Typography)(({ theme }) => ({
+  color: theme.palette.text.secondary,
+}));
+
+const VncButton = styled(Button)(({ theme }) => ({
+  textTransform: 'none',
+  paddingLeft: theme.spacing(2),
+  paddingRight: theme.spacing(2),
+  marginLeft: 'auto',
+}));
+
+const FullscreenIconButton = styled(IconButton)({
+  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  borderRadius: '4px',
+});
+
+const VncScreenContainer = styled(Box)({
+  flex: 1,
+  overflow: 'hidden',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: 'transparent',
+  position: 'relative',
+});
+
+const DebugStatsContainer = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  top: 10,
+  right: 10,
+  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  color: theme.palette.info.main,
+  padding: theme.spacing(1),
+  borderRadius: '4px',
+  fontFamily: 'monospace',
+  fontSize: '0.85rem',
+  pointerEvents: 'none',
+  zIndex: 1000,
+  border: '1px solid rgba(56, 189, 248, 0.3)',
+}));
