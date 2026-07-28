@@ -3,7 +3,7 @@ import { startSsh } from './sshHandler.js';
 import { startVnc } from './vncHandler.js';
 import { startSftp } from './sftpHandler.js';
 
-export function handleWebSocketConnection(ws: WebSocket): void {
+export function handleWebSocketConnection(ws: WebSocket, sessionId: string | null = null): void {
     console.log('Client connected. Waiting for handshake payload...');
     const onMessage = (message: any) => {
         try {
@@ -13,7 +13,7 @@ export function handleWebSocketConnection(ws: WebSocket): void {
                     console.log(`Valid credentials received for ${data.username}@${data.ip}, starting SSH...`);
                     ws.removeListener('message', onMessage);
                     try {
-                        startSsh(ws, data.ip, data.username, data.password || '');
+                        startSsh(ws, data.ip, data.username, data.password || '', data.sessionId || sessionId || undefined);
                     } catch (err: any) {
                         console.error('Error starting SSH:', err);
                         ws.send(`\r\n[Backend] Error starting SSH: ${err.message}\r\n`);

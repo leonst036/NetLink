@@ -76,7 +76,7 @@ export function handleRelayConnection(token: string): void {
 
                 sessionWs.on('open', () => {
                     console.log(`Data connection established for session: ${message.sessionId}`);
-                    handleWebSocketConnection(sessionWs);
+                    handleWebSocketConnection(sessionWs, message.sessionId);
                 });
 
                 sessionWs.on('error', (err) => {

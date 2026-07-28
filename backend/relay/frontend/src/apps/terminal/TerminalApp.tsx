@@ -24,20 +24,38 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   const socketRef = useRef<WebSocket | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const inputDisposableRef = useRef<{ dispose: () => void } | null>(null);
+
+  const getSessionStorageKey = () => `netlink_ssh_session:${target}:${selectedIp}:${sshUsername}`;
+
+  const getOrCreateSessionId = () => {
+    const storageKey = getSessionStorageKey();
+    const existingSessionId = sessionStorage.getItem(storageKey);
+    if (existingSessionId) {
+      return existingSessionId;
+    }
+
+    const newSessionId = crypto.randomUUID();
+    sessionStorage.setItem(storageKey, newSessionId);
+    return newSessionId;
+  };
 
   const disconnectTerminal = () => {
     if (socketRef.current) {
       socketRef.current.close();
       socketRef.current = null;
     }
+    if (inputDisposableRef.current) {
+      try {
+        inputDisposableRef.current.dispose();
+      } catch (e) {}
+      inputDisposableRef.current = null;
+    }
     if (termRef.current) {
       try {
-        termRef.current.write('\r\n[Disconnected from server]\r\n');
-        termRef.current.dispose();
+        termRef.current.write('\r\n[Detached from server]\r\n');
       } catch (e) {}
-      termRef.current = null;
     }
-    fitAddonRef.current = null;
     setStatus('disconnected');
     setIsConnected(false);
   };
@@ -46,40 +64,52 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     if (!token || !terminalRef.current) return;
 
     if (socketRef.current) socketRef.current.close();
-    if (termRef.current) termRef.current.dispose();
+
+    if (inputDisposableRef.current) {
+      try {
+        inputDisposableRef.current.dispose();
+      } catch (e) {}
+      inputDisposableRef.current = null;
+    }
 
     setStatus('connecting');
-    const term = new Terminal({
-      cursorBlink: true,
-      fontFamily: '"Fira Code", Menlo, Monaco, Consolas, monospace',
-      fontSize: 14,
-      theme: {
-        background: '#050811',
-        foreground: '#f8fafc',
-        cursor: '#3a86ff',
-      },
-    });
+    let term = termRef.current;
+    if (!term) {
+      term = new Terminal({
+        cursorBlink: true,
+        fontFamily: '"Fira Code", Menlo, Monaco, Consolas, monospace',
+        fontSize: 14,
+        theme: {
+          background: '#050811',
+          foreground: '#f8fafc',
+          cursor: '#3a86ff',
+        },
+      });
 
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(terminalRef.current);
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(terminalRef.current);
 
-    // Slight delay for fit addon to get correct dimensions in RND wrapper
-    setTimeout(() => fitAddon.fit(), 100);
+      // Slight delay for fit addon to get correct dimensions in RND wrapper
+      setTimeout(() => fitAddon.fit(), 100);
 
-    termRef.current = term;
-    fitAddonRef.current = fitAddon;
+      termRef.current = term;
+      fitAddonRef.current = fitAddon;
+    }
 
     term.write('Connecting to NetLink Relay Server...\r\n');
     console.log('Debug: Connecting to WebSocket')
+
+    const sessionId = getOrCreateSessionId();
 
     const isSecure = window.location.protocol === 'https:';
     const protocol = isSecure ? 'wss:' : 'ws:';
     let host = window.location.host;
     if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535'; // Dev mode fallback
 
-    const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
+    const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}&sessionId=${encodeURIComponent(sessionId)}`;
     const socket = new WebSocket(socketUrl);
+    socket.binaryType = 'arraybuffer';
     socketRef.current = socket;
 
     socket.onopen = () => {
@@ -89,12 +119,10 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
       term.write('\r\n*** Connected to Relay Server. Ready for SSH session ***\r\n\r\n');
     };
 
-    socket.onmessage = async (event) => {
+    socket.onmessage = (event) => {
       console.log('Debug: Message received from WebSocket');
       let textData = event.data;
-      if (event.data instanceof Blob) {
-        textData = await event.data.text();
-      } else if (event.data instanceof ArrayBuffer) {
+      if (event.data instanceof ArrayBuffer) {
         textData = new TextDecoder().decode(event.data);
       }
 
@@ -106,7 +134,8 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
             type: 'connect',
             ip: selectedIp || 'localhost',
             username: sshUsername,
-            password: sshPassword
+            password: sshPassword,
+            sessionId
           }));
           console.log('Debug: Sending connection request');
           return;
@@ -119,19 +148,27 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     };
 
     socket.onclose = (event) => {
+      if (socketRef.current !== socket) return;
       setStatus('disconnected');
       console.log(`Debug: WebSocket closed with code ${event.code}`);
       setIsConnected(false);
       term.write(`\r\nConnection closed. Code: ${event.code}\r\n`);
+      if (inputDisposableRef.current) {
+        try {
+          inputDisposableRef.current.dispose();
+        } catch (e) {}
+        inputDisposableRef.current = null;
+      }
     };
 
     socket.onerror = () => {
+      if (socketRef.current !== socket) return;
       setStatus('disconnected');
       setIsConnected(false);
       term.write('\r\nWebSocket Error.\r\n');
     };
 
-    term.onData((data) => {
+    inputDisposableRef.current = term.onData((data) => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(data);
       }
@@ -166,8 +203,13 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
       clearTimeout(timeout);
       observer.disconnect();
       if (socketRef.current) socketRef.current.close();
+      if (inputDisposableRef.current) {
+        try { inputDisposableRef.current.dispose(); } catch (e) {}
+        inputDisposableRef.current = null;
+      }
       if (termRef.current) {
         try { termRef.current.dispose(); } catch (e) {}
+        termRef.current = null;
       }
     };
   }, []);

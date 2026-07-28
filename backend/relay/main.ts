@@ -57,7 +57,7 @@ wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
             handleLocalServerConnection(ws, identifier, token, sessionId);
         } else if (pathname === '/client') {
             const targetId = target || identifier; // If target is not specified, assume target is the token/identifier itself
-            handleClientConnection(ws, identifier, targetId);
+            handleClientConnection(ws, identifier, targetId, sessionId);
         } else if (pathname === '/desktop') {
             const targetId = target || identifier;
             handleDesktopConnection(ws, targetId);
