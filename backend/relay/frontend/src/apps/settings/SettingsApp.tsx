@@ -411,6 +411,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                         <MenuItem value="ssh">SSH</MenuItem>
                         <MenuItem value="vnc">VNC</MenuItem>
                         <MenuItem value="sftp">SFTP</MenuItem>
+                        <MenuItem value="smb">SMB</MenuItem>
                       </Select>
                       <ButtonActionsContainer $mt={2}>
                         <Button variant="contained" color="success" startIcon={<Save size={16} />} onClick={saveLogin}>Save</Button>

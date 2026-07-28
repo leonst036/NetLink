@@ -90,7 +90,7 @@ export default function Dock() {
             />
             <DockIcon
                 icon={<Folder size={24} color="#fb923c" />}
-                label="New SFTP Client"
+                label="New File Client"
                 isOpen={false}
                 onClick={() => openSftp('')}
             />
@@ -138,7 +138,7 @@ export default function Dock() {
                 <DockIcon
                     key={sftp.id}
                     icon={<Folder size={24} color="#fb923c" />}
-                    label={`SFTP: ${sftp.ip}`}
+                    label={`File Client: ${sftp.ip || 'Manager'}`}
                     isOpen={activeWindow === sftp.id && !sftp.isMinimized}
                     isMinimized={sftp.isMinimized}
                     onClick={() => handleSftpDockClick(sftp)}

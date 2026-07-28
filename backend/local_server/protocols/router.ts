@@ -2,6 +2,7 @@ import { WebSocket } from 'ws';
 import { startSsh } from './sshHandler.js';
 import { startVnc } from './vncHandler.js';
 import { startSftp } from './sftpHandler.js';
+import { startSmb } from './smbHandler.js';
 
 export function handleWebSocketConnection(ws: WebSocket, sessionId: string | null = null): void {
     console.log('Client connected. Waiting for handshake payload...');
@@ -42,6 +43,16 @@ export function handleWebSocketConnection(ws: WebSocket, sessionId: string | nul
                     startSftp(ws, data.ip, data.username, data.password || '');
                 } else {
                     console.warn('Received SFTP connect payload but missing IP or Username');
+                    ws.close();
+                }
+            }
+            else if (data.type === 'connect_smb') {
+                if (data.ip && data.username) {
+                    console.log(`SMB request received for ${data.username}@${data.ip}, starting SMB session...`);
+                    ws.removeListener('message', onMessage);
+                    startSmb(ws, data.ip, data.username, data.password || '', data.share || 'C$', data.domain || 'WORKGROUP');
+                } else {
+                    console.warn('Received SMB connect payload but missing IP or Username');
                     ws.close();
                 }
             }

@@ -45,9 +45,12 @@ interface FileItem {
 
 export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const theme = useTheme();
+  const [protocolType, setProtocolType] = useState<'sftp' | 'smb'>('sftp');
   const [selectedIp, setSelectedIp] = useState(initialIp || '');
   const [username, setUsername] = useState('root');
   const [password, setPassword] = useState('');
+  const [share, setShare] = useState('C$');
+  const [domain, setDomain] = useState('WORKGROUP');
   const [savedLogins, setSavedLogins] = useState<any[]>([]);
 
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
@@ -206,13 +209,25 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
         const data = JSON.parse(textData);
 
         if (data.type === 'ready_for_credentials') {
-          setStatusMessage('Sending SFTP credentials...');
-          socket.send(JSON.stringify({
-            type: 'connect_sftp',
-            ip: selectedIp || 'localhost',
-            username,
-            password
-          }));
+          if (protocolType === 'smb') {
+            setStatusMessage('Sending SMB credentials...');
+            socket.send(JSON.stringify({
+              type: 'connect_smb',
+              ip: selectedIp || 'localhost',
+              username,
+              password,
+              share: share || 'C$',
+              domain: domain || 'WORKGROUP'
+            }));
+          } else {
+            setStatusMessage('Sending SFTP credentials...');
+            socket.send(JSON.stringify({
+              type: 'connect_sftp',
+              ip: selectedIp || 'localhost',
+              username,
+              password
+            }));
+          }
         }
         else if (data.type === 'connected') {
           setStatus('connected');
@@ -359,7 +374,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
       .then(res => res.json())
       .then(data => {
         if (data.logins) {
-          setSavedLogins(data.logins.filter((l: any) => l.type === 'sftp'));
+          setSavedLogins(data.logins.filter((l: any) => l.type === 'sftp' || l.type === 'smb'));
         }
       })
       .catch(err => console.error('Failed to fetch logins', err));
@@ -368,6 +383,9 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const applyLogin = (e: any) => {
     const login = savedLogins.find(l => l.id === e.target.value);
     if (login) {
+      if (login.type === 'sftp' || login.type === 'smb') {
+        setProtocolType(login.type);
+      }
       setSelectedIp(login.ip);
       setUsername(login.loginUsername);
       setPassword(login.password);
@@ -429,16 +447,31 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                 </IconContainer>
               </IconWrapper>
 
-              <LoginTitle variant="h6" align="center" gutterBottom>SFTP File Client</LoginTitle>
-              <LoginSubtitle variant="body2" color="text.secondary" align="center">Access remote files securely</LoginSubtitle>
+              <LoginTitle variant="h6" align="center" gutterBottom>File Explorer</LoginTitle>
+              <LoginSubtitle variant="body2" color="text.secondary" align="center">Access remote files via SFTP or SMB</LoginSubtitle>
 
               <LoginForm>
-                {savedLogins.length > 0 && (
+                <Box>
+                  <FormLabelText variant="caption" color="text.secondary">Protocol</FormLabelText>
+                  <Select
+                    fullWidth
+                    size="small"
+                    value={protocolType}
+                    onChange={e => setProtocolType(e.target.value as 'sftp' | 'smb')}
+                  >
+                    <MenuItem value="sftp">SFTP (SSH File Transfer)</MenuItem>
+                    <MenuItem value="smb">SMB / CIFS (Windows Share)</MenuItem>
+                  </Select>
+                </Box>
+
+                {savedLogins.filter(l => l.type === protocolType).length > 0 && (
                   <Box>
                     <FormLabelText variant="caption" color="text.secondary">Saved Logins</FormLabelText>
                     <Select fullWidth size="small" value="" displayEmpty onChange={applyLogin}>
                       <MenuItem value="" disabled>Select a saved server...</MenuItem>
-                      {savedLogins.map(l => <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>)}
+                      {savedLogins
+                        .filter(l => l.type === protocolType)
+                        .map(l => <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>)}
                     </Select>
                   </Box>
                 )}
@@ -447,6 +480,20 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                   <FormLabelText variant="caption" color="text.secondary">Target IP / Hostname</FormLabelText>
                   <TextField fullWidth size="small" placeholder="e.g. 192.168.1.10" value={selectedIp} onChange={e => setSelectedIp(e.target.value)} />
                 </Box>
+
+                {protocolType === 'smb' && (
+                  <>
+                    <Box>
+                      <FormLabelText variant="caption" color="text.secondary">Share Name</FormLabelText>
+                      <TextField fullWidth size="small" placeholder="e.g. C$ or share" value={share} onChange={e => setShare(e.target.value)} />
+                    </Box>
+
+                    <Box>
+                      <FormLabelText variant="caption" color="text.secondary">Domain / Workgroup</FormLabelText>
+                      <TextField fullWidth size="small" placeholder="e.g. WORKGROUP" value={domain} onChange={e => setDomain(e.target.value)} />
+                    </Box>
+                  </>
+                )}
 
                 <Box>
                   <FormLabelText variant="caption" color="text.secondary">Username</FormLabelText>
@@ -467,7 +514,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                   color="warning"
                   onClick={connectSftp}
                 >
-                  Connect SFTP
+                  Connect {protocolType.toUpperCase()}
                 </ConnectButton>
               </LoginForm>
             </LoginCardContent>
@@ -499,6 +546,9 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             {/* Breadcrumb Path Bar */}
             <PathBar>
               <HardDrive size={14} color="#64748b" />
+              <Typography variant="caption" sx={{ px: 0.8, py: 0.2, borderRadius: 0.5, backgroundColor: 'rgba(251, 146, 60, 0.2)', color: '#fb923c', fontWeight: 'bold', fontSize: '0.7rem', textTransform: 'uppercase' }}>
+                {protocolType}
+              </Typography>
               <PathText noWrap>{currentPath}</PathText>
             </PathBar>
 

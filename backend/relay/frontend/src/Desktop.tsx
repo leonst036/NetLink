@@ -254,7 +254,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     <Window
                         key={sftp.id}
                         id={sftp.id}
-                        title={`NetLink SFTP - ${sftp.ip}`}
+                        title={`NetLink File Client ${sftp.ip ? `- ${sftp.ip}` : ''}`}
                         icon={<Folder size={14} color="#fb923c" />}
                         isActive={activeWindow === sftp.id}
                         isMinimized={sftp.isMinimized}
