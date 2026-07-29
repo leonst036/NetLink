@@ -19,7 +19,7 @@ import {
   CardContent,
   useTheme
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import './FileApp.css';
 import GeminiLoader from '../../components/GeminiLoader';
 import SftpLogin from './SftpLogin';
 import SmbLogin from './SmbLogin';
@@ -599,7 +599,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                           <ActionIconButton
                             size="small"
                             color="info"
-                            onClick={(e) => { e.stopPropagation(); triggerDownload(file.name, file.size); }}
+                            onClick={(e: any) => { e.stopPropagation(); triggerDownload(file.name, file.size); }}
                           >
                             <Download size={14} />
                           </ActionIconButton>
@@ -607,7 +607,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                         <IconButton
                           size="small"
                           color="error"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteItem(file.name); }}
+                          onClick={(e: any) => { e.stopPropagation(); handleDeleteItem(file.name); }}
                         >
                           <Trash2 size={14} />
                         </IconButton>
@@ -640,232 +640,57 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   );
 }
 
-// Styled Components
-const RootContainer = styled(Box)({
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100%',
-  backgroundColor: 'transparent',
-});
-
-const LoginContainer = styled(Box)(({ theme }) => ({
-  flex: 1,
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: theme.spacing(3),
-  background: 'transparent',
-}));
-
-const LoginCard = styled(Card)(({ theme }) => ({
-  width: '100%',
-  maxWidth: 380,
-  backgroundColor: 'rgba(30, 41, 59, 0.4)',
-  backdropFilter: 'blur(16px)',
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: 16,
-  boxShadow: theme.shadows[24],
-}));
-
-const LoginCardContent = styled(CardContent)(({ theme }) => ({
-  padding: theme.spacing(4),
-  '&:last-child': {
-    paddingBottom: theme.spacing(4),
-  },
-}));
-
-const IconWrapper = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'center',
-  marginBottom: theme.spacing(2),
-}));
-
-const IconContainer = styled(Box)(({ theme }) => ({
-  backgroundColor: theme.palette.warning.light,
-  padding: theme.spacing(1.5),
-  borderRadius: 8,
-  border: '1px solid rgba(251, 146, 60, 0.2)',
-}));
-
-const LoginTitle = styled(Typography)({
-  fontWeight: 'bold',
-});
-
-const LoginSubtitle = styled(Typography)(({ theme }) => ({
-  marginBottom: theme.spacing(4),
-}));
-
-const LoginForm = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(2.5),
-}));
-
-const FormLabelText = styled(Typography)(({ theme }) => ({
-  fontWeight: 'bold',
-  textTransform: 'uppercase',
-  marginBottom: theme.spacing(1),
-  display: 'block',
-}));
-
-
-const LoadingContainer = styled(Box)(({ theme }) => ({
-  flex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  alignItems: 'center',
-  gap: theme.spacing(3),
-  backgroundColor: 'transparent',
-}));
-
-const LoadingText = styled(Typography)({
-  fontWeight: 500,
-  letterSpacing: '0.02em',
-});
-
-const ExplorerContainer = styled(Box)({
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100%',
-});
-
-const Toolbar = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1.5),
-  padding: theme.spacing(1.5),
-  backgroundColor: 'rgba(255,255,255,0.03)',
-  borderBottom: '1px solid rgba(255,255,255,0.05)',
-}));
-
-const ToolbarIconButton = styled(IconButton)({
-  backgroundColor: 'rgba(255,255,255,0.05)',
-  borderRadius: 4,
-});
-
-const PathBar = styled(Box)(({ theme }) => ({
-  flex: 1,
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-  paddingLeft: theme.spacing(1.5),
-  paddingRight: theme.spacing(1.5),
-  paddingTop: theme.spacing(0.8),
-  paddingBottom: theme.spacing(0.8),
-  backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  borderRadius: 4,
-  border: '1px solid rgba(255,255,255,0.05)',
-  fontFamily: 'monospace',
-  color: theme.palette.info.main,
-  overflow: 'hidden',
-}));
-
-const PathText = styled(Typography)({
-  fontFamily: 'inherit',
-  fontSize: '0.85rem',
-});
-
-const ToolbarButton = styled(Button)({
-  textTransform: 'none',
-});
-
-const StyledAlert = styled(Alert)({
-  borderRadius: 0,
-  '& .MuiAlert-message': {
-    width: '100%',
-  },
-});
-
-const UploadProgressContainer = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(1.5),
-  backgroundColor: 'rgba(234, 88, 12, 0.1)',
-  borderBottom: '1px solid rgba(234, 88, 12, 0.2)',
-}));
-
-const DownloadProgressContainer = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(1.5),
-  backgroundColor: 'rgba(56, 189, 248, 0.1)',
-  borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
-}));
-
-const ProgressHeader = styled(Box, {
-  shouldForwardProp: (prop) => prop !== '$colorType',
-})<{ $colorType?: 'warning' | 'info' }>(({ theme, $colorType }) => ({
-  display: 'flex',
-  justifyContent: 'space-between',
-  color: $colorType === 'warning' ? theme.palette.warning.main : theme.palette.info.main,
-  marginBottom: theme.spacing(1),
-  fontSize: '0.85rem',
-}));
-
-const ProgressLabelSection = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-}));
-
-const ProgressActionsSection = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1.5),
-}));
-
-const TransferSpeedText = styled(Typography)({
-  opacity: 0.8,
-});
-
-const CancelIconButton = styled(IconButton)({
-  padding: 0,
-});
-
-const StyledTableContainer = styled(TableContainer)({
-  flex: 1,
-  overflowY: 'auto',
-}) as typeof TableContainer;
-
-const StyledTableRow = styled(TableRow)({
-  cursor: 'pointer',
-});
-
-const UpFolderContainer = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-  color: theme.palette.warning.main,
-  fontWeight: 500,
-}));
-
-const FileItemContainer = styled(Box, {
-  shouldForwardProp: (prop) => prop !== '$isDir',
-})<{ $isDir: boolean }>(({ theme, $isDir }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-  color: $isDir ? theme.palette.warning.main : theme.palette.text.primary,
-  fontWeight: $isDir ? 500 : 400,
-}));
-
-const FileNameText = styled(Typography)({
-  maxWidth: 200,
-  fontSize: '0.85rem',
-});
-
-const SecondaryTableCell = styled(TableCell)(({ theme }) => ({
-  color: theme.palette.text.secondary,
-}));
-
-const MonospaceTableCell = styled(TableCell)(({ theme }) => ({
-  color: theme.palette.text.secondary,
-  fontFamily: 'monospace',
-}));
-
-const ActionIconButton = styled(IconButton)(({ theme }) => ({
-  marginRight: theme.spacing(1),
-}));
-
-const EmptyTableCell = styled(TableCell)(({ theme }) => ({
-  paddingTop: theme.spacing(6),
-  paddingBottom: theme.spacing(6),
-  color: theme.palette.text.secondary,
-}));
+// Styled Components Wrappers
+const RootContainer = (props: any) => <Box className="root-container" {...props} />;
+const LoginContainer = (props: any) => <Box className="login-container" {...props} />;
+const LoginCard = (props: any) => <Card className="login-card" {...props} />;
+const LoginCardContent = (props: any) => <CardContent className="login-card-content" {...props} />;
+const IconWrapper = (props: any) => <Box className="icon-wrapper" {...props} />;
+const IconContainer = (props: any) => <Box className="icon-container" {...props} />;
+const LoginTitle = (props: any) => <Typography className="login-title" {...props} />;
+const LoginSubtitle = (props: any) => <Typography className="login-subtitle" {...props} />;
+const LoginForm = (props: any) => <Box className="login-form" {...props} />;
+const FormLabelText = (props: any) => <Typography className="form-label-text" {...props} />;
+const LoadingContainer = (props: any) => <Box className="loading-container" {...props} />;
+const LoadingText = (props: any) => <Typography className="loading-text" {...props} />;
+const ExplorerContainer = (props: any) => <Box className="explorer-container" {...props} />;
+const Toolbar = (props: any) => <Box className="toolbar" {...props} />;
+const ToolbarIconButton = (props: any) => <IconButton className="toolbar-icon-button" {...props} />;
+const PathBar = (props: any) => <Box className="path-bar" {...props} />;
+const PathText = (props: any) => <Typography className="path-text" {...props} />;
+const ToolbarButton = (props: any) => <Button className="toolbar-button" {...props} />;
+const StyledAlert = (props: any) => <Alert className="styled-alert" {...props} />;
+const UploadProgressContainer = (props: any) => <Box className="upload-progress-container" {...props} />;
+const DownloadProgressContainer = (props: any) => <Box className="download-progress-container" {...props} />;
+const ProgressHeader = ({ $colorType, ...props }: any) => {
+  const theme = useTheme();
+  return <Box className="progress-header" style={{ color: $colorType === 'warning' ? theme.palette.warning.main : theme.palette.info.main }} {...props} />;
+};
+const ProgressLabelSection = (props: any) => <Box className="progress-label-section" {...props} />;
+const ProgressActionsSection = (props: any) => <Box className="progress-actions-section" {...props} />;
+const TransferSpeedText = (props: any) => <Typography className="transfer-speed-text" {...props} />;
+const CancelIconButton = (props: any) => <IconButton className="cancel-icon-button" {...props} />;
+const StyledTableContainer = (props: any) => <TableContainer className="styled-table-container" {...props} />;
+const StyledTableRow = (props: any) => <TableRow className="styled-table-row" {...props} />;
+const UpFolderContainer = (props: any) => {
+  const theme = useTheme();
+  return <Box className="up-folder-container" style={{ color: theme.palette.warning.main }} {...props} />;
+};
+const FileItemContainer = ({ $isDir, ...props }: any) => {
+  const theme = useTheme();
+  return <Box className="file-item-container" style={{ color: $isDir ? theme.palette.warning.main : theme.palette.text.primary, fontWeight: $isDir ? 500 : 400 }} {...props} />;
+};
+const FileNameText = (props: any) => <Typography className="file-name-text" {...props} />;
+const SecondaryTableCell = (props: any) => {
+  const theme = useTheme();
+  return <TableCell className="secondary-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+};
+const MonospaceTableCell = (props: any) => {
+  const theme = useTheme();
+  return <TableCell className="monospace-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+};
+const ActionIconButton = (props: any) => <IconButton className="action-icon-button" {...props} />;
+const EmptyTableCell = (props: any) => {
+  const theme = useTheme();
+  return <TableCell className="empty-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+};

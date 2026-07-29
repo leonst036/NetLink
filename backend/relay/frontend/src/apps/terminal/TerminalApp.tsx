@@ -3,7 +3,7 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 import { Box, TextField, Select, MenuItem, Button, Toolbar } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import './TerminalApp.css';
 
 interface TerminalAppProps {
   token: string;
@@ -243,10 +243,11 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   };
 
   return (
-    <TerminalContainer>
-      <TerminalToolbar variant="dense">
+    <Box className="terminal-container">
+      <Toolbar className="terminal-toolbar" variant="dense">
         {savedLogins.length > 0 && (
-          <LoginSelect
+          <Select
+            className="login-select"
             size="small"
             value=""
             displayEmpty
@@ -257,105 +258,60 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
             {savedLogins.map(l => (
               <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>
             ))}
-          </LoginSelect>
+          </Select>
         )}
-        <TerminalTextField
+        <TextField
+          className="terminal-text-field"
           size="small"
           value={selectedIp}
           onChange={(e) => setSelectedIp(e.target.value)}
           placeholder="Target IP"
           disabled={isConnected}
-          $width={130}
+          style={{ width: 130 }}
         />
-        <TerminalTextField
+        <TextField
+          className="terminal-text-field"
           size="small"
           value={sshUsername}
           onChange={(e) => setSshUsername(e.target.value)}
           placeholder="Username"
           disabled={isConnected}
-          $width={120}
+          style={{ width: 120 }}
         />
-        <TerminalTextField
+        <TextField
+          className="terminal-text-field"
           size="small"
           type="password"
           value={sshPassword}
           onChange={(e) => setSshPassword(e.target.value)}
           placeholder="Password"
           disabled={isConnected}
-          $width={120}
+          style={{ width: 120 }}
         />
         {isConnected ? (
-          <TerminalButton
+          <Button
+            className="terminal-button"
             variant="contained"
             color="error"
             onClick={disconnectTerminal}
           >
             Disconnect
-          </TerminalButton>
+          </Button>
         ) : (
-          <TerminalButton
+          <Button
+            className="terminal-button"
             variant="contained"
             color="primary"
             onClick={connectTerminal}
             disabled={status === 'connecting' || !selectedIp || !sshUsername}
           >
             {status === 'connecting' ? 'Connecting...' : 'Connect'}
-          </TerminalButton>
+          </Button>
         )}
-      </TerminalToolbar>
-      <TerminalScreen ref={terminalRef} />
-    </TerminalContainer>
+      </Toolbar>
+      <Box className="terminal-screen" ref={terminalRef} />
+    </Box>
   );
 }
 
-const TerminalContainer = styled(Box)({
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100%',
-  backgroundColor: 'transparent',
-});
 
-const TerminalToolbar = styled(Toolbar)(({ theme }) => ({
-  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-  display: 'flex',
-  gap: theme.spacing(1.5),
-  paddingTop: theme.spacing(1),
-  paddingBottom: theme.spacing(1),
-  paddingLeft: '10px !important',
-  paddingRight: '10px !important',
-}));
-
-const LoginSelect = styled(Select)(({ theme }) => ({
-  width: 140,
-  '& .MuiSelect-select': {
-    paddingTop: theme.spacing(0.8),
-    paddingBottom: theme.spacing(0.8),
-  },
-}));
-
-interface TerminalTextFieldProps {
-  $width?: number | string;
-}
-
-const TerminalTextField = styled(TextField)<TerminalTextFieldProps>(({ theme, $width }) => ({
-  width: $width,
-  '& .MuiInputBase-input': {
-    paddingTop: theme.spacing(0.8),
-    paddingBottom: theme.spacing(0.8),
-  },
-}));
-
-const TerminalButton = styled(Button)(({ theme }) => ({
-  textTransform: 'none',
-  paddingLeft: theme.spacing(2),
-  paddingRight: theme.spacing(2),
-}));
-
-const TerminalScreen = styled(Box)(({ theme }) => ({
-  flex: 1,
-  padding: theme.spacing(1.5),
-  '& .xterm': {
-    padding: '4px',
-  },
-}));

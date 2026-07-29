@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
 import { AppBar, Toolbar, Typography, Box, Select, MenuItem, Button } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import './TopBar.css';
 
 interface TopBarProps {
     target: string;
@@ -22,15 +22,16 @@ function Clock() {
 
 export default function TopBar({ target, setTarget, allowedTargets, username, onLogout }: TopBarProps) {
     return (
-        <TopBarAppBar position="static" color="transparent" elevation={0}>
-            <TopBarToolbar variant="dense">
-                <LeftSection>
-                    <BrandText variant="subtitle2">NetLink OS</BrandText>
-                    <TargetWrapper>
+        <AppBar position="static" color="transparent" elevation={0} className="topbar-appbar">
+            <Toolbar variant="dense" className="topbar-toolbar">
+                <Box className="topbar-left-section">
+                    <Typography variant="subtitle2" className="topbar-brand-text">NetLink OS</Typography>
+                    <Box className="topbar-target-wrapper">
                         <Typography variant="caption" color="text.secondary">Target:</Typography>
                         {allowedTargets && allowedTargets.length > 0 ? (
-                            <TargetSelect
+                            <Select
                                 size="small"
+                                className="topbar-target-select"
                                 value={target}
                                 onChange={(e) => {
                                     setTarget(e.target.value as string);
@@ -40,69 +41,22 @@ export default function TopBar({ target, setTarget, allowedTargets, username, on
                                 {allowedTargets.map(t => (
                                     <MenuItem key={t} value={t}>{t}</MenuItem>
                                 ))}
-                            </TargetSelect>
+                            </Select>
                         ) : (
                             <Typography variant="caption">{target}</Typography>
                         )}
-                    </TargetWrapper>
+                    </Box>
                     <Typography variant="caption" color="primary.light">{username}</Typography>
-                </LeftSection>
-                <RightSection>
+                </Box>
+                <Box className="topbar-right-section">
                     <Clock />
-                    <LogoutButton size="small" color="error" startIcon={<LogOut size={14} />} onClick={onLogout}>
+                    <Button size="small" color="error" className="topbar-logout-button" startIcon={<LogOut size={14} />} onClick={onLogout}>
                         Logout
-                    </LogoutButton>
-                </RightSection>
-            </TopBarToolbar>
-        </TopBarAppBar>
+                    </Button>
+                </Box>
+            </Toolbar>
+        </AppBar>
     );
 }
 
-const TopBarAppBar = styled(AppBar)({
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    backdropFilter: 'blur(16px)',
-    borderBottom: '1px solid rgba(255,255,255,0.05)',
-    zIndex: 9999
-});
 
-const TopBarToolbar = styled(Toolbar)({
-    justifyContent: 'space-between',
-    minHeight: '32px !important'
-});
-
-const LeftSection = styled(Box)(({ theme }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(2)
-}));
-
-const BrandText = styled(Typography)(({ theme }) => ({
-    fontWeight: 'bold',
-    color: theme.palette.text.primary
-}));
-
-const TargetWrapper = styled(Box)(({ theme }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(1)
-}));
-
-const TargetSelect = styled(Select)(({ theme }) => ({
-    height: 24,
-    fontSize: '0.8rem',
-    color: theme.palette.text.primary,
-    '& .MuiSelect-select': {
-        paddingTop: 0,
-        paddingBottom: 0
-    }
-}));
-
-const RightSection = styled(Box)(({ theme }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(2)
-}));
-
-const LogoutButton = styled(Button)({
-    textTransform: 'none'
-});

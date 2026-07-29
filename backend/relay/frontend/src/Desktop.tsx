@@ -5,7 +5,7 @@ import Dock from './components/Dock';
 import GeminiLoader from './components/GeminiLoader';
 import { Terminal, Network, Monitor, Folder, Settings } from 'lucide-react';
 import { Box, Button, Alert } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import './Desktop.css';
 import { useWindowStore } from './store/useWindowStore';
 import { useNotificationStore } from './store/useNotificationStore';
 import { fetchServers as apiFetchServers } from './api/network';
@@ -122,22 +122,23 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     }, [target]);
 
         return (
-        <DesktopContainer $backgroundStyle={getBackgroundStyle()}>
+        <Box className="desktop-container" style={{ background: getBackgroundStyle() }}>
             {/* Desktop overlay filter */}
-            <DesktopOverlay />
+            <Box className="desktop-overlay" />
 
             {/* Notifications */}
-            <NotificationArea>
+            <Box className="notification-area">
                 {notifications.map(notif => (
-                    <NotificationAlert
+                    <Alert
                         key={notif.id}
                         severity={notif.type}
                         onClose={() => removeNotification(notif.id)}
+                        className="notification-alert"
                     >
                         {notif.message}
-                    </NotificationAlert>
+                    </Alert>
                 ))}
-            </NotificationArea>
+            </Box>
 
             {/* Top Menu Bar */}
             <TopBar
@@ -149,7 +150,10 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
             />
 
             {/* Windows Area */}
-            <WindowsArea $themeName={settings.theme}>
+            <Box 
+                className="windows-area" 
+                style={{ filter: settings.theme === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : settings.theme === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none' }}
+            >
                 {graphWindow.isOpen && (
                     <Window
                         id="graph"
@@ -163,8 +167,8 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultPosition={{ x: 50, y: 50 }}
                         defaultSize={{ width: 900, height: 600 }}
                     >
-                        <TopologyExplorerContainer>
-                            <ToolbarContainer>
+                        <Box className="topology-explorer-container">
+                            <Box className="toolbar-container">
                                 <Button
                                     variant="contained"
                                     color="primary"
@@ -174,9 +178,9 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                                 >
                                     {isScanning ? 'Scanning...' : 'Scan Network'}
                                 </Button>
-                            </ToolbarContainer>
-                            <GraphArea>
-                                <Suspense fallback={<LoaderWrapper><GeminiLoader /></LoaderWrapper>}>
+                            </Box>
+                            <Box className="graph-area">
+                                <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
                                     <NetworkGraph
                                         servers={servers}
                                         onNodeClick={(ip: string) => openTerminal(ip)}
@@ -186,8 +190,8 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                                         target={target}
                                     />
                                 </Suspense>
-                            </GraphArea>
-                        </TopologyExplorerContainer>
+                            </Box>
+                        </Box>
                     </Window>
                 )}
 
@@ -204,7 +208,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultPosition={{ x: 100, y: 100 }}
                         defaultSize={{ width: 840, height: 600 }}
                     >
-                        <Suspense fallback={<LoaderWrapper><GeminiLoader /></LoaderWrapper>}>
+                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
                             <SettingsApp token={token} />
                         </Suspense>
                     </Window>
@@ -224,7 +228,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultPosition={{ x: 150, y: 150 }}
                         defaultSize={{ width: 800, height: 500 }}
                     >
-                        <Suspense fallback={<LoaderWrapper><GeminiLoader /></LoaderWrapper>}>
+                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
                             <TerminalApp token={token} target={target} initialIp={term.ip} />
                         </Suspense>
                     </Window>
@@ -244,7 +248,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultPosition={{ x: 200, y: 200 }}
                         defaultSize={{ width: 800, height: 600 }}
                     >
-                        <Suspense fallback={<LoaderWrapper><GeminiLoader /></LoaderWrapper>}>
+                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
                             <VncApp token={token} target={target} initialIp={vnc.ip} />
                         </Suspense>
                     </Window>
@@ -264,94 +268,17 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultPosition={{ x: 250, y: 250 }}
                         defaultSize={{ width: 800, height: 500 }}
                     >
-                        <Suspense fallback={<LoaderWrapper><GeminiLoader /></LoaderWrapper>}>
+                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
                             <FileApp token={token} target={target} initialIp={sftp.ip} />
                         </Suspense>
                     </Window>
                 ))}
-            </WindowsArea>
+            </Box>
 
             {/* Dock Navigation */}
             <Dock />
-        </DesktopContainer>
+        </Box>
     );
 }
 
-// Styled Components
-interface DesktopContainerProps {
-    $backgroundStyle: string;
-}
 
-const DesktopContainer = styled(Box)<DesktopContainerProps>(({ $backgroundStyle }) => ({
-    width: '100vw',
-    height: '100vh',
-    background: $backgroundStyle,
-    position: 'relative',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-}));
-
-const DesktopOverlay = styled(Box)({
-    position: 'absolute',
-    inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    pointerEvents: 'none',
-    zIndex: 0,
-});
-
-const NotificationArea = styled(Box)({
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    zIndex: 10000,
-    pointerEvents: 'none',
-});
-
-const NotificationAlert = styled(Alert)(({ theme }) => ({
-    pointerEvents: 'auto',
-    minWidth: 250,
-    boxShadow: theme.shadows[4],
-}));
-
-interface WindowsAreaProps {
-    $themeName: string;
-}
-
-const WindowsArea = styled(Box)<WindowsAreaProps>(({ $themeName }) => ({
-    flex: 1,
-    position: 'relative',
-    zIndex: 1,
-    filter: $themeName === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : $themeName === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none',
-    transition: 'filter 0.3s ease',
-}));
-
-const TopologyExplorerContainer = styled(Box)(({ theme }) => ({
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: theme.palette.background.default,
-}));
-
-const ToolbarContainer = styled(Box)(({ theme }) => ({
-    padding: theme.spacing(1),
-    display: 'flex',
-    gap: theme.spacing(1),
-    borderBottom: '1px solid rgba(255,255,255,0.05)',
-}));
-
-const GraphArea = styled(Box)({
-    flex: 1,
-    position: 'relative',
-    minHeight: 0,
-});
-
-const LoaderWrapper = styled(Box)({
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100%',
-});

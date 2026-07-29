@@ -1,7 +1,7 @@
 import React from 'react';
 import { Network, Terminal, Folder, Monitor, Settings } from 'lucide-react';
 import { Box, Paper, Tooltip } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import './Dock.css';
 import { useWindowStore } from '../store/useWindowStore';
 
 export default function Dock() {
@@ -74,7 +74,7 @@ export default function Dock() {
     };
 
     return (
-        <DockContainer elevation={16}>
+        <Paper className="dock-container" elevation={16}>
             <DockIcon
                 icon={<Network size={24} color="#38bdf8" />}
                 label="Topology Explorer"
@@ -109,7 +109,7 @@ export default function Dock() {
             />
 
             {(terminals.length > 0 || vncWindows.length > 0 || sftpWindows.length > 0) && (
-                <DockDivider />
+                <Box className="dock-divider" />
             )}
 
             {terminals.map((term: any) => (
@@ -144,7 +144,7 @@ export default function Dock() {
                     onClick={() => handleSftpDockClick(sftp)}
                 />
             ))}
-        </DockContainer>
+        </Paper>
     );
 }
 
@@ -163,69 +163,18 @@ function DockIcon({
 }) {
     return (
         <Tooltip title={label} arrow placement="top">
-            <DockIconButton
+            <Box
+                className="dock-icon-button"
                 onClick={onClick}
-                $isMinimized={isMinimized}
+                style={{ opacity: isMinimized ? 0.4 : 1 }}
             >
                 {icon}
                 {isOpen && (
-                    <ActiveIndicator />
+                    <Box className="dock-active-indicator" />
                 )}
-            </DockIconButton>
+            </Box>
         </Tooltip>
     );
 }
 
-const DockContainer = styled(Paper)(({ theme }) => ({
-    position: 'absolute',
-    bottom: 20,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    backdropFilter: 'blur(16px)',
-    border: '1px solid rgba(255,255,255,0.05)',
-    padding: '10px 16px',
-    borderRadius: '24px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(2),
-    zIndex: 9999
-}));
 
-const DockDivider = styled(Box)({
-    width: '1px',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    height: 24
-});
-
-interface DockIconButtonProps {
-    $isMinimized?: boolean;
-}
-
-const DockIconButton = styled(Box)<DockIconButtonProps>(({ $isMinimized }) => ({
-    width: 48,
-    height: 48,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid rgba(255, 255, 255, 0.05)',
-    borderRadius: '16px',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    cursor: 'pointer',
-    position: 'relative',
-    transition: 'all 0.2s',
-    opacity: $isMinimized ? 0.4 : 1,
-    '&:hover': {
-        transform: 'translateY(-5px) scale(1.1)',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)'
-    }
-}));
-
-const ActiveIndicator = styled(Box)({
-    position: 'absolute',
-    bottom: 4,
-    width: 4,
-    height: 4,
-    borderRadius: '50%',
-    backgroundColor: '#f8fafc'
-});

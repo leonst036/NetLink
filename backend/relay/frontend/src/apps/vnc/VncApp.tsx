@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import RFB from '@novnc/novnc';
 import { Maximize } from 'lucide-react';
 import { Box, TextField, Select, MenuItem, Button, IconButton, Toolbar, Typography, Tooltip } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import './VncApp.css';
 
 interface VncAppProps {
     token: string;
@@ -244,10 +244,11 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     }, [selectedMonitor, isConnected]);
 
     return (
-        <VncContainer>
-            <VncToolbar variant="dense">
+        <Box className="vnc-container">
+            <Toolbar className="vnc-toolbar" variant="dense">
                 {savedLogins.length > 0 && (
-                    <VncSelect
+                    <Select
+                        className="vnc-select"
                         size="small"
                         value=""
                         displayEmpty
@@ -258,166 +259,88 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                         {savedLogins.map(l => (
                             <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>
                         ))}
-                    </VncSelect>
+                    </Select>
                 )}
-                <VncTextField
+                <TextField
+                    className="vnc-text-field"
                     size="small"
                     value={selectedIp}
                     onChange={(e) => setSelectedIp(e.target.value)}
                     placeholder="Target IP"
                     disabled={isConnected}
-                    $width={130}
+                    style={{ width: 130 }}
                 />
-                <VncTextField
+                <TextField
+                    className="vnc-text-field"
                     size="small"
                     value={vncPort}
                     onChange={(e) => setVncPort(e.target.value)}
                     placeholder="Port"
                     disabled={isConnected}
-                    $width={80}
+                    style={{ width: 80 }}
                 />
-                <VncTextField
+                <TextField
+                    className="vnc-text-field"
                     size="small"
                     type="password"
                     value={vncPassword}
                     onChange={(e) => setVncPassword(e.target.value)}
                     placeholder="Password"
                     disabled={isConnected}
-                    $width={110}
+                    style={{ width: 110 }}
                 />
-                <MonitorContainer>
-                    <MonitorLabel variant="body2">Monitor:</MonitorLabel>
-                    <VncTextField
+                <Box className="monitor-container">
+                    <Typography className="monitor-label" variant="body2">Monitor:</Typography>
+                    <TextField
+                        className="vnc-text-field"
                         size="small"
                         type="number"
                         slotProps={{ htmlInput: { min: 1 } }}
                         value={selectedMonitor}
                         onChange={(e) => setSelectedMonitor(e.target.value)}
-                        $width={60}
+                        style={{ width: 60 }}
                     />
-                </MonitorContainer>
+                </Box>
                 {isConnected ? (
                     <>
-                        <VncButton
+                        <Button
+                            className="vnc-button"
                             variant="contained"
                             color="error"
                             onClick={disconnectVnc}
                         >
                             Disconnect
-                        </VncButton>
+                        </Button>
                         <Tooltip title="Fullscreen">
-                            <FullscreenIconButton onClick={toggleFullscreen}>
+                            <IconButton className="fullscreen-icon-button" onClick={toggleFullscreen}>
                                 <Maximize size={16} />
-                            </FullscreenIconButton>
+                            </IconButton>
                         </Tooltip>
                     </>
                 ) : (
-                    <VncButton
+                    <Button
+                        className="vnc-button"
                         variant="contained"
                         color="success"
                         onClick={connectVnc}
                         disabled={status === 'connecting' || !selectedIp}
                     >
                         {status === 'connecting' ? 'Connecting...' : 'Connect VNC'}
-                    </VncButton>
+                    </Button>
                 )}
-            </VncToolbar>
+            </Toolbar>
 
-            <VncScreenContainer ref={containerRef}>
+            <Box className="vnc-screen-container" ref={containerRef}>
                 {status === 'disconnected' && <Typography color="text.secondary">VNC Disconnected</Typography>}
 
                 {isDebug && isConnected && (
-                    <DebugStatsContainer>
+                    <Box className="debug-stats-container">
                         <div>FPS: {stats.fps}</div>
                         <div>Ping: {stats.latency}ms</div>
-                    </DebugStatsContainer>
+                    </Box>
                 )}
-            </VncScreenContainer>
-        </VncContainer>
+            </Box>
+        </Box>
     );
 }
 
-const VncContainer = styled(Box)({
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100%',
-  backgroundColor: 'transparent',
-});
-
-const VncToolbar = styled(Toolbar)(({ theme }) => ({
-  backgroundColor: 'rgba(255,255,255,0.03)',
-  borderBottom: '1px solid rgba(255,255,255,0.05)',
-  display: 'flex',
-  gap: theme.spacing(1.5),
-  paddingTop: theme.spacing(1),
-  paddingBottom: theme.spacing(1),
-  paddingLeft: '10px !important',
-  paddingRight: '10px !important',
-}));
-
-const VncSelect = styled(Select)(({ theme }) => ({
-  width: 140,
-  '& .MuiSelect-select': {
-    paddingTop: theme.spacing(0.8),
-    paddingBottom: theme.spacing(0.8),
-  },
-}));
-
-interface VncTextFieldProps {
-  $width?: number | string;
-}
-
-const VncTextField = styled(TextField)<VncTextFieldProps>(({ theme, $width }) => ({
-  width: $width,
-  '& .MuiInputBase-input': {
-    paddingTop: theme.spacing(0.8),
-    paddingBottom: theme.spacing(0.8),
-  },
-}));
-
-const MonitorContainer = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-}));
-
-const MonitorLabel = styled(Typography)(({ theme }) => ({
-  color: theme.palette.text.secondary,
-}));
-
-const VncButton = styled(Button)(({ theme }) => ({
-  textTransform: 'none',
-  paddingLeft: theme.spacing(2),
-  paddingRight: theme.spacing(2),
-  marginLeft: 'auto',
-}));
-
-const FullscreenIconButton = styled(IconButton)({
-  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  borderRadius: '4px',
-});
-
-const VncScreenContainer = styled(Box)({
-  flex: 1,
-  overflow: 'hidden',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  backgroundColor: 'transparent',
-  position: 'relative',
-});
-
-const DebugStatsContainer = styled(Box)(({ theme }) => ({
-  position: 'absolute',
-  top: 10,
-  right: 10,
-  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  color: theme.palette.info.main,
-  padding: theme.spacing(1),
-  borderRadius: '4px',
-  fontFamily: 'monospace',
-  fontSize: '0.85rem',
-  pointerEvents: 'none',
-  zIndex: 1000,
-  border: '1px solid rgba(56, 189, 248, 0.3)',
-}));

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Typography, TextField, Select, MenuItem, Button } from '@mui/material';
+import './BaseLoginForm.css';
 
 interface BaseLoginFormProps {
   initialIp?: string;
@@ -11,7 +12,7 @@ interface BaseLoginFormProps {
 }
 
 export const FormLabelText = ({ children }: { children: React.ReactNode }) => (
-  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>
+  <Typography variant="caption" color="text.secondary" className="form-label-text">
     {children}
   </Typography>
 );
@@ -39,7 +40,7 @@ export default function BaseLoginForm({ initialIp, savedLogins, protocolName, pr
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+    <Box className="base-login-form-container">
       {savedLogins.filter(l => l.type === protocolType).length > 0 && (
         <Box>
           <FormLabelText>Saved Logins</FormLabelText>
@@ -67,7 +68,7 @@ export default function BaseLoginForm({ initialIp, savedLogins, protocolName, pr
         <TextField fullWidth size="small" type="password" value={password} onChange={e => setPassword(e.target.value)} />
       </Box>
 
-      <Button variant="contained" color="warning" onClick={handleConnect} sx={{ mt: 1, pt: 1.2, pb: 1.2, fontWeight: 'bold' }}>
+      <Button variant="contained" color="warning" onClick={handleConnect} className="connect-button">
         Connect {protocolName}
       </Button>
     </Box>

@@ -27,9 +27,10 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
-  Divider
+  Divider,
+  useTheme
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import './SettingsApp.css';
 
 type TabId = 'general' | 'appearance' | 'logins' | 'security' | 'users';
 
@@ -281,7 +282,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                       <StyledTextField
                         size="small"
                         value={username}
-                        onChange={(e) => updateSetting('netlink_username', e.target.value, setUsername)}
+                        onChange={(e: any) => updateSetting('netlink_username', e.target.value, setUsername)}
                       />
                     </FlexRowSpaceBetween>
                     <FlexRowSpaceBetween>
@@ -590,258 +591,76 @@ const ThemeCard = ({ name, active, color, textColor = 'white', accent, onClick }
   );
 };
 
-// Styled Components
-const RootContainer = styled(Box)({
-  display: 'flex',
-  height: '100%',
-  backgroundColor: 'transparent',
-});
-
-const SidebarPaper = styled(Paper)({
-  width: 260,
-  backgroundColor: 'rgba(0,0,0,0.2)',
-  borderRight: '1px solid rgba(255,255,255,0.05)',
-  display: 'flex',
-  flexDirection: 'column',
-  borderRadius: 0,
-});
-
-const SidebarHeader = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(3),
-  paddingBottom: theme.spacing(1),
-}));
-
-const SidebarTitle = styled(Typography)({
-  fontWeight: 'bold',
-});
-
-const SidebarList = styled(List)(({ theme }) => ({
-  paddingLeft: theme.spacing(1),
-  paddingRight: theme.spacing(1),
-}));
-
-const TabListItem = styled(ListItem)(({ theme }) => ({
-  marginBottom: theme.spacing(0.5),
-}));
-
-const TabButton = styled(ListItemButton)({
-  borderRadius: 8,
-});
-
-const TabIcon = styled(ListItemIcon, {
-  shouldForwardProp: (prop) => prop !== '$active',
-})<{ $active?: boolean }>(({ theme, $active }) => ({
-  minWidth: 40,
-  color: $active ? theme.palette.primary.main : 'inherit',
-}));
-
-const TabText = styled(Typography, {
-  shouldForwardProp: (prop) => prop !== '$active',
-})<{ $active?: boolean }>(({ theme, $active }) => ({
-  fontWeight: $active ? 'bold' : 'medium',
-  color: $active ? theme.palette.primary.main : 'inherit',
-}));
-
-const MainContentContainer = styled(Box)(({ theme }) => ({
-  flex: 1,
-  padding: theme.spacing(4),
-  overflowY: 'auto',
-}));
-
-const ContentMaxWidth = styled(Box)({
-  maxWidth: 800,
-});
-
-const SectionTitle = styled(Typography)(({ theme }) => ({
-  marginBottom: theme.spacing(4),
-  fontWeight: 'bold',
-}));
-
-const StyledCard = styled(Card, {
-  shouldForwardProp: (prop) => prop !== '$mb',
-})<{ $mb?: boolean }>(({ theme, $mb }) => ({
-  backgroundColor: 'rgba(255,255,255,0.02)',
-  border: '1px solid rgba(255,255,255,0.05)',
-  borderRadius: 12,
-  marginBottom: $mb ? theme.spacing(3) : 0,
-}));
-
-const StyledCardContent = styled(CardContent)(({ theme }) => ({
-  padding: theme.spacing(3),
-  '&:last-child': {
-    paddingBottom: theme.spacing(3),
-  },
-}));
-
-const CardSubtitle = styled(Typography)(({ theme }) => ({
-  marginBottom: theme.spacing(3),
-  textTransform: 'uppercase',
-  letterSpacing: 1,
-}));
-
-const VerticalStack = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(3),
-}));
-
-const FlexRowSpaceBetween = styled(Box)({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-});
-
-const StyledTextField = styled(TextField)({
-  width: 250,
-});
-
-const StyledSelect = styled(Select)({
-  width: 250,
-});
-
-const StyledFormGroup = styled(FormGroup)(({ theme }) => ({
-  gap: theme.spacing(2),
-}));
-
-const FlexRowGap2 = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  gap: theme.spacing(2),
-}));
-
-const WallpaperContainer = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  gap: theme.spacing(2),
-  flexWrap: 'wrap',
-}));
-
-const WallpaperThumb = styled(Box, {
-  shouldForwardProp: (prop) => prop !== '$bg' && prop !== '$active',
-})<{ $bg: string; $active: boolean }>(({ theme, $bg, $active }) => ({
-  width: 100,
-  height: 60,
-  borderRadius: 8,
-  cursor: 'pointer',
-  background: $bg,
-  border: $active ? `2px solid ${theme.palette.primary.main}` : 'none',
-}));
-
-const SolidWallpaperButton = styled(Box, {
-  shouldForwardProp: (prop) => prop !== '$active',
-})<{ $active?: boolean }>(({ theme, $active }) => ({
-  width: 100,
-  height: 60,
-  borderRadius: 8,
-  cursor: 'pointer',
-  backgroundColor: '#090d1a',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: theme.palette.text.secondary,
-  border: $active ? `2px solid ${theme.palette.primary.main}` : `1px dashed ${theme.palette.divider}`,
-}));
-
-const SectionHeader = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: theme.spacing(4),
-}));
-
-const FormFieldsContainer = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(2),
-}));
-
-const ButtonActionsContainer = styled(Box, {
-  shouldForwardProp: (prop) => prop !== '$mt',
-})<{ $mt?: number }>(({ theme, $mt }) => ({
-  display: 'flex',
-  gap: theme.spacing(2),
-  marginTop: $mt !== undefined ? theme.spacing($mt) : 0,
-}));
-
-const StyledTableContainer = styled(TableContainer)({
-  backgroundColor: 'rgba(255,255,255,0.02)',
-  border: '1px solid rgba(255,255,255,0.05)',
-  borderRadius: 12,
-}) as typeof TableContainer;
-
-const EmptyTableCell = styled(TableCell)(({ theme }) => ({
-  paddingTop: theme.spacing(4),
-  paddingBottom: theme.spacing(4),
-  color: theme.palette.text.secondary,
-}));
-
-const NameTableCell = styled(TableCell)({
-  fontWeight: 500,
-});
-
-const StyledChip = styled(Chip)({
-  textTransform: 'uppercase',
-});
-
-const DetailsTableCell = styled(TableCell)(({ theme }) => ({
-  color: theme.palette.text.secondary,
-}));
-
-const EditButton = styled(Button)(({ theme }) => ({
-  minWidth: 'auto',
-  marginRight: theme.spacing(1),
-}));
-
-const PermissionsTitle = styled(Typography)(({ theme }) => ({
-  marginBottom: theme.spacing(1),
-}));
-
-const StyledDivider = styled(Divider)(({ theme }) => ({
-  marginTop: theme.spacing(3),
-  marginBottom: theme.spacing(3),
-}));
-
-const ThemeCardRoot = styled(Box)(({ theme }) => ({
-  width: 100,
-  cursor: 'pointer',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-}));
-
-const ThemeCardPreview = styled(Box, {
-  shouldForwardProp: (prop) => prop !== '$color' && prop !== '$active',
-})<{ $color: string; $active: boolean }>(({ theme, $color, $active }) => ({
-  width: '100%',
-  height: 64,
-  backgroundColor: $color,
-  borderRadius: 8,
-  border: $active ? `2px solid ${theme.palette.primary.main}` : `1px solid ${theme.palette.divider}`,
-  padding: theme.spacing(1),
-  position: 'relative',
-}));
-
-const ThemeCardHeader = styled(Box, {
-  shouldForwardProp: (prop) => prop !== '$textColor',
-})<{ $textColor?: string }>(({ theme, $textColor }) => ({
-  width: '100%',
-  height: 8,
-  backgroundColor: $textColor === 'white' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-  borderRadius: 4,
-  marginBottom: theme.spacing(1),
-}));
-
-const ThemeCardBody = styled(Box, {
-  shouldForwardProp: (prop) => prop !== '$accent' && prop !== '$textColor',
-})<{ $accent?: string; $textColor?: string }>(({ $accent, $textColor }) => ({
-  width: '60%',
-  height: 6,
-  backgroundColor: $accent || ($textColor === 'white' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'),
-  borderRadius: 4,
-}));
-
-const ThemeCardLabel = styled(Typography, {
-  shouldForwardProp: (prop) => prop !== '$active',
-})<{ $active: boolean }>(({ theme, $active }) => ({
-  color: $active ? theme.palette.primary.main : theme.palette.text.secondary,
-  fontWeight: $active ? 'bold' : 'normal',
-}));
+// Styled Components Wrappers
+const RootContainer = (props: any) => <Box className="root-container" {...props} />;
+const SidebarPaper = (props: any) => <Paper className="sidebar-paper" {...props} />;
+const SidebarHeader = (props: any) => <Box className="sidebar-header" {...props} />;
+const SidebarTitle = (props: any) => <Typography className="sidebar-title" {...props} />;
+const SidebarList = (props: any) => <List className="sidebar-list" {...props} />;
+const TabListItem = (props: any) => <ListItem className="tab-list-item" {...props} />;
+const TabButton = (props: any) => <ListItemButton className="tab-button" {...props} />;
+const TabIcon = ({ $active, ...props }: any) => {
+  const theme = useTheme();
+  return <ListItemIcon className="tab-icon" style={{ color: $active ? theme.palette.primary.main : 'inherit' }} {...props} />;
+};
+const TabText = ({ $active, ...props }: any) => {
+  const theme = useTheme();
+  return <Typography className="tab-text" style={{ fontWeight: $active ? 'bold' : 'medium', color: $active ? theme.palette.primary.main : 'inherit' }} {...props} />;
+};
+const MainContentContainer = (props: any) => <Box className="main-content-container" {...props} />;
+const ContentMaxWidth = (props: any) => <Box className="content-max-width" {...props} />;
+const SectionTitle = (props: any) => <Typography className="section-title" {...props} />;
+const StyledCard = ({ $mb, ...props }: any) => (
+  <Card className="styled-card" style={{ marginBottom: $mb ? '24px' : 0 }} {...props} />
+);
+const StyledCardContent = (props: any) => <CardContent className="styled-card-content" {...props} />;
+const CardSubtitle = (props: any) => <Typography className="card-subtitle" {...props} />;
+const VerticalStack = (props: any) => <Box className="vertical-stack" {...props} />;
+const FlexRowSpaceBetween = (props: any) => <Box className="flex-row-space-between" {...props} />;
+const StyledTextField = (props: any) => <TextField className="styled-text-field" {...props} />;
+const StyledSelect = (props: any) => <Select className="styled-select" {...props} />;
+const StyledFormGroup = (props: any) => <FormGroup className="styled-form-group" {...props} />;
+const FlexRowGap2 = (props: any) => <Box className="flex-row-gap-2" {...props} />;
+const WallpaperContainer = (props: any) => <Box className="wallpaper-container" {...props} />;
+const WallpaperThumb = ({ $bg, $active, ...props }: any) => {
+  const theme = useTheme();
+  return <Box className="wallpaper-thumb" style={{ background: $bg, border: $active ? `2px solid ${theme.palette.primary.main}` : 'none' }} {...props} />;
+};
+const SolidWallpaperButton = ({ $active, ...props }: any) => {
+  const theme = useTheme();
+  return <Box className="solid-wallpaper-button" style={{ border: $active ? `2px solid ${theme.palette.primary.main}` : `1px dashed ${theme.palette.divider}` }} {...props} />;
+};
+const SectionHeader = (props: any) => <Box className="section-header" {...props} />;
+const FormFieldsContainer = (props: any) => <Box className="form-fields-container" {...props} />;
+const ButtonActionsContainer = ({ $mt, ...props }: any) => (
+  <Box className="button-actions-container" style={{ marginTop: $mt !== undefined ? `${$mt * 8}px` : 0 }} {...props} />
+);
+const StyledTableContainer = (props: any) => <TableContainer className="styled-table-container" {...props} />;
+const EmptyTableCell = (props: any) => {
+  const theme = useTheme();
+  return <TableCell className="empty-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+};
+const NameTableCell = (props: any) => <TableCell className="name-table-cell" {...props} />;
+const StyledChip = (props: any) => <Chip className="styled-chip" {...props} />;
+const DetailsTableCell = (props: any) => {
+  const theme = useTheme();
+  return <TableCell className="details-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+};
+const EditButton = (props: any) => <Button className="edit-button" {...props} />;
+const PermissionsTitle = (props: any) => <Typography className="permissions-title" {...props} />;
+const StyledDivider = (props: any) => <Divider className="styled-divider" {...props} />;
+const ThemeCardRoot = (props: any) => <Box className="theme-card-root" {...props} />;
+const ThemeCardPreview = ({ $color, $active, ...props }: any) => {
+  const theme = useTheme();
+  return <Box className="theme-card-preview" style={{ backgroundColor: $color, border: $active ? `2px solid ${theme.palette.primary.main}` : `1px solid ${theme.palette.divider}` }} {...props} />;
+};
+const ThemeCardHeader = ({ $textColor, ...props }: any) => (
+  <Box className="theme-card-header" style={{ backgroundColor: $textColor === 'white' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} {...props} />
+);
+const ThemeCardBody = ({ $accent, $textColor, ...props }: any) => (
+  <Box className="theme-card-body" style={{ backgroundColor: $accent || ($textColor === 'white' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)') }} {...props} />
+);
+const ThemeCardLabel = ({ $active, ...props }: any) => {
+  const theme = useTheme();
+  return <Typography className="theme-card-label" style={{ color: $active ? theme.palette.primary.main : theme.palette.text.secondary, fontWeight: $active ? 'bold' : 'normal' }} {...props} />;
+};
