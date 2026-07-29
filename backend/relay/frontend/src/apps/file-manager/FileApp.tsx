@@ -3,7 +3,6 @@ import { Folder, File, ArrowLeft, RefreshCw, HardDrive, ShieldAlert, Upload, Dow
 import {
   Box,
   Typography,
-  TextField,
   Select,
   MenuItem,
   Button,
@@ -22,6 +21,8 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import GeminiLoader from '../../components/GeminiLoader';
+import SftpLogin from './SftpLogin';
+import SmbLogin from './SmbLogin';
 
 interface FileAppProps {
   token: string;
@@ -46,11 +47,6 @@ interface FileItem {
 export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const theme = useTheme();
   const [protocolType, setProtocolType] = useState<'sftp' | 'smb'>('sftp');
-  const [selectedIp, setSelectedIp] = useState(initialIp || '');
-  const [username, setUsername] = useState('root');
-  const [password, setPassword] = useState('');
-  const [share, setShare] = useState('C$');
-  const [domain, setDomain] = useState('WORKGROUP');
   const [savedLogins, setSavedLogins] = useState<any[]>([]);
 
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
@@ -177,7 +173,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     reader.readAsArrayBuffer(slice);
   };
 
-  const connectSftp = () => {
+  const handleConnect = (params: any) => {
     if (!token) return;
     if (socketRef.current) socketRef.current.close();
 
@@ -209,25 +205,8 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
         const data = JSON.parse(textData);
 
         if (data.type === 'ready_for_credentials') {
-          if (protocolType === 'smb') {
-            setStatusMessage('Sending SMB credentials...');
-            socket.send(JSON.stringify({
-              type: 'connect_smb',
-              ip: selectedIp || 'localhost',
-              username,
-              password,
-              share: share || 'C$',
-              domain: domain || 'WORKGROUP'
-            }));
-          } else {
-            setStatusMessage('Sending SFTP credentials...');
-            socket.send(JSON.stringify({
-              type: 'connect_sftp',
-              ip: selectedIp || 'localhost',
-              username,
-              password
-            }));
-          }
+          setStatusMessage(`Sending ${params.type === 'connect_smb' ? 'SMB' : 'SFTP'} credentials...`);
+          socket.send(JSON.stringify(params));
         }
         else if (data.type === 'connected') {
           setStatus('connected');
@@ -380,17 +359,6 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
       .catch(err => console.error('Failed to fetch logins', err));
   }, [token]);
 
-  const applyLogin = (e: any) => {
-    const login = savedLogins.find(l => l.id === e.target.value);
-    if (login) {
-      if (login.type === 'sftp' || login.type === 'smb') {
-        setProtocolType(login.type);
-      }
-      setSelectedIp(login.ip);
-      setUsername(login.loginUsername);
-      setPassword(login.password);
-    }
-  };
 
   const navigateTo = (path: string, pushToHistory = true) => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
@@ -464,58 +432,15 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                   </Select>
                 </Box>
 
-                {savedLogins.filter(l => l.type === protocolType).length > 0 && (
-                  <Box>
-                    <FormLabelText variant="caption" color="text.secondary">Saved Logins</FormLabelText>
-                    <Select fullWidth size="small" value="" displayEmpty onChange={applyLogin}>
-                      <MenuItem value="" disabled>Select a saved server...</MenuItem>
-                      {savedLogins
-                        .filter(l => l.type === protocolType)
-                        .map(l => <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>)}
-                    </Select>
-                  </Box>
+                {protocolType === 'sftp' ? (
+                  <SftpLogin initialIp={initialIp} savedLogins={savedLogins} onConnect={handleConnect} />
+                ) : (
+                  <SmbLogin initialIp={initialIp} savedLogins={savedLogins} onConnect={handleConnect} />
                 )}
-
-                <Box>
-                  <FormLabelText variant="caption" color="text.secondary">Target IP / Hostname</FormLabelText>
-                  <TextField fullWidth size="small" placeholder="e.g. 192.168.1.10" value={selectedIp} onChange={e => setSelectedIp(e.target.value)} />
-                </Box>
-
-                {protocolType === 'smb' && (
-                  <>
-                    <Box>
-                      <FormLabelText variant="caption" color="text.secondary">Share Name</FormLabelText>
-                      <TextField fullWidth size="small" placeholder="e.g. C$ or share" value={share} onChange={e => setShare(e.target.value)} />
-                    </Box>
-
-                    <Box>
-                      <FormLabelText variant="caption" color="text.secondary">Domain / Workgroup</FormLabelText>
-                      <TextField fullWidth size="small" placeholder="e.g. WORKGROUP" value={domain} onChange={e => setDomain(e.target.value)} />
-                    </Box>
-                  </>
-                )}
-
-                <Box>
-                  <FormLabelText variant="caption" color="text.secondary">Username</FormLabelText>
-                  <TextField fullWidth size="small" value={username} onChange={e => setUsername(e.target.value)} />
-                </Box>
-
-                <Box>
-                  <FormLabelText variant="caption" color="text.secondary">Password</FormLabelText>
-                  <TextField fullWidth size="small" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-                </Box>
 
                 {statusMessage && (
                   <Alert severity="error" icon={<ShieldAlert size={16} />}>{statusMessage}</Alert>
                 )}
-
-                <ConnectButton
-                  variant="contained"
-                  color="warning"
-                  onClick={connectSftp}
-                >
-                  Connect {protocolType.toUpperCase()}
-                </ConnectButton>
               </LoginForm>
             </LoginCardContent>
           </LoginCard>
@@ -783,12 +708,6 @@ const FormLabelText = styled(Typography)(({ theme }) => ({
   display: 'block',
 }));
 
-const ConnectButton = styled(Button)(({ theme }) => ({
-  marginTop: theme.spacing(1),
-  paddingTop: theme.spacing(1.2),
-  paddingBottom: theme.spacing(1.2),
-  fontWeight: 'bold',
-}));
 
 const LoadingContainer = styled(Box)(({ theme }) => ({
   flex: 1,
