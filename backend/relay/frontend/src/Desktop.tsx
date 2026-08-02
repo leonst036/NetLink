@@ -4,7 +4,7 @@ import TopBar from './components/TopBar';
 import Dock from './components/Dock';
 import GeminiLoader from './components/GeminiLoader';
 import { Terminal, Network, Monitor, Folder, Settings } from 'lucide-react';
-import { Box, Button, Alert } from '@mui/material';
+import { Box, Alert } from '@mui/material';
 import './Desktop.css';
 import { useWindowStore } from './store/useWindowStore';
 import { useNotificationStore } from './store/useNotificationStore';

@@ -641,56 +641,56 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
 }
 
 // Styled Components Wrappers
-const RootContainer = (props: any) => <Box className="root-container" {...props} />;
-const LoginContainer = (props: any) => <Box className="login-container" {...props} />;
-const LoginCard = (props: any) => <Card className="login-card" {...props} />;
-const LoginCardContent = (props: any) => <CardContent className="login-card-content" {...props} />;
-const IconWrapper = (props: any) => <Box className="icon-wrapper" {...props} />;
-const IconContainer = (props: any) => <Box className="icon-container" {...props} />;
-const LoginTitle = (props: any) => <Typography className="login-title" {...props} />;
-const LoginSubtitle = (props: any) => <Typography className="login-subtitle" {...props} />;
-const LoginForm = (props: any) => <Box className="login-form" {...props} />;
-const FormLabelText = (props: any) => <Typography className="form-label-text" {...props} />;
-const LoadingContainer = (props: any) => <Box className="loading-container" {...props} />;
-const LoadingText = (props: any) => <Typography className="loading-text" {...props} />;
-const ExplorerContainer = (props: any) => <Box className="explorer-container" {...props} />;
-const Toolbar = (props: any) => <Box className="toolbar" {...props} />;
-const ToolbarIconButton = (props: any) => <IconButton className="toolbar-icon-button" {...props} />;
-const PathBar = (props: any) => <Box className="path-bar" {...props} />;
-const PathText = (props: any) => <Typography className="path-text" {...props} />;
-const ToolbarButton = (props: any) => <Button className="toolbar-button" {...props} />;
-const StyledAlert = (props: any) => <Alert className="styled-alert" {...props} />;
-const UploadProgressContainer = (props: any) => <Box className="upload-progress-container" {...props} />;
-const DownloadProgressContainer = (props: any) => <Box className="download-progress-container" {...props} />;
+const RootContainer = (props: any) => <Box className="fileapp-root-container" {...props} />;
+const LoginContainer = (props: any) => <Box className="fileapp-login-container" {...props} />;
+const LoginCard = (props: any) => <Card className="fileapp-login-card" {...props} />;
+const LoginCardContent = (props: any) => <CardContent className="fileapp-login-card-content" {...props} />;
+const IconWrapper = (props: any) => <Box className="fileapp-icon-wrapper" {...props} />;
+const IconContainer = (props: any) => <Box className="fileapp-icon-container" {...props} />;
+const LoginTitle = (props: any) => <Typography className="fileapp-login-title" {...props} />;
+const LoginSubtitle = (props: any) => <Typography className="fileapp-login-subtitle" {...props} />;
+const LoginForm = (props: any) => <Box className="fileapp-login-form" {...props} />;
+const FormLabelText = (props: any) => <Typography className="fileapp-form-label-text" {...props} />;
+const LoadingContainer = (props: any) => <Box className="fileapp-loading-container" {...props} />;
+const LoadingText = (props: any) => <Typography className="fileapp-loading-text" {...props} />;
+const ExplorerContainer = (props: any) => <Box className="fileapp-explorer-container" {...props} />;
+const Toolbar = (props: any) => <Box className="fileapp-toolbar" {...props} />;
+const ToolbarIconButton = (props: any) => <IconButton className="fileapp-toolbar-icon-button" {...props} />;
+const PathBar = (props: any) => <Box className="fileapp-path-bar" {...props} />;
+const PathText = (props: any) => <Typography className="fileapp-path-text" {...props} />;
+const ToolbarButton = (props: any) => <Button className="fileapp-toolbar-button" {...props} />;
+const StyledAlert = (props: any) => <Alert className="fileapp-styled-alert" {...props} />;
+const UploadProgressContainer = (props: any) => <Box className="fileapp-upload-progress-container" {...props} />;
+const DownloadProgressContainer = (props: any) => <Box className="fileapp-download-progress-container" {...props} />;
 const ProgressHeader = ({ $colorType, ...props }: any) => {
   const theme = useTheme();
-  return <Box className="progress-header" style={{ color: $colorType === 'warning' ? theme.palette.warning.main : theme.palette.info.main }} {...props} />;
+  return <Box className="fileapp-progress-header" style={{ color: $colorType === 'warning' ? theme.palette.warning.main : theme.palette.info.main }} {...props} />;
 };
-const ProgressLabelSection = (props: any) => <Box className="progress-label-section" {...props} />;
-const ProgressActionsSection = (props: any) => <Box className="progress-actions-section" {...props} />;
-const TransferSpeedText = (props: any) => <Typography className="transfer-speed-text" {...props} />;
-const CancelIconButton = (props: any) => <IconButton className="cancel-icon-button" {...props} />;
-const StyledTableContainer = (props: any) => <TableContainer className="styled-table-container" {...props} />;
-const StyledTableRow = (props: any) => <TableRow className="styled-table-row" {...props} />;
+const ProgressLabelSection = (props: any) => <Box className="fileapp-progress-label-section" {...props} />;
+const ProgressActionsSection = (props: any) => <Box className="fileapp-progress-actions-section" {...props} />;
+const TransferSpeedText = (props: any) => <Typography className="fileapp-transfer-speed-text" {...props} />;
+const CancelIconButton = (props: any) => <IconButton className="fileapp-cancel-icon-button" {...props} />;
+const StyledTableContainer = (props: any) => <TableContainer className="fileapp-styled-table-container" {...props} />;
+const StyledTableRow = (props: any) => <TableRow className="fileapp-styled-table-row" {...props} />;
 const UpFolderContainer = (props: any) => {
   const theme = useTheme();
-  return <Box className="up-folder-container" style={{ color: theme.palette.warning.main }} {...props} />;
+  return <Box className="fileapp-up-folder-container" style={{ color: theme.palette.warning.main }} {...props} />;
 };
 const FileItemContainer = ({ $isDir, ...props }: any) => {
   const theme = useTheme();
-  return <Box className="file-item-container" style={{ color: $isDir ? theme.palette.warning.main : theme.palette.text.primary, fontWeight: $isDir ? 500 : 400 }} {...props} />;
+  return <Box className="fileapp-file-item-container" style={{ color: $isDir ? theme.palette.warning.main : theme.palette.text.primary, fontWeight: $isDir ? 500 : 400 }} {...props} />;
 };
-const FileNameText = (props: any) => <Typography className="file-name-text" {...props} />;
+const FileNameText = (props: any) => <Typography className="fileapp-file-name-text" {...props} />;
 const SecondaryTableCell = (props: any) => {
   const theme = useTheme();
-  return <TableCell className="secondary-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+  return <TableCell className="fileapp-secondary-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
 };
 const MonospaceTableCell = (props: any) => {
   const theme = useTheme();
-  return <TableCell className="monospace-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+  return <TableCell className="fileapp-monospace-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
 };
-const ActionIconButton = (props: any) => <IconButton className="action-icon-button" {...props} />;
+const ActionIconButton = (props: any) => <IconButton className="fileapp-action-icon-button" {...props} />;
 const EmptyTableCell = (props: any) => {
   const theme = useTheme();
-  return <TableCell className="empty-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+  return <TableCell className="fileapp-empty-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
 };
