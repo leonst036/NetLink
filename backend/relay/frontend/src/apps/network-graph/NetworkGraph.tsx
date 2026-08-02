@@ -44,9 +44,11 @@ interface NetworkGraphProps {
   onSftpClick: (ip: string) => void;
   token: string;
   target: string;
+  isScanning: boolean;
+  onScanClick: () => void;
 }
 
-export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpClick, token, target }: NetworkGraphProps) {
+export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpClick, token, target, isScanning, onScanClick }: NetworkGraphProps) {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
@@ -259,9 +261,20 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
       {/* Sidebar: Device List */}
       <Paper className="sidebar-container" elevation={0}>
         <Box className="sidebar-header">
-          <Typography className="header-title" variant="subtitle1">
-            <ServerIcon size={18} /> Discovered Devices
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography className="header-title" variant="subtitle1" sx={{ mb: 0 }}>
+              <ServerIcon size={18} /> Discovered Devices
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              size="small"
+              onClick={onScanClick}
+              disabled={isScanning}
+            >
+              {isScanning ? 'Scanning...' : 'Scan'}
+            </Button>
+          </Box>
           <TextField
             fullWidth
             size="small"

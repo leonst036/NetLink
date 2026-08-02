@@ -76,7 +76,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     // Window states
     const { activeWindow, graphWindow, settingsWindow, terminals, vncWindows, sftpWindows, setGraphWindow, setSettingsWindow, openTerminal, openVnc, openSftp, bringToFront, closeTerminal, closeVnc, closeSftp, minimizeTerminal, minimizeVnc, minimizeSftp } = useWindowStore();
 
-    
+
 
     const fetchServers = async () => {
         setIsScanning(true);
@@ -121,7 +121,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [target]);
 
-        return (
+    return (
         <Box className="desktop-container" style={{ background: getBackgroundStyle() }}>
             {/* Desktop overlay filter */}
             <Box className="desktop-overlay" />
@@ -150,8 +150,8 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
             />
 
             {/* Windows Area */}
-            <Box 
-                className="windows-area" 
+            <Box
+                className="windows-area"
                 style={{ filter: settings.theme === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : settings.theme === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none' }}
             >
                 {graphWindow.isOpen && (
@@ -168,17 +168,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultSize={{ width: 900, height: 600 }}
                     >
                         <Box className="topology-explorer-container">
-                            <Box className="toolbar-container">
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    onClick={fetchServers}
-                                    disabled={isScanning}
-                                >
-                                    {isScanning ? 'Scanning...' : 'Scan Network'}
-                                </Button>
-                            </Box>
                             <Box className="graph-area">
                                 <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
                                     <NetworkGraph
@@ -188,6 +177,8 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                                         onSftpClick={(ip: string) => openSftp(ip)}
                                         token={token}
                                         target={target}
+                                        isScanning={isScanning}
+                                        onScanClick={fetchServers}
                                     />
                                 </Suspense>
                             </Box>
