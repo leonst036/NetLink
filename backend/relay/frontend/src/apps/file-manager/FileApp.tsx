@@ -17,7 +17,12 @@ import {
   Alert,
   Card,
   CardContent,
-  useTheme
+  useTheme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField
 } from '@mui/material';
 import './FileApp.css';
 import GeminiLoader from '../../components/GeminiLoader';
@@ -62,6 +67,10 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const downloadTotalSizeRef = useRef<number>(0);
   const downloadReceivedRef = useRef<number>(0);
+
+  const [folderDialog, setFolderDialog] = useState<{ open: boolean, defaultName: string }>({ open: false, defaultName: '' });
+  const [folderName, setFolderName] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean, itemName: string }>({ open: false, itemName: '' });
 
   const socketRef = useRef<WebSocket | null>(null);
   const downloadChunksRef = useRef<Blob[]>([]);
@@ -128,20 +137,30 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     }
   };
 
-  const handleCreateFolder = () => {
-    const folderName = prompt('Enter new folder name:');
+  const handleCreateFolderClick = () => {
+    setFolderName('New Folder');
+    setFolderDialog({ open: true, defaultName: 'New Folder' });
+  };
+
+  const confirmCreateFolder = () => {
     if (folderName && socketRef.current?.readyState === WebSocket.OPEN) {
       const targetPath = normalizePath(currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`);
       socketRef.current.send(JSON.stringify({ type: 'mkdir', path: targetPath }));
     }
+    setFolderDialog({ open: false, defaultName: '' });
   };
 
-  const handleDeleteItem = (itemName: string) => {
-    const confirmDelete = window.confirm(`Are you sure you want to delete "${itemName}"?`);
-    if (confirmDelete && socketRef.current?.readyState === WebSocket.OPEN) {
+  const handleDeleteItemClick = (itemName: string) => {
+    setDeleteDialog({ open: true, itemName });
+  };
+
+  const confirmDeleteItem = () => {
+    const itemName = deleteDialog.itemName;
+    if (itemName && socketRef.current?.readyState === WebSocket.OPEN) {
       const targetPath = normalizePath(currentPath === '/' ? `/${itemName}` : `${currentPath}/${itemName}`);
       socketRef.current.send(JSON.stringify({ type: 'delete', path: targetPath }));
     }
+    setDeleteDialog({ open: false, itemName: '' });
   };
 
   const sendNextChunk = () => {
@@ -482,7 +501,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             <ToolbarButton
               variant="outlined"
               color="inherit"
-              onClick={handleCreateFolder}
+              onClick={handleCreateFolderClick}
               startIcon={<FolderPlus size={14} />}
             >
               New Folder
@@ -607,7 +626,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                         <IconButton
                           size="small"
                           color="error"
-                          onClick={(e: any) => { e.stopPropagation(); handleDeleteItem(file.name); }}
+                          onClick={(e: any) => { e.stopPropagation(); handleDeleteItemClick(file.name); }}
                         >
                           <Trash2 size={14} />
                         </IconButton>
@@ -636,6 +655,40 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           to { transform: rotate(360deg); }
         }
       `}</style>
+
+      {/* Folder Dialog */}
+      <Dialog open={folderDialog.open} onClose={() => setFolderDialog({ open: false, defaultName: '' })}>
+        <DialogTitle>Create New Folder</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Folder Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={folderName}
+            onChange={(e) => setFolderName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && confirmCreateFolder()}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFolderDialog({ open: false, defaultName: '' })} color="inherit">Cancel</Button>
+          <Button onClick={confirmCreateFolder} variant="contained" color="primary">Create</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, itemName: '' })}>
+        <DialogTitle>Delete Item</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete "{deleteDialog.itemName}"?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog({ open: false, itemName: '' })} color="inherit">Cancel</Button>
+          <Button onClick={confirmDeleteItem} variant="contained" color="error">Delete</Button>
+        </DialogActions>
+      </Dialog>
     </RootContainer>
   );
 }
@@ -663,8 +716,7 @@ const StyledAlert = (props: any) => <Alert className="fileapp-styled-alert" {...
 const UploadProgressContainer = (props: any) => <Box className="fileapp-upload-progress-container" {...props} />;
 const DownloadProgressContainer = (props: any) => <Box className="fileapp-download-progress-container" {...props} />;
 const ProgressHeader = ({ $colorType, ...props }: any) => {
-  const theme = useTheme();
-  return <Box className="fileapp-progress-header" style={{ color: $colorType === 'warning' ? theme.palette.warning.main : theme.palette.info.main }} {...props} />;
+  return <Box className="fileapp-progress-header" sx={{ color: $colorType === 'warning' ? 'warning.main' : 'info.main' }} {...props} />;
 };
 const ProgressLabelSection = (props: any) => <Box className="fileapp-progress-label-section" {...props} />;
 const ProgressActionsSection = (props: any) => <Box className="fileapp-progress-actions-section" {...props} />;
@@ -673,24 +725,19 @@ const CancelIconButton = (props: any) => <IconButton className="fileapp-cancel-i
 const StyledTableContainer = (props: any) => <TableContainer className="fileapp-styled-table-container" {...props} />;
 const StyledTableRow = (props: any) => <TableRow className="fileapp-styled-table-row" {...props} />;
 const UpFolderContainer = (props: any) => {
-  const theme = useTheme();
-  return <Box className="fileapp-up-folder-container" style={{ color: theme.palette.warning.main }} {...props} />;
+  return <Box className="fileapp-up-folder-container" sx={{ color: 'warning.main' }} {...props} />;
 };
 const FileItemContainer = ({ $isDir, ...props }: any) => {
-  const theme = useTheme();
-  return <Box className="fileapp-file-item-container" style={{ color: $isDir ? theme.palette.warning.main : theme.palette.text.primary, fontWeight: $isDir ? 500 : 400 }} {...props} />;
+  return <Box className="fileapp-file-item-container" sx={{ color: $isDir ? 'warning.main' : 'text.primary', fontWeight: $isDir ? 500 : 400 }} {...props} />;
 };
 const FileNameText = (props: any) => <Typography className="fileapp-file-name-text" {...props} />;
 const SecondaryTableCell = (props: any) => {
-  const theme = useTheme();
-  return <TableCell className="fileapp-secondary-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+  return <TableCell className="fileapp-secondary-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
 };
 const MonospaceTableCell = (props: any) => {
-  const theme = useTheme();
-  return <TableCell className="fileapp-monospace-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+  return <TableCell className="fileapp-monospace-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
 };
 const ActionIconButton = (props: any) => <IconButton className="fileapp-action-icon-button" {...props} />;
 const EmptyTableCell = (props: any) => {
-  const theme = useTheme();
-  return <TableCell className="fileapp-empty-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+  return <TableCell className="fileapp-empty-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
 };

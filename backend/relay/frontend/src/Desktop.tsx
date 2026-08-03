@@ -122,7 +122,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     }, [target]);
 
     return (
-        <Box className="desktop-container" style={{ background: getBackgroundStyle() }}>
+        <Box className="desktop-container" sx={{ background: getBackgroundStyle() }}>
             {/* Desktop overlay filter */}
             <Box className="desktop-overlay" />
 
@@ -152,7 +152,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
             {/* Windows Area */}
             <Box
                 className="windows-area"
-                style={{ filter: settings.theme === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : settings.theme === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none' }}
+                sx={{ filter: settings.theme === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : settings.theme === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none' }}
             >
                 {graphWindow.isOpen && (
                     <Window

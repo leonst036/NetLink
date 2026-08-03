@@ -28,7 +28,11 @@ import {
   FormControlLabel,
   Checkbox,
   Divider,
-  useTheme
+  useTheme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import './SettingsApp.css';
 
@@ -88,6 +92,9 @@ export default function SettingsApp({ token }: SettingsAppProps) {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [editingUser, setEditingUser] = useState<any | null>(null);
 
+  const [deleteUserDialog, setDeleteUserDialog] = useState<{ open: boolean, username: string }>({ open: false, username: '' });
+  const [deleteLoginDialog, setDeleteLoginDialog] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
+
   useEffect(() => {
     if (activeTab === 'logins') {
       try {
@@ -139,8 +146,12 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     }
   };
 
-  const deleteUser = async (username: string) => {
-    if (!window.confirm(`Are you sure you want to delete user ${username}?`)) return;
+  const handleDeleteUserClick = (username: string) => {
+    setDeleteUserDialog({ open: true, username });
+  };
+
+  const confirmDeleteUser = async () => {
+    const username = deleteUserDialog.username;
     try {
       const res = await fetch(`/api/users?username=${encodeURIComponent(username)}`, {
         method: 'DELETE',
@@ -156,6 +167,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     } catch (err) {
       console.error('Failed to delete user', err);
     }
+    setDeleteUserDialog({ open: false, username: '' });
   };
 
   const togglePermission = (perm: string) => {
@@ -215,8 +227,12 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     }
   };
 
-  const deleteLogin = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this login?')) return;
+  const handleDeleteLoginClick = (id: string) => {
+    setDeleteLoginDialog({ open: true, id });
+  };
+
+  const confirmDeleteLogin = async () => {
+    const id = deleteLoginDialog.id;
     try {
       const res = await fetch(`/api/server-logins?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
@@ -232,6 +248,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     } catch (err) {
       console.error('Failed to delete login', err);
     }
+    setDeleteLoginDialog({ open: false, id: '' });
   };
 
   return (
@@ -445,7 +462,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                             <DetailsTableCell>{login.loginUsername}@{login.ip}:{login.port}</DetailsTableCell>
                             <TableCell align="right">
                               <EditButton size="small" onClick={() => setEditingLogin(login)}>Edit</EditButton>
-                              <IconButton size="small" color="error" onClick={() => deleteLogin(login.id)}>
+                              <IconButton size="small" color="error" onClick={() => handleDeleteLoginClick(login.id)}>
                                 <Trash2 size={16} />
                               </IconButton>
                             </TableCell>
@@ -528,7 +545,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                             <DetailsTableCell>{user.permissions?.length || 0} Granted</DetailsTableCell>
                             <TableCell align="right">
                               <EditButton size="small" onClick={() => setEditingUser(user)}>Edit</EditButton>
-                              <IconButton size="small" color="error" onClick={() => deleteUser(user.username)}>
+                              <IconButton size="small" color="error" onClick={() => handleDeleteUserClick(user.username)}>
                                 <Trash2 size={16} />
                               </IconButton>
                             </TableCell>
@@ -572,6 +589,30 @@ export default function SettingsApp({ token }: SettingsAppProps) {
 
         </ContentMaxWidth>
       </MainContentContainer>
+
+      {/* Delete User Dialog */}
+      <Dialog open={deleteUserDialog.open} onClose={() => setDeleteUserDialog({ open: false, username: '' })}>
+        <DialogTitle>Delete User</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete user "{deleteUserDialog.username}"?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteUserDialog({ open: false, username: '' })} color="inherit">Cancel</Button>
+          <Button onClick={confirmDeleteUser} variant="contained" color="error">Delete</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Login Dialog */}
+      <Dialog open={deleteLoginDialog.open} onClose={() => setDeleteLoginDialog({ open: false, id: '' })}>
+        <DialogTitle>Delete Login</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this login?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteLoginDialog({ open: false, id: '' })} color="inherit">Cancel</Button>
+          <Button onClick={confirmDeleteLogin} variant="contained" color="error">Delete</Button>
+        </DialogActions>
+      </Dialog>
     </RootContainer>
   );
 }
@@ -600,18 +641,16 @@ const SidebarList = (props: any) => <List className="sidebar-list" {...props} />
 const TabListItem = (props: any) => <ListItem className="tab-list-item" {...props} />;
 const TabButton = (props: any) => <ListItemButton className="tab-button" {...props} />;
 const TabIcon = ({ $active, ...props }: any) => {
-  const theme = useTheme();
-  return <ListItemIcon className="tab-icon" style={{ color: $active ? theme.palette.primary.main : 'inherit' }} {...props} />;
+  return <ListItemIcon className="tab-icon" sx={{ color: $active ? 'primary.main' : 'inherit' }} {...props} />;
 };
 const TabText = ({ $active, ...props }: any) => {
-  const theme = useTheme();
-  return <Typography className="tab-text" style={{ fontWeight: $active ? 'bold' : 'medium', color: $active ? theme.palette.primary.main : 'inherit' }} {...props} />;
+  return <Typography className="tab-text" sx={{ fontWeight: $active ? 'bold' : 'medium', color: $active ? 'primary.main' : 'inherit' }} {...props} />;
 };
 const MainContentContainer = (props: any) => <Box className="main-content-container" {...props} />;
 const ContentMaxWidth = (props: any) => <Box className="content-max-width" {...props} />;
 const SectionTitle = (props: any) => <Typography className="section-title" {...props} />;
 const StyledCard = ({ $mb, ...props }: any) => (
-  <Card className="styled-card" style={{ marginBottom: $mb ? '24px' : 0 }} {...props} />
+  <Card className="styled-card" sx={{ mb: $mb ? 3 : 0 }} {...props} />
 );
 const StyledCardContent = (props: any) => <CardContent className="styled-card-content" {...props} />;
 const CardSubtitle = (props: any) => <Typography className="card-subtitle" {...props} />;
@@ -623,44 +662,38 @@ const StyledFormGroup = (props: any) => <FormGroup className="styled-form-group"
 const FlexRowGap2 = (props: any) => <Box className="flex-row-gap-2" {...props} />;
 const WallpaperContainer = (props: any) => <Box className="wallpaper-container" {...props} />;
 const WallpaperThumb = ({ $bg, $active, ...props }: any) => {
-  const theme = useTheme();
-  return <Box className="wallpaper-thumb" style={{ background: $bg, border: $active ? `2px solid ${theme.palette.primary.main}` : 'none' }} {...props} />;
+  return <Box className="wallpaper-thumb" sx={{ background: $bg, border: $active ? (theme) => `2px solid ${theme.palette.primary.main}` : 'none' }} {...props} />;
 };
 const SolidWallpaperButton = ({ $active, ...props }: any) => {
-  const theme = useTheme();
-  return <Box className="solid-wallpaper-button" style={{ border: $active ? `2px solid ${theme.palette.primary.main}` : `1px dashed ${theme.palette.divider}` }} {...props} />;
+  return <Box className="solid-wallpaper-button" sx={{ border: $active ? (theme) => `2px solid ${theme.palette.primary.main}` : (theme) => `1px dashed ${theme.palette.divider}` }} {...props} />;
 };
 const SectionHeader = (props: any) => <Box className="section-header" {...props} />;
 const FormFieldsContainer = (props: any) => <Box className="form-fields-container" {...props} />;
 const ButtonActionsContainer = ({ $mt, ...props }: any) => (
-  <Box className="button-actions-container" style={{ marginTop: $mt !== undefined ? `${$mt * 8}px` : 0 }} {...props} />
+  <Box className="button-actions-container" sx={{ mt: $mt !== undefined ? $mt : 0 }} {...props} />
 );
 const StyledTableContainer = (props: any) => <TableContainer className="styled-table-container" {...props} />;
 const EmptyTableCell = (props: any) => {
-  const theme = useTheme();
-  return <TableCell className="empty-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+  return <TableCell className="empty-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
 };
 const NameTableCell = (props: any) => <TableCell className="name-table-cell" {...props} />;
 const StyledChip = (props: any) => <Chip className="styled-chip" {...props} />;
 const DetailsTableCell = (props: any) => {
-  const theme = useTheme();
-  return <TableCell className="details-table-cell" style={{ color: theme.palette.text.secondary }} {...props} />;
+  return <TableCell className="details-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
 };
 const EditButton = (props: any) => <Button className="edit-button" {...props} />;
 const PermissionsTitle = (props: any) => <Typography className="permissions-title" {...props} />;
 const StyledDivider = (props: any) => <Divider className="styled-divider" {...props} />;
 const ThemeCardRoot = (props: any) => <Box className="theme-card-root" {...props} />;
 const ThemeCardPreview = ({ $color, $active, ...props }: any) => {
-  const theme = useTheme();
-  return <Box className="theme-card-preview" style={{ backgroundColor: $color, border: $active ? `2px solid ${theme.palette.primary.main}` : `1px solid ${theme.palette.divider}` }} {...props} />;
+  return <Box className="theme-card-preview" sx={{ backgroundColor: $color, border: $active ? (theme) => `2px solid ${theme.palette.primary.main}` : (theme) => `1px solid ${theme.palette.divider}` }} {...props} />;
 };
 const ThemeCardHeader = ({ $textColor, ...props }: any) => (
-  <Box className="theme-card-header" style={{ backgroundColor: $textColor === 'white' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} {...props} />
+  <Box className="theme-card-header" sx={{ backgroundColor: $textColor === 'white' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} {...props} />
 );
 const ThemeCardBody = ({ $accent, $textColor, ...props }: any) => (
-  <Box className="theme-card-body" style={{ backgroundColor: $accent || ($textColor === 'white' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)') }} {...props} />
+  <Box className="theme-card-body" sx={{ backgroundColor: $accent || ($textColor === 'white' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)') }} {...props} />
 );
 const ThemeCardLabel = ({ $active, ...props }: any) => {
-  const theme = useTheme();
-  return <Typography className="theme-card-label" style={{ color: $active ? theme.palette.primary.main : theme.palette.text.secondary, fontWeight: $active ? 'bold' : 'normal' }} {...props} />;
+  return <Typography className="theme-card-label" sx={{ color: $active ? 'primary.main' : 'text.secondary', fontWeight: $active ? 'bold' : 'normal' }} {...props} />;
 };

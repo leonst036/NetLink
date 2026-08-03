@@ -119,3 +119,42 @@
   flex-direction: column;
   gap: 8px;
 }
+
+.node-nat {
+  background: #7c2d12 !important;
+  color: #fdba74 !important;
+  border: 2px solid #ea580c !important;
+  border-radius: 8px !important;
+  padding: 15px !important;
+  font-weight: bold !important;
+}
+
+.node-relay {
+  background: #0f172a !important;
+  color: #38bdf8 !important;
+  border: 2px solid #38bdf8 !important;
+  border-radius: 8px !important;
+  padding: 15px !important;
+}
+
+.node-device {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid #475569 !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+}
+
+.node-switch {
+  background: #020617 !important;
+  color: #a78bfa !important;
+  border: 2px dashed #8b5cf6 !important;
+  border-radius: 50% !important;
+  width: 80px !important;
+  height: 80px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  font-size: 0.8rem !important;
+}

@@ -87,7 +87,7 @@ export default function Window({
       <Paper
         className={`window-paper ${isMaximized ? 'window-paper-maximized' : 'window-paper-normal'}`}
         elevation={isActive ? 12 : 4}
-        style={{
+        sx={{
           boxShadow: isActive ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 10px 30px -5px rgba(0, 0, 0, 0.5)'
         }}
       >

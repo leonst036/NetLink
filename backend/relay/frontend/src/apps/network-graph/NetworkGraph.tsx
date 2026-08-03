@@ -31,6 +31,7 @@ import {
   List
 } from '@mui/material';
 import './NetworkGraph.css';
+import { useNotificationStore } from '../../store/useNotificationStore';
 
 interface ServerData {
   ip: string;
@@ -58,6 +59,10 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
   const [isLoading, setIsLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
+  const [promptDialog, setPromptDialog] = useState<{ title: string; defaultValue: string; onConfirm: (val: string) => void } | null>(null);
+  const [promptValue, setPromptValue] = useState('');
+
+  const { addNotification } = useNotificationStore();
 
   // Load Topology
   useEffect(() => {
@@ -78,16 +83,19 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
           const loadedNicknames: Record<string, string> = {};
           let updatedNodes = data.nodes.map((n: Node) => {
             if (n.id === 'nat') {
-              return { ...n, deletable: false, data: { ...n.data, label: n.data?.label || 'NAT / Gateway' }, style: { ...n.style, background: '#7c2d12', color: '#fdba74', border: '2px solid #ea580c', borderRadius: '8px', padding: '15px', fontWeight: 'bold' } };
+              return { ...n, deletable: false, className: 'node-nat', data: { ...n.data, label: n.data?.label || 'NAT / Gateway' } };
             }
             if (n.data?.nickname) {
               loadedNicknames[n.id] = n.data.nickname as string;
-              return { ...n, data: { ...n.data, label: n.data.nickname || n.id } };
+              return { ...n, className: 'node-device', data: { ...n.data, label: n.data.nickname || n.id } };
             }
-            if (n.id !== 'relay' && !n.id.startsWith('switch-')) {
-              return { ...n, data: { ...n.data, label: n.id } };
+            if (n.id === 'relay') {
+              return { ...n, className: 'node-relay', data: { ...n.data, label: 'Relay Server' } };
             }
-            return n;
+            if (n.id.startsWith('switch-')) {
+              return { ...n, className: 'node-switch', data: { ...n.data, label: n.data?.label || 'Switch / Router' } };
+            }
+            return { ...n, className: 'node-device', data: { ...n.data, label: n.id } };
           });
 
           const hasNat = updatedNodes.some((n: Node) => n.id === 'nat');
@@ -97,7 +105,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
               position: { x: 300, y: 150 },
               data: { label: 'NAT / Gateway' },
               deletable: false,
-              style: { background: '#7c2d12', color: '#fdba74', border: '2px solid #ea580c', borderRadius: '8px', padding: '15px', fontWeight: 'bold' }
+              className: 'node-nat'
             });
           }
 
@@ -115,13 +123,13 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
               position: { x: 200, y: 150 },
               data: { label: 'NAT / Gateway' },
               deletable: false,
-              style: { background: '#7c2d12', color: '#fdba74', border: '2px solid #ea580c', borderRadius: '8px', padding: '15px', fontWeight: 'bold' }
+              className: 'node-nat'
             },
             {
               id: 'relay',
               position: { x: 400, y: 300 },
               data: { label: 'Relay Server' },
-              style: { background: '#0f172a', color: '#38bdf8', border: '2px solid #38bdf8', borderRadius: '8px', padding: '15px' }
+              className: 'node-relay'
             }
           ]);
         }
@@ -169,28 +177,38 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
       if (node.id === 'relay' || node.id === 'nat') return;
 
       if (node.id.startsWith('switch-')) {
-        const newName = window.prompt('Enter new name for switch/router:', node.data.label as string);
-        if (newName !== null && newName.trim() !== '') {
-          setNodes((nds) =>
-            nds.map((n) => (n.id === node.id ? { ...n, data: { ...n.data, label: newName.trim() } } : n))
-          );
-        }
+        setPromptValue((node.data.label as string) || '');
+        setPromptDialog({
+          title: 'Enter new name for switch/router:',
+          defaultValue: (node.data.label as string) || '',
+          onConfirm: (newName) => {
+            if (newName.trim() !== '') {
+              setNodes((nds) =>
+                nds.map((n) => (n.id === node.id ? { ...n, data: { ...n.data, label: newName.trim() } } : n))
+              );
+            }
+          }
+        });
       } else {
         const currentNick = nicknames[node.id] || node.data.nickname || '';
-        const newName = window.prompt('Enter nickname for device:', currentNick as string);
-        if (newName !== null) {
-          const trimmedName = newName.trim();
-          setNicknames(prev => ({ ...prev, [node.id]: trimmedName }));
-          setNodes((nds) =>
-            nds.map((n) => {
-              if (n.id === node.id) {
-                const finalName = trimmedName || n.id;
-                return { ...n, data: { ...n.data, nickname: trimmedName, label: finalName } };
-              }
-              return n;
-            })
-          );
-        }
+        setPromptValue(currentNick as string);
+        setPromptDialog({
+          title: 'Enter nickname for device:',
+          defaultValue: currentNick as string,
+          onConfirm: (newName) => {
+            const trimmedName = newName.trim();
+            setNicknames(prev => ({ ...prev, [node.id]: trimmedName }));
+            setNodes((nds) =>
+              nds.map((n) => {
+                if (n.id === node.id) {
+                  const finalName = trimmedName || n.id;
+                  return { ...n, data: { ...n.data, nickname: trimmedName, label: finalName } };
+                }
+                return n;
+              })
+            );
+          }
+        });
       }
     },
     [isEditMode, nicknames]
@@ -215,9 +233,9 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
         },
         body: JSON.stringify({ nodes, edges, nicknames })
       });
-      alert('Topology saved successfully!');
+      addNotification('Topology saved successfully!', 'success');
     } catch (err) {
-      alert('Failed to save topology');
+      addNotification('Failed to save topology', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -225,7 +243,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
 
   const addDeviceToGraph = (server: ServerData) => {
     if (nodes.find(n => n.id === server.ip)) {
-      alert('Device is already in the graph.');
+      addNotification('Device is already in the graph.', 'warning');
       return;
     }
     const nickname = nicknames[server.ip] || server.hostname || '';
@@ -234,7 +252,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
       id: server.ip,
       position: { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 },
       data: { label, nickname },
-      style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #475569', borderRadius: '8px', padding: '10px' }
+      className: 'node-device'
     };
     setNodes(nds => [...nds, newNode]);
   };
@@ -245,7 +263,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
       id,
       position: { x: 200, y: 200 },
       data: { label: `Switch / Router` },
-      style: { background: '#020617', color: '#a78bfa', border: '2px dashed #8b5cf6', borderRadius: '50%', width: 80, height: 80, display: 'flex', justifyContent: 'center', alignItems: 'center', textAlign: 'center', fontSize: '0.8rem' }
+      className: 'node-switch'
     };
     setNodes(nds => [...nds, newNode]);
   };
@@ -490,6 +508,43 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
               </DialogContent>
               <DialogActions>
                 <Button onClick={() => setSelectedDevice(null)} color="inherit">Close</Button>
+              </DialogActions>
+            </>
+          )}
+        </Dialog>
+
+        {/* Prompt Dialog */}
+        <Dialog className="styled-dialog"
+          open={!!promptDialog}
+          onClose={() => setPromptDialog(null)}
+        >
+          {promptDialog && (
+            <>
+              <DialogTitle className="styled-dialog-title">
+                {promptDialog.title}
+              </DialogTitle>
+              <DialogContent className="styled-dialog-content">
+                <TextField
+                  autoFocus
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  value={promptValue}
+                  onChange={(e) => setPromptValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      promptDialog.onConfirm(promptValue);
+                      setPromptDialog(null);
+                    }
+                  }}
+                />
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setPromptDialog(null)} color="inherit">Cancel</Button>
+                <Button onClick={() => {
+                  promptDialog.onConfirm(promptValue);
+                  setPromptDialog(null);
+                }} color="primary" variant="contained">Save</Button>
               </DialogActions>
             </>
           )}
