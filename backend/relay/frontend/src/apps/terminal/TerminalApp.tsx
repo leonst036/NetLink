@@ -3,6 +3,7 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 import { Box, TextField, Select, MenuItem, Button, Toolbar } from '@mui/material';
+import './TerminalApp.css';
 
 interface TerminalAppProps {
   token: string;
@@ -23,20 +24,38 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   const socketRef = useRef<WebSocket | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const inputDisposableRef = useRef<{ dispose: () => void } | null>(null);
+
+  const getSessionStorageKey = () => `netlink_ssh_session:${target}:${selectedIp}:${sshUsername}`;
+
+  const getOrCreateSessionId = () => {
+    const storageKey = getSessionStorageKey();
+    const existingSessionId = sessionStorage.getItem(storageKey);
+    if (existingSessionId) {
+      return existingSessionId;
+    }
+
+    const newSessionId = crypto.randomUUID();
+    sessionStorage.setItem(storageKey, newSessionId);
+    return newSessionId;
+  };
 
   const disconnectTerminal = () => {
     if (socketRef.current) {
       socketRef.current.close();
       socketRef.current = null;
     }
+    if (inputDisposableRef.current) {
+      try {
+        inputDisposableRef.current.dispose();
+      } catch (e) {}
+      inputDisposableRef.current = null;
+    }
     if (termRef.current) {
       try {
-        termRef.current.write('\r\n[Disconnected from server]\r\n');
-        termRef.current.dispose();
+        termRef.current.write('\r\n[Detached from server]\r\n');
       } catch (e) {}
-      termRef.current = null;
     }
-    fitAddonRef.current = null;
     setStatus('disconnected');
     setIsConnected(false);
   };
@@ -45,40 +64,52 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     if (!token || !terminalRef.current) return;
 
     if (socketRef.current) socketRef.current.close();
-    if (termRef.current) termRef.current.dispose();
+
+    if (inputDisposableRef.current) {
+      try {
+        inputDisposableRef.current.dispose();
+      } catch (e) {}
+      inputDisposableRef.current = null;
+    }
 
     setStatus('connecting');
-    const term = new Terminal({
-      cursorBlink: true,
-      fontFamily: '"Fira Code", Menlo, Monaco, Consolas, monospace',
-      fontSize: 14,
-      theme: {
-        background: '#050811',
-        foreground: '#f8fafc',
-        cursor: '#3a86ff',
-      },
-    });
+    let term = termRef.current;
+    if (!term) {
+      term = new Terminal({
+        cursorBlink: true,
+        fontFamily: '"Fira Code", Menlo, Monaco, Consolas, monospace',
+        fontSize: 14,
+        theme: {
+          background: '#050811',
+          foreground: '#f8fafc',
+          cursor: '#3a86ff',
+        },
+      });
 
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(terminalRef.current);
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(terminalRef.current);
 
-    // Slight delay for fit addon to get correct dimensions in RND wrapper
-    setTimeout(() => fitAddon.fit(), 100);
+      // Slight delay for fit addon to get correct dimensions in RND wrapper
+      setTimeout(() => fitAddon.fit(), 100);
 
-    termRef.current = term;
-    fitAddonRef.current = fitAddon;
+      termRef.current = term;
+      fitAddonRef.current = fitAddon;
+    }
 
     term.write('Connecting to NetLink Relay Server...\r\n');
     console.log('Debug: Connecting to WebSocket')
+
+    const sessionId = getOrCreateSessionId();
 
     const isSecure = window.location.protocol === 'https:';
     const protocol = isSecure ? 'wss:' : 'ws:';
     let host = window.location.host;
     if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535'; // Dev mode fallback
 
-    const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
+    const socketUrl = `${protocol}//${host}/client?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}&sessionId=${encodeURIComponent(sessionId)}`;
     const socket = new WebSocket(socketUrl);
+    socket.binaryType = 'arraybuffer';
     socketRef.current = socket;
 
     socket.onopen = () => {
@@ -88,12 +119,10 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
       term.write('\r\n*** Connected to Relay Server. Ready for SSH session ***\r\n\r\n');
     };
 
-    socket.onmessage = async (event) => {
+    socket.onmessage = (event) => {
       console.log('Debug: Message received from WebSocket');
       let textData = event.data;
-      if (event.data instanceof Blob) {
-        textData = await event.data.text();
-      } else if (event.data instanceof ArrayBuffer) {
+      if (event.data instanceof ArrayBuffer) {
         textData = new TextDecoder().decode(event.data);
       }
 
@@ -105,7 +134,8 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
             type: 'connect',
             ip: selectedIp || 'localhost',
             username: sshUsername,
-            password: sshPassword
+            password: sshPassword,
+            sessionId
           }));
           console.log('Debug: Sending connection request');
           return;
@@ -118,19 +148,27 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     };
 
     socket.onclose = (event) => {
+      if (socketRef.current !== socket) return;
       setStatus('disconnected');
       console.log(`Debug: WebSocket closed with code ${event.code}`);
       setIsConnected(false);
       term.write(`\r\nConnection closed. Code: ${event.code}\r\n`);
+      if (inputDisposableRef.current) {
+        try {
+          inputDisposableRef.current.dispose();
+        } catch (e) {}
+        inputDisposableRef.current = null;
+      }
     };
 
     socket.onerror = () => {
+      if (socketRef.current !== socket) return;
       setStatus('disconnected');
       setIsConnected(false);
       term.write('\r\nWebSocket Error.\r\n');
     };
 
-    term.onData((data) => {
+    inputDisposableRef.current = term.onData((data) => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(data);
       }
@@ -165,8 +203,13 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
       clearTimeout(timeout);
       observer.disconnect();
       if (socketRef.current) socketRef.current.close();
+      if (inputDisposableRef.current) {
+        try { inputDisposableRef.current.dispose(); } catch (e) {}
+        inputDisposableRef.current = null;
+      }
       if (termRef.current) {
         try { termRef.current.dispose(); } catch (e) {}
+        termRef.current = null;
       }
     };
   }, []);
@@ -200,26 +243,16 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'transparent' }}>
-      <Toolbar
-        variant="dense"
-        sx={{
-          bgcolor: 'rgba(255,255,255,0.03)',
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
-          display: 'flex',
-          gap: 1.5,
-          py: 1,
-          px: '10px !important'
-        }}
-      >
+    <Box className="terminal-container">
+      <Toolbar className="terminal-toolbar" variant="dense">
         {savedLogins.length > 0 && (
           <Select
+            className="login-select"
             size="small"
             value=""
             displayEmpty
             onChange={applyLogin}
             disabled={isConnected}
-            sx={{ width: 140, '& .MuiSelect-select': { py: 0.8 } }}
           >
             <MenuItem value="" disabled>Saved Logins...</MenuItem>
             {savedLogins.map(l => (
@@ -228,59 +261,57 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
           </Select>
         )}
         <TextField
+          className="terminal-text-field"
           size="small"
           value={selectedIp}
           onChange={(e) => setSelectedIp(e.target.value)}
           placeholder="Target IP"
           disabled={isConnected}
-          sx={{ width: 130, '& .MuiInputBase-input': { py: 0.8 } }}
+          style={{ width: 130 }}
         />
         <TextField
+          className="terminal-text-field"
           size="small"
           value={sshUsername}
           onChange={(e) => setSshUsername(e.target.value)}
           placeholder="Username"
           disabled={isConnected}
-          sx={{ width: 120, '& .MuiInputBase-input': { py: 0.8 } }}
+          style={{ width: 120 }}
         />
         <TextField
+          className="terminal-text-field"
           size="small"
           type="password"
           value={sshPassword}
           onChange={(e) => setSshPassword(e.target.value)}
           placeholder="Password"
           disabled={isConnected}
-          sx={{ width: 120, '& .MuiInputBase-input': { py: 0.8 } }}
+          style={{ width: 120 }}
         />
         {isConnected ? (
           <Button
+            className="terminal-button"
             variant="contained"
             color="error"
             onClick={disconnectTerminal}
-            sx={{ textTransform: 'none', px: 2 }}
           >
             Disconnect
           </Button>
         ) : (
           <Button
+            className="terminal-button"
             variant="contained"
             color="primary"
             onClick={connectTerminal}
             disabled={status === 'connecting' || !selectedIp || !sshUsername}
-            sx={{ textTransform: 'none', px: 2 }}
           >
             {status === 'connecting' ? 'Connecting...' : 'Connect'}
           </Button>
         )}
       </Toolbar>
-      <Box
-        ref={terminalRef}
-        sx={{
-          flex: 1,
-          p: 1.5,
-          '& .xterm': { padding: '4px' }
-        }}
-      />
+      <Box className="terminal-screen" ref={terminalRef} />
     </Box>
   );
 }
+
+

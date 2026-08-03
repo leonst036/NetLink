@@ -5,10 +5,12 @@ import {
   TextField,
   Button,
   Alert,
-  CssBaseline
+  CssBaseline,
+  ThemeProvider
 } from '@mui/material';
 import Desktop from './Desktop';
 import GeminiLoader from './components/GeminiLoader';
+import { getAppTheme } from './theme';
 import './App.css';
 
 function App() {
@@ -118,104 +120,46 @@ function App() {
     setAllowedTargets([]);
   };
 
-  if (!token) {
-    const textFieldSx = {
-      '& .MuiInput-underline:before': {
-        borderBottomColor: 'rgba(255, 255, 255, 0.2)',
-      },
-      '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
-        borderBottomColor: 'rgba(255, 255, 255, 0.5)',
-      },
-      '& .MuiInput-underline:after': {
-        borderBottomColor: '#fff',
-      },
-      '& .MuiInputLabel-root': {
-        color: 'rgba(255, 255, 255, 0.5)',
-        fontFamily: "'Outfit', sans-serif",
-        fontSize: '0.95rem',
-        '&.Mui-focused': { color: '#fff' }
-      },
-      '& .MuiInputBase-input': {
-        color: '#fff',
-        fontFamily: "'Outfit', sans-serif",
-        paddingBottom: '12px',
-        fontSize: '1.1rem'
-      }
-    };
+  return (
+    <ThemeProvider theme={getAppTheme('Dark')}>
+      <CssBaseline />
+      {!token ? (
+        <Box className="login-container">
 
-    return (
-      <Box sx={{ display: 'flex', width: '100vw', minHeight: '100vh', bgcolor: '#000' }}>
-        <CssBaseline />
-
-        {/* Left Side: Brand & Visuals (Hidden on mobile) */}
-        <Box sx={{
-          display: { xs: 'none', md: 'flex' },
-          flex: 1,
-          position: 'relative',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          p: 8,
-          '&::before': {
-            content: '""',
-            position: 'absolute', inset: 0,
-            background: 'url(/login-bg.png) center/cover no-repeat',
-            opacity: 0.7,
-            zIndex: 0,
-            filter: 'contrast(1.1) brightness(0.9)'
-          },
-          '&::after': {
-            content: '""',
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(90deg, rgba(0,0,0,0.1) 0%, #000 100%)',
-            zIndex: 0
-          }
-        }}>
-          <Box sx={{ position: 'relative', zIndex: 1 }}>
-            <Typography variant="h6" sx={{
-              fontWeight: 700, color: '#fff', letterSpacing: '2px',
-              display: 'flex', alignItems: 'center', gap: 1.5,
-              textTransform: 'uppercase', fontFamily: "'Outfit', sans-serif"
-            }}>
-              <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#fff', boxShadow: '0 0 15px 2px rgba(255,255,255,0.8)' }} />
+          {/* Left Side: Brand & Visuals (Hidden on mobile) */}
+        <Box className="left-panel">
+          <Box className="logo-wrapper">
+            <Typography className="logo-text" variant="h6">
+              <span className="logo-dot" />
               NetLink Login
             </Typography>
           </Box>
-          <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 600 }}>
-            <Typography variant="h2" sx={{ fontWeight: 600, color: '#fff', mb: 3, letterSpacing: '-2px', lineHeight: 1.1, fontFamily: "'Outfit', sans-serif" }}>
+          <Box className="left-content">
+            <Typography className="left-title" variant="h2">
               NetLink <br />
             </Typography>
-            <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', lineHeight: 1.6, fontFamily: "'Outfit', sans-serif" }}>
+            <Typography className="left-subtitle" variant="body1">
               Connect to your home network from everywhere, without VPN.
             </Typography>
           </Box>
         </Box>
 
         {/* Right Side: Clean Login Form */}
-        <Box sx={{
-          flex: { xs: 1, md: '0 0 520px', lg: '0 0 600px' },
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          p: { xs: 4, sm: 8, md: 10 },
-          bgcolor: '#000',
-          position: 'relative',
-          zIndex: 1,
-          borderLeft: { md: '1px solid rgba(255,255,255,0.08)' }
-        }}>
-          <Box sx={{ maxWidth: 400, width: '100%', mx: 'auto' }}>
-            <Typography variant="h4" sx={{ color: '#fff', fontWeight: 600, mb: 1, fontFamily: "'Outfit', sans-serif", letterSpacing: '-1px' }}>
+        <Box className="right-panel">
+          <Box className="form-wrapper">
+            <Typography className="form-title" variant="h4">
               Welcome back
             </Typography>
-            <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.4)', mb: 6, fontFamily: "'Outfit', sans-serif" }}>
+            <Typography className="form-subtitle" variant="body1">
               Enter your credentials to access your environment.
             </Typography>
 
             {loginError && (
-              <Alert severity="error" sx={{ mb: 4, bgcolor: 'transparent', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', borderRadius: 0 }}>
+              <Alert className="styled-alert" severity="error">
                 {loginError}
               </Alert>
             )}
-            
+
             {/*
             {registerSuccess && (
               <Alert severity="success" sx={{ mb: 4, bgcolor: 'transparent', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#86efac', borderRadius: 0 }}>
@@ -224,8 +168,9 @@ function App() {
             )}
             */}
 
-            <Box component="form" onSubmit={handleLogin} sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <form className="form-container" onSubmit={handleLogin}>
               <TextField
+                className="styled-text-field"
                 label="Username"
                 variant="standard"
                 fullWidth
@@ -233,7 +178,6 @@ function App() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
-                sx={textFieldSx}
               />
 
               {/*
@@ -253,6 +197,7 @@ function App() {
               */}
 
               <TextField
+                className="styled-text-field"
                 label="Password"
                 type="password"
                 variant="standard"
@@ -261,45 +206,25 @@ function App() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
-                sx={textFieldSx}
               />
 
               {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
+                <Box className="loader-container">
                   <GeminiLoader size={48} />
                 </Box>
               ) : (
                 <Button
+                  className="submit-button"
                   type="submit"
                   variant="contained"
                   fullWidth
                   disableElevation
                   disabled={loading}
-                  sx={{
-                    mt: 3, py: 2,
-                    borderRadius: '24px',
-                    bgcolor: '#fff',
-                    color: '#000',
-                    fontWeight: 600,
-                    fontSize: '1rem',
-                    textTransform: 'none',
-                    fontFamily: "'Outfit', sans-serif",
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    '&:hover': {
-                      bgcolor: 'rgba(255,255,255,0.95)',
-                      transform: 'translateY(-2px) scale(1.02)',
-                      boxShadow: '0 8px 20px rgba(255,255,255,0.3)'
-                    },
-                    '&:disabled': {
-                      bgcolor: 'rgba(255,255,255,0.1)',
-                      color: 'rgba(255,255,255,0.3)'
-                    }
-                  }}
                 >
                   Sign in
                 </Button>
               )}
-            </Box>
+            </form>
 
             {/*
             <Typography variant="body2" sx={{ mt: 6, color: 'rgba(255,255,255,0.4)', textAlign: 'center', fontFamily: "'Outfit', sans-serif" }}>
@@ -335,10 +260,11 @@ function App() {
           </Box>
         </Box>
       </Box>
-    );
-  }
-
-  return <Desktop token={token} onLogout={handleLogout} target={target} setTarget={setTarget} allowedTargets={allowedTargets} />;
+      ) : (
+        <Desktop token={token} onLogout={handleLogout} target={target} setTarget={setTarget} allowedTargets={allowedTargets} />
+      )}
+    </ThemeProvider>
+  );
 }
 
 export default App;

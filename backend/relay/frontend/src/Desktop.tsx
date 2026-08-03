@@ -1,23 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import Window from './Window';
-import TerminalApp from './apps/TerminalApp';
-import NetworkGraph from './apps/NetworkGraph';
-import VncApp from './apps/VncApp';
-import FileApp from './apps/FileApp';
-import SettingsApp from './apps/SettingsApp';
-import { Terminal, Network, LogOut, Search, Monitor, Folder, Settings } from 'lucide-react';
-import { 
-    Box, 
-    AppBar, 
-    Toolbar, 
-    Typography, 
-    Select, 
-    MenuItem, 
-    Button, 
-    Paper,
-    Tooltip,
-    Alert
-} from '@mui/material';
+import TopBar from './components/TopBar';
+import Dock from './components/Dock';
+import GeminiLoader from './components/GeminiLoader';
+import { Terminal, Network, Monitor, Folder, Settings } from 'lucide-react';
+import { Box, Alert } from '@mui/material';
+import './Desktop.css';
+import { useWindowStore } from './store/useWindowStore';
+import { useNotificationStore } from './store/useNotificationStore';
+import { fetchServers as apiFetchServers } from './api/network';
+import type { ServerDevice } from './types';
+
+// Lazy loaded desktop applications for optimal code-splitting and small initial bundle size
+const TerminalApp = lazy(() => import('./apps/terminal/TerminalApp'));
+const NetworkGraph = lazy(() => import('./apps/network-graph/NetworkGraph'));
+const VncApp = lazy(() => import('./apps/vnc/VncApp'));
+const FileApp = lazy(() => import('./apps/file-manager/FileApp'));
+const SettingsApp = lazy(() => import('./apps/settings/SettingsApp'));
 
 interface DesktopProps {
     token: string;
@@ -27,39 +26,20 @@ interface DesktopProps {
     allowedTargets: string[];
 }
 
-function Clock() {
-    const [time, setTime] = useState(new Date());
-    useEffect(() => {
-        const timer = setInterval(() => setTime(new Date()), 1000);
-        return () => clearInterval(timer);
-    }, []);
-    return <Typography variant="caption">{time.toLocaleTimeString()}</Typography>;
-}
-
 export default function Desktop({ token, onLogout, target, setTarget, allowedTargets }: DesktopProps) {
-    const [servers, setServers] = useState<any[]>([]);
+    const [servers, setServers] = useState<ServerDevice[]>([]);
     const [isScanning, setIsScanning] = useState(false);
 
-    interface AppNotification {
-        id: string;
-        message: string;
-        type: 'info' | 'success' | 'error';
-    }
-    const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    const { notifications, addNotification, removeNotification } = useNotificationStore();
 
     useEffect(() => {
         const handleNotify = (e: any) => {
             const { message, type = 'info' } = e.detail;
-            const id = Date.now().toString() + Math.random().toString();
-            setNotifications(prev => [...prev, { id, message, type }]);
-            setTimeout(() => {
-                setNotifications(prev => prev.filter(n => n.id !== id));
-            }, 5000);
+            addNotification(message, type);
         };
-
         window.addEventListener('netlink_notify', handleNotify);
         return () => window.removeEventListener('netlink_notify', handleNotify);
-    }, []);
+    }, [addNotification]);
 
     const [settings, setSettings] = useState({
         username: localStorage.getItem('netlink_username') || 'Admin',
@@ -69,16 +49,15 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
 
     useEffect(() => {
         const handleSettingsChange = () => {
-            console.log('debug: Settings changed, updating desktop settings...');
             try {
-            setSettings({
-                username: localStorage.getItem('netlink_username') || 'Admin',
-                wallpaper: localStorage.getItem('netlink_wallpaper') || 'default',
-                theme: localStorage.getItem('netlink_theme') || 'Dark',
-            }); 
-        } catch (err) {
-            console.error('Failed to update settings from localStorage', err);
-        }
+                setSettings({
+                    username: localStorage.getItem('netlink_username') || 'Admin',
+                    wallpaper: localStorage.getItem('netlink_wallpaper') || 'default',
+                    theme: localStorage.getItem('netlink_theme') || 'Dark',
+                });
+            } catch (err) {
+                console.error('Failed to update settings from localStorage', err);
+            }
         };
         window.addEventListener('settingsChange', handleSettingsChange);
         return () => window.removeEventListener('settingsChange', handleSettingsChange);
@@ -95,42 +74,15 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     };
 
     // Window states
-    const [activeWindow, setActiveWindow] = useState<string | null>('graph');
-    const [graphWindow, setGraphWindow] = useState({ isOpen: true, isMinimized: false, zIndex: 1 });
-    const [settingsWindow, setSettingsWindow] = useState({ isOpen: false, isMinimized: false, zIndex: 1 });
+    const { activeWindow, graphWindow, settingsWindow, terminals, vncWindows, sftpWindows, setGraphWindow, setSettingsWindow, openTerminal, openVnc, openSftp, bringToFront, closeTerminal, closeVnc, closeSftp, minimizeTerminal, minimizeVnc, minimizeSftp } = useWindowStore();
 
-    interface TerminalInstance {
-        id: string;
-        ip: string;
-        isMinimized: boolean;
-    }
-    const [terminals, setTerminals] = useState<TerminalInstance[]>([]);
-    const [vncWindows, setVncWindows] = useState<{ id: string; ip: string; isMinimized: boolean }[]>([]);
-    const [sftpWindows, setSftpWindows] = useState<{ id: string; ip: string; isMinimized: boolean }[]>([]);
-    const openVnc = (ip: string) => {
-        const id = `vnc-${ip}-${Date.now()}`;
-        setVncWindows(prev => [...prev, { id, ip, isMinimized: false }]);
-        bringToFront(id);
-    };
-    
-    const openSftp = (ip: string) => {
-        const id = `sftp-${ip}-${Date.now()}`;
-        setSftpWindows(prev => [...prev, { id, ip, isMinimized: false }]);
-        bringToFront(id);
-    };
+
 
     const fetchServers = async () => {
         setIsScanning(true);
-        console.log(`Debug: Fetching servers for target: ${target}`);
         try {
-            const res = await fetch(`/api/servers?target=${encodeURIComponent(target)}`);
-            const data = await res.json();
-            if (data.devices) {
-                setServers(data.devices);
-                console.log('Debug: Servers fetched successfully:');
-            } else {
-                console.log('Debug: Failed to fetch servers or server list was empty');
-            }
+            const devices = await apiFetchServers(target);
+            setServers(devices);
         } catch (err) {
             console.error('Failed to fetch servers', err);
         } finally {
@@ -144,7 +96,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         const isSecure = window.location.protocol === 'https:';
         const protocol = isSecure ? 'wss:' : 'ws:';
         let host = window.location.host;
-        if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535'; 
+        if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535';
 
         const socketUrl = `${protocol}//${host}/desktop?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
         const ws = new WebSocket(socketUrl);
@@ -169,57 +121,19 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [target]);
 
-    const bringToFront = (windowName: string) => {
-        setActiveWindow(windowName);
-        if (windowName === 'graph') {
-            setGraphWindow(w => w.isMinimized ? { ...w, isMinimized: false } : w);
-        } else if (windowName === 'settings') {
-            setSettingsWindow(w => w.isMinimized ? { ...w, isMinimized: false } : w);
-        } else if (windowName.startsWith('terminal-')) {
-            setTerminals(prev => prev.map(t => t.id === windowName ? { ...t, isMinimized: false } : t));
-        } else if (windowName.startsWith('vnc-')) {
-            setVncWindows(prev => prev.map(v => v.id === windowName ? { ...v, isMinimized: false } : v));
-        } else if (windowName.startsWith('sftp-')) {
-            setSftpWindows(prev => prev.map(s => s.id === windowName ? { ...s, isMinimized: false } : s));
-        }
-    };
-
-    const openTerminal = (ip: string) => {
-        const newID = `terminal-${Date.now()}`;
-        setTerminals(prev => [...prev, { id: newID, ip, isMinimized: false }]);
-        setActiveWindow(newID);
-    };
-
     return (
-        <Box sx={{
-            width: '100vw',
-            height: '100vh',
-            background: getBackgroundStyle(),
-            position: 'relative',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-        }}>
+        <Box className="desktop-container" sx={{ background: getBackgroundStyle() }}>
             {/* Desktop overlay filter */}
-            <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(0, 0, 0, 0.4)', pointerEvents: 'none', zIndex: 0 }} />
+            <Box className="desktop-overlay" />
 
             {/* Notifications */}
-            <Box sx={{
-                position: 'absolute',
-                top: 40,
-                right: 20,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 1,
-                zIndex: 10000,
-                pointerEvents: 'none'
-            }}>
+            <Box className="notification-area">
                 {notifications.map(notif => (
-                    <Alert 
-                        key={notif.id} 
-                        severity={notif.type} 
-                        onClose={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
-                        sx={{ pointerEvents: 'auto', minWidth: 250, boxShadow: 4 }}
+                    <Alert
+                        key={notif.id}
+                        severity={notif.type}
+                        onClose={() => removeNotification(notif.id)}
+                        className="notification-alert"
                     >
                         {notif.message}
                     </Alert>
@@ -227,54 +141,19 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
             </Box>
 
             {/* Top Menu Bar */}
-            <AppBar position="static" color="transparent" elevation={0} sx={{ 
-                bgcolor: 'rgba(15, 23, 42, 0.65)', 
-                backdropFilter: 'blur(16px)',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-                zIndex: 9999
-            }}>
-                <Toolbar variant="dense" sx={{ justifyContent: 'space-between', minHeight: '32px !important' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary' }}>NetLink OS</Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="caption" color="text.secondary">Target:</Typography>
-                            {allowedTargets && allowedTargets.length > 0 ? (
-                                <Select
-                                    size="small"
-                                    value={target}
-                                    onChange={(e) => {
-                                        setTarget(e.target.value);
-                                        localStorage.setItem('netlink_target', e.target.value);
-                                    }}
-                                    sx={{ height: 24, fontSize: '0.8rem', color: 'text.primary', '& .MuiSelect-select': { py: 0 } }}
-                                >
-                                    {allowedTargets.map(t => (
-                                        <MenuItem key={t} value={t}>{t}</MenuItem>
-                                    ))}
-                                </Select>
-                            ) : (
-                                <Typography variant="caption">{target}</Typography>
-                            )}
-                        </Box>
-                        <Typography variant="caption" color="primary.light">{settings.username}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Clock />
-                        <Button size="small" color="error" startIcon={<LogOut size={14} />} onClick={onLogout} sx={{ textTransform: 'none' }}>
-                            Logout
-                        </Button>
-                    </Box>
-                </Toolbar>
-            </AppBar>
+            <TopBar
+                target={target}
+                setTarget={setTarget}
+                allowedTargets={allowedTargets}
+                username={settings.username}
+                onLogout={onLogout}
+            />
 
             {/* Windows Area */}
-            <Box sx={{
-                flex: 1,
-                position: 'relative',
-                zIndex: 1,
-                filter: settings.theme === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : settings.theme === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none',
-                transition: 'filter 0.3s ease'
-            }}>
+            <Box
+                className="windows-area"
+                sx={{ filter: settings.theme === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : settings.theme === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none' }}
+            >
                 {graphWindow.isOpen && (
                     <Window
                         id="graph"
@@ -282,34 +161,26 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         icon={<Network size={14} color="#38bdf8" />}
                         isActive={activeWindow === 'graph'}
                         isMinimized={graphWindow.isMinimized}
-                        onMinimize={() => setGraphWindow(w => ({ ...w, isMinimized: true }))}
+                        onMinimize={() => setGraphWindow({ isMinimized: true })}
                         onFocus={() => bringToFront('graph')}
-                        onClose={() => setGraphWindow(w => ({ ...w, isOpen: false }))}
+                        onClose={() => setGraphWindow({ isOpen: false })}
                         defaultPosition={{ x: 50, y: 50 }}
                         defaultSize={{ width: 900, height: 600 }}
                     >
-                        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-                            <Box sx={{ p: 1, display: 'flex', gap: 1, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    onClick={fetchServers}
-                                    disabled={isScanning}
-                                    startIcon={<Search size={14} />}
-                                >
-                                    {isScanning ? 'Scanning...' : 'Scan Network'}
-                                </Button>
-                            </Box>
-                            <Box sx={{ flex: 1, position: 'relative', minHeight: 0 }}>
-                                <NetworkGraph
-                                    servers={servers}
-                                    onNodeClick={(ip) => openTerminal(ip)}
-                                    onVncClick={(ip) => openVnc(ip)}
-                                    onSftpClick={(ip) => openSftp(ip)}
-                                    token={token}
-                                    target={target}
-                                />
+                        <Box className="topology-explorer-container">
+                            <Box className="graph-area">
+                                <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
+                                    <NetworkGraph
+                                        servers={servers}
+                                        onNodeClick={(ip: string) => openTerminal(ip)}
+                                        onVncClick={(ip: string) => openVnc(ip)}
+                                        onSftpClick={(ip: string) => openSftp(ip)}
+                                        token={token}
+                                        target={target}
+                                        isScanning={isScanning}
+                                        onScanClick={fetchServers}
+                                    />
+                                </Suspense>
                             </Box>
                         </Box>
                     </Window>
@@ -322,13 +193,15 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         icon={<Settings size={14} color="#94a3b8" />}
                         isActive={activeWindow === 'settings'}
                         isMinimized={settingsWindow.isMinimized}
-                        onMinimize={() => setSettingsWindow(w => ({ ...w, isMinimized: true }))}
+                        onMinimize={() => setSettingsWindow({ isMinimized: true })}
                         onFocus={() => bringToFront('settings')}
-                        onClose={() => setSettingsWindow(w => ({ ...w, isOpen: false }))}
+                        onClose={() => setSettingsWindow({ isOpen: false })}
                         defaultPosition={{ x: 100, y: 100 }}
                         defaultSize={{ width: 840, height: 600 }}
                     >
-                        <SettingsApp token={token} />
+                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
+                            <SettingsApp token={token} />
+                        </Suspense>
                     </Window>
                 )}
 
@@ -340,13 +213,15 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         icon={<Terminal size={14} color="#a78bfa" />}
                         isActive={activeWindow === term.id}
                         isMinimized={term.isMinimized}
-                        onMinimize={() => setTerminals(prev => prev.map(t => t.id === term.id ? { ...t, isMinimized: true } : t))}
+                        onMinimize={() => minimizeTerminal(term.id, true)}
                         onFocus={() => bringToFront(term.id)}
-                        onClose={() => setTerminals(prev => prev.filter(t => t.id !== term.id))}
+                        onClose={() => closeTerminal(term.id)}
                         defaultPosition={{ x: 150, y: 150 }}
                         defaultSize={{ width: 800, height: 500 }}
                     >
-                        <TerminalApp token={token} target={target} initialIp={term.ip} />
+                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
+                            <TerminalApp token={token} target={target} initialIp={term.ip} />
+                        </Suspense>
                     </Window>
                 ))}
 
@@ -358,13 +233,15 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         icon={<Monitor size={14} color="#10b981" />}
                         isActive={activeWindow === vnc.id}
                         isMinimized={vnc.isMinimized}
-                        onMinimize={() => setVncWindows(prev => prev.map(v => v.id === vnc.id ? { ...v, isMinimized: true } : v))}
+                        onMinimize={() => minimizeVnc(vnc.id, true)}
                         onFocus={() => bringToFront(vnc.id)}
-                        onClose={() => setVncWindows(prev => prev.filter(v => v.id !== vnc.id))}
+                        onClose={() => closeVnc(vnc.id)}
                         defaultPosition={{ x: 200, y: 200 }}
                         defaultSize={{ width: 800, height: 600 }}
                     >
-                        <VncApp token={token} target={target} initialIp={vnc.ip} />
+                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
+                            <VncApp token={token} target={target} initialIp={vnc.ip} />
+                        </Suspense>
                     </Window>
                 ))}
 
@@ -372,203 +249,27 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     <Window
                         key={sftp.id}
                         id={sftp.id}
-                        title={`NetLink SFTP - ${sftp.ip}`}
+                        title={`NetLink File Client ${sftp.ip ? `- ${sftp.ip}` : ''}`}
                         icon={<Folder size={14} color="#fb923c" />}
                         isActive={activeWindow === sftp.id}
                         isMinimized={sftp.isMinimized}
-                        onMinimize={() => setSftpWindows(prev => prev.map(s => s.id === sftp.id ? { ...s, isMinimized: true } : s))}
+                        onMinimize={() => minimizeSftp(sftp.id, true)}
                         onFocus={() => bringToFront(sftp.id)}
-                        onClose={() => setSftpWindows(prev => prev.filter(s => s.id !== sftp.id))}
+                        onClose={() => closeSftp(sftp.id)}
                         defaultPosition={{ x: 250, y: 250 }}
                         defaultSize={{ width: 800, height: 500 }}
                     >
-                        <FileApp token={token} target={target} initialIp={sftp.ip} />
+                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
+                            <FileApp token={token} target={target} initialIp={sftp.ip} />
+                        </Suspense>
                     </Window>
                 ))}
             </Box>
 
-            {/* macOS style Dock */}
-            <Paper elevation={16} sx={{
-                position: 'absolute',
-                bottom: 20,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                bgcolor: 'rgba(15, 23, 42, 0.65)',
-                backdropFilter: 'blur(16px)',
-                border: '1px solid rgba(255,255,255,0.05)',
-                padding: '10px 16px',
-                borderRadius: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                zIndex: 9999,
-            }}>
-                <DockIcon
-                    icon={<Network size={24} color="#38bdf8" />}
-                    label="Topology Explorer"
-                    isOpen={graphWindow.isOpen}
-                    isMinimized={graphWindow.isOpen && graphWindow.isMinimized}
-                    onClick={() => {
-                        if (!graphWindow.isOpen) {
-                            setGraphWindow({ isOpen: true, isMinimized: false, zIndex: 1 });
-                            bringToFront('graph');
-                        } else if (graphWindow.isMinimized) {
-                            setGraphWindow(w => ({ ...w, isMinimized: false }));
-                            bringToFront('graph');
-                        } else if (activeWindow === 'graph') {
-                            setGraphWindow(w => ({ ...w, isMinimized: true }));
-                        } else {
-                            bringToFront('graph');
-                        }
-                    }}
-                />
-                <DockIcon
-                    icon={<Terminal size={24} color="#a78bfa" />}
-                    label="New SSH Terminal"
-                    isOpen={false}
-                    onClick={() => openTerminal('')}
-                />
-                <DockIcon
-                    icon={<Folder size={24} color="#fb923c" />}
-                    label="New SFTP Client"
-                    isOpen={false}
-                    onClick={() => openSftp('')}
-                />
-                <DockIcon
-                    icon={<Monitor size={24} color="#10b981" />}
-                    label="New VNC connection"
-                    isOpen={false}
-                    onClick={() => openVnc('')}
-                />
-                <DockIcon
-                    icon={<Settings size={24} color="#94a3b8" />}
-                    label="Settings"
-                    isOpen={settingsWindow.isOpen}
-                    isMinimized={settingsWindow.isOpen && settingsWindow.isMinimized}
-                    onClick={() => {
-                        if (!settingsWindow.isOpen) {
-                            setSettingsWindow({ isOpen: true, isMinimized: false, zIndex: 1 });
-                            bringToFront('settings');
-                        } else if (settingsWindow.isMinimized) {
-                            setSettingsWindow(w => ({ ...w, isMinimized: false }));
-                            bringToFront('settings');
-                        } else if (activeWindow === 'settings') {
-                            setSettingsWindow(w => ({ ...w, isMinimized: true }));
-                        } else {
-                            bringToFront('settings');
-                        }
-                    }}
-                />
-
-                {(terminals.length > 0 || vncWindows.length > 0 || sftpWindows.length > 0) && (
-                    <Box sx={{ width: '1px', bgcolor: 'rgba(255,255,255,0.2)', height: 24 }} />
-                )}
-
-                {terminals.map(term => (
-                    <DockIcon
-                        key={term.id}
-                        icon={<Terminal size={24} color="#a78bfa" />}
-                        label={`Terminal: ${term.ip || 'Localhost'}`}
-                        isOpen={activeWindow === term.id && !term.isMinimized}
-                        isMinimized={term.isMinimized}
-                        onClick={() => {
-                            if (term.isMinimized) {
-                                setTerminals(prev => prev.map(t => t.id === term.id ? { ...t, isMinimized: false } : t));
-                                bringToFront(term.id);
-                            } else if (activeWindow === term.id) {
-                                setTerminals(prev => prev.map(t => t.id === term.id ? { ...t, isMinimized: true } : t));
-                            } else {
-                                bringToFront(term.id);
-                            }
-                        }}
-                    />
-                ))}
-
-                {vncWindows.map(vnc => (
-                    <DockIcon
-                        key={vnc.id}
-                        icon={<Monitor size={24} color="#10b981" />}
-                        label={`VNC: ${vnc.ip}`}
-                        isOpen={activeWindow === vnc.id && !vnc.isMinimized}
-                        isMinimized={vnc.isMinimized}
-                        onClick={() => {
-                            if (vnc.isMinimized) {
-                                setVncWindows(prev => prev.map(v => v.id === vnc.id ? { ...v, isMinimized: false } : v));
-                                bringToFront(vnc.id);
-                            } else if (activeWindow === vnc.id) {
-                                setVncWindows(prev => prev.map(v => v.id === vnc.id ? { ...v, isMinimized: true } : v));
-                            } else {
-                                bringToFront(vnc.id);
-                            }
-                        }}
-                    />
-                ))}
-
-                {sftpWindows.map(sftp => (
-                    <DockIcon
-                        key={sftp.id}
-                        icon={<Folder size={24} color="#fb923c" />}
-                        label={`SFTP: ${sftp.ip}`}
-                        isOpen={activeWindow === sftp.id && !sftp.isMinimized}
-                        isMinimized={sftp.isMinimized}
-                        onClick={() => {
-                            if (sftp.isMinimized) {
-                                setSftpWindows(prev => prev.map(s => s.id === sftp.id ? { ...s, isMinimized: false } : s));
-                                bringToFront(sftp.id);
-                            } else if (activeWindow === sftp.id) {
-                                setSftpWindows(prev => prev.map(s => s.id === sftp.id ? { ...s, isMinimized: true } : s));
-                            } else {
-                                bringToFront(sftp.id);
-                            }
-                        }}
-                    />
-                ))}
-            </Paper>
+            {/* Dock Navigation */}
+            <Dock />
         </Box>
     );
 }
 
-function DockIcon({
-    icon,
-    label,
-    onClick,
-    isOpen,
-    isMinimized = false
-}: {
-    icon: React.ReactNode;
-    label: string;
-    onClick: () => void;
-    isOpen: boolean;
-    isMinimized?: boolean;
-}) {
-    return (
-        <Tooltip title={label} arrow placement="top">
-            <Box
-                onClick={onClick}
-                sx={{
-                    width: 48,
-                    height: 48,
-                    bgcolor: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    borderRadius: '16px',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    transition: 'all 0.2s',
-                    opacity: isMinimized ? 0.4 : 1,
-                    '&:hover': {
-                        transform: 'translateY(-5px) scale(1.1)',
-                        bgcolor: 'rgba(255, 255, 255, 0.1)'
-                    }
-                }}
-            >
-                {icon}
-                {isOpen && (
-                    <Box sx={{ position: 'absolute', bottom: 4, width: 4, height: 4, borderRadius: '50%', bgcolor: '#f8fafc' }} />
-                )}
-            </Box>
-        </Tooltip>
-    );
-}
+

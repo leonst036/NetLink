@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import './index.css'
+import './main.css'
 import App from './App.tsx'
 
 const patchConsoleLogForDebug = () => {
@@ -49,59 +50,7 @@ const darkTheme = createTheme({
   shape: {
     borderRadius: 12,
   },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 24, // M3 Expressive Pill shape
-          textTransform: 'none',
-          padding: '8px 24px',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        },
-        contained: {
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          '&:hover': {
-            boxShadow: '0 8px 20px rgba(56, 189, 248, 0.3)',
-            transform: 'translateY(-2px) scale(1.02)',
-          },
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundImage: 'none',
-          backgroundColor: 'rgba(15, 23, 42, 0.95)',
-          // backdropFilter: 'blur(16px)', // Disabled for window dragging performance
-          border: '1px solid rgba(255,255,255,0.05)',
-        },
-      },
-    },
-    MuiOutlinedInput: {
-      styleOverrides: {
-        root: {
-          borderRadius: 8,
-          backgroundColor: 'rgba(255,255,255,0.03)',
-          '& fieldset': {
-            borderColor: 'rgba(255,255,255,0.1)',
-          },
-          '&:hover fieldset': {
-            borderColor: 'rgba(255,255,255,0.2)',
-          }
-        }
-      }
-    },
-    MuiAlert: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          backgroundColor: 'rgba(15, 23, 42, 0.8)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(56, 189, 248, 0.3)',
-        },
-      },
-    },
-  },
+
 });
 
 createRoot(document.getElementById('root')!).render(

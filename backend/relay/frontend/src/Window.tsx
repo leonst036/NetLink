@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Rnd } from 'react-rnd';
 import { X, Minus, Maximize2 } from 'lucide-react';
 import { Box, Paper, IconButton, Typography } from '@mui/material';
+import './Window.css';
 
 interface WindowProps {
   id: string;
@@ -84,49 +85,28 @@ export default function Window({
       }}
     >
       <Paper
+        className={`window-paper ${isMaximized ? 'window-paper-maximized' : 'window-paper-normal'}`}
         elevation={isActive ? 12 : 4}
         sx={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          borderRadius: isMaximized ? 0 : '16px',
-          overflow: 'hidden',
-          bgcolor: 'background.paper',
-          border: isMaximized ? 'none' : `1px solid rgba(255,255,255,0.05)`,
-          boxShadow: isActive ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 10px 30px -5px rgba(0, 0, 0, 0.5)',
-          transition: 'box-shadow 0.2s',
-          willChange: 'transform, width, height',
-          transform: 'translateZ(0)',
+          boxShadow: isActive ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 10px 30px -5px rgba(0, 0, 0, 0.5)'
         }}
       >
         {/* Window Header */}
         <Box
-          className="window-handle"
-          sx={{
-            height: 48,
-            bgcolor: 'rgba(15, 23, 42, 0.4)',
-            borderBottom: `1px solid rgba(255,255,255,0.05)`,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            px: 2,
-            cursor: isMaximized ? 'default' : 'grab',
-            userSelect: 'none'
-          }}
+          className={`window-handle window-header ${isMaximized ? 'window-header-maximized' : 'window-header-normal'}`}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box className="header-title-section">
             {icon}
-            <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
+            <Typography variant="body2" className="header-title-text" color="textPrimary">
               {title}
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <IconButton size="small" onClick={onMinimize} title="Minimize" sx={{ color: 'text.secondary' }}>
+          <Box className="header-controls">
+            <IconButton className="header-icon-button" size="small" onClick={onMinimize} title="Minimize">
               <Minus size={14} />
             </IconButton>
-            <IconButton size="small" onClick={toggleMaximize} title={isMaximized ? "Restore" : "Maximize"} sx={{ color: 'text.secondary' }}>
+            <IconButton className="header-icon-button" size="small" onClick={toggleMaximize} title={isMaximized ? "Restore" : "Maximize"}>
               <Maximize2 size={12} />
             </IconButton>
             <IconButton size="small" onClick={onClose} title="Close" color="error">
@@ -136,10 +116,11 @@ export default function Window({
         </Box>
 
         {/* Window Content */}
-        <Box sx={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <Box className="window-content">
           {children}
         </Box>
       </Paper>
     </Rnd>
   );
 }
+

@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { createHttpsServer } from './httpServer.js';
-import { handleSshConnection } from './websockets/connectionHandler.js';
-import { handleRelayConnection } from './websockets/relay/relayConnector.js';
+import { handleWebSocketConnection } from './protocols/router.js';
+import { handleRelayConnection } from './services/relayConnector.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -18,7 +18,7 @@ const server = createHttpsServer();
 const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws: WebSocket) => {
-    handleSshConnection(ws);
+    handleWebSocketConnection(ws);
 });
 
 // 3. Start local HTTPS server
