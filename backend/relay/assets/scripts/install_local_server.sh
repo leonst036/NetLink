@@ -33,7 +33,7 @@ if [ -z "$TARGET_ID" ]; then
 fi
 
 echo "Validating Target ID '$TARGET_ID' with Relay ($RELAY_URL)..."
-VALIDATION=$(curl -sS -k "$RELAY_URL/api/validate-target?target=$TARGET_ID") || error_exit "Failed to connect to the relay server at $RELAY_URL"
+VALIDATION=$(curl -sS -L -k "$RELAY_URL/api/validate-target?target=$TARGET_ID") || error_exit "Failed to connect to the relay server at $RELAY_URL"
 
 if [[ $VALIDATION == *"\"valid\":true"* ]]; then
     JWT_TOKEN=$(echo "$VALIDATION" | grep -o '"token":"[^"]*' | grep -o '[^"]*$' || true)

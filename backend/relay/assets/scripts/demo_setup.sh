@@ -29,7 +29,7 @@ fi
 echo "Setting up temporary demo user..."
 
 # Request temporary credentials from the relay
-RESPONSE=$(curl -sS -k -X POST "$RELAY_URL/api/demo-setup") || error_exit "Failed to connect to the relay server at $RELAY_URL"
+RESPONSE=$(curl -sS -L -k -X POST "$RELAY_URL/api/demo-setup") || error_exit "Failed to connect to the relay server at $RELAY_URL"
 
 USERNAME=$(echo "$RESPONSE" | grep -o '"username":"[^"]*' | grep -o '[^"]*$' || true)
 PASSWORD=$(echo "$RESPONSE" | grep -o '"password":"[^"]*' | grep -o '[^"]*$' || true)

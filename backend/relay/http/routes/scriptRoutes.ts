@@ -8,7 +8,8 @@ import { GenerateToken } from '../../auth/tokenManager.js';
 export function handleInstallScriptRoute(req: http.IncomingMessage, res: http.ServerResponse): void {
     const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     const pathname = parsedUrl.pathname;
-    const isHttps = (req.socket as any).encrypted || req.headers['x-forwarded-proto'] === 'https';
+    const xForwardedProto = req.headers['x-forwarded-proto'];
+    const isHttps = (req.socket as any).encrypted || (typeof xForwardedProto === 'string' && xForwardedProto.includes('https')) || xForwardedProto === 'https';
     const protocol = isHttps ? 'https' : 'http';
     const host = req.headers.host || 'localhost';
     const relayUrl = `${protocol}://${host}`;
@@ -30,7 +31,8 @@ export function handleInstallScriptRoute(req: http.IncomingMessage, res: http.Se
 export function handleDemoScriptRoute(req: http.IncomingMessage, res: http.ServerResponse): void {
     const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     const pathname = parsedUrl.pathname;
-    const isHttps = (req.socket as any).encrypted || req.headers['x-forwarded-proto'] === 'https';
+    const xForwardedProto = req.headers['x-forwarded-proto'];
+    const isHttps = (req.socket as any).encrypted || (typeof xForwardedProto === 'string' && xForwardedProto.includes('https')) || xForwardedProto === 'https';
     const protocol = isHttps ? 'https' : 'http';
     const host = req.headers.host || 'localhost';
     const relayUrl = `${protocol}://${host}`;
