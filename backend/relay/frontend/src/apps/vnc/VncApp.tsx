@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import RFB from '@novnc/novnc';
 import { Maximize } from 'lucide-react';
 import { Box, TextField, Select, MenuItem, Button, IconButton, Toolbar, Typography, Tooltip } from '@mui/material';
+import './VncApp.css';
 
 interface VncAppProps {
     token: string;
@@ -101,7 +102,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         statIntervalRef.current = setInterval(() => {
             const now = performance.now();
             const currentFps = Math.round((frames * 1000) / (now - lastTime));
-            
+
             const startPing = performance.now();
             fetch('/health').then(() => {
                 const latency = Math.round(performance.now() - startPing);
@@ -109,7 +110,7 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
             }).catch(() => {
                 setStats({ fps: currentFps, latency: 0 });
             });
-            
+
             frames = 0;
             lastTime = now;
         }, 1000);
@@ -243,26 +244,16 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
     }, [selectedMonitor, isConnected]);
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'transparent' }}>
-            <Toolbar 
-                variant="dense" 
-                sx={{ 
-                    bgcolor: 'rgba(255,255,255,0.03)', 
-                    borderBottom: '1px solid rgba(255,255,255,0.05)', 
-                    display: 'flex', 
-                    gap: 1.5, 
-                    py: 1,
-                    px: '10px !important'
-                }}
-            >
+        <Box className="vnc-container">
+            <Toolbar className="vnc-toolbar" variant="dense">
                 {savedLogins.length > 0 && (
                     <Select
+                        className="vnc-select"
                         size="small"
                         value=""
                         displayEmpty
                         onChange={applyLogin}
                         disabled={isConnected}
-                        sx={{ width: 140, '& .MuiSelect-select': { py: 0.8 } }}
                     >
                         <MenuItem value="" disabled>Saved Logins...</MenuItem>
                         {savedLogins.map(l => (
@@ -271,99 +262,79 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
                     </Select>
                 )}
                 <TextField
+                    className="vnc-text-field"
                     size="small"
                     value={selectedIp}
                     onChange={(e) => setSelectedIp(e.target.value)}
                     placeholder="Target IP"
                     disabled={isConnected}
-                    sx={{ width: 130, '& .MuiInputBase-input': { py: 0.8 } }}
+                    style={{ width: 130 }}
                 />
                 <TextField
+                    className="vnc-text-field"
                     size="small"
                     value={vncPort}
                     onChange={(e) => setVncPort(e.target.value)}
                     placeholder="Port"
                     disabled={isConnected}
-                    sx={{ width: 80, '& .MuiInputBase-input': { py: 0.8 } }}
+                    style={{ width: 80 }}
                 />
                 <TextField
+                    className="vnc-text-field"
                     size="small"
                     type="password"
                     value={vncPassword}
                     onChange={(e) => setVncPassword(e.target.value)}
                     placeholder="Password"
                     disabled={isConnected}
-                    sx={{ width: 110, '& .MuiInputBase-input': { py: 0.8 } }}
+                    style={{ width: 110 }}
                 />
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>Monitor:</Typography>
+                <Box className="monitor-container">
+                    <Typography className="monitor-label" variant="body2">Monitor:</Typography>
                     <TextField
+                        className="vnc-text-field"
                         size="small"
                         type="number"
                         slotProps={{ htmlInput: { min: 1 } }}
                         value={selectedMonitor}
                         onChange={(e) => setSelectedMonitor(e.target.value)}
-                        sx={{ width: 60, '& .MuiInputBase-input': { py: 0.8 } }}
+                        style={{ width: 60 }}
                     />
                 </Box>
                 {isConnected ? (
                     <>
-                        <Button 
-                            variant="contained" 
-                            color="error" 
+                        <Button
+                            className="vnc-button"
+                            variant="contained"
+                            color="error"
                             onClick={disconnectVnc}
-                            sx={{ textTransform: 'none', px: 2, ml: 'auto' }}
                         >
                             Disconnect
                         </Button>
                         <Tooltip title="Fullscreen">
-                            <IconButton onClick={toggleFullscreen} sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
+                            <IconButton className="fullscreen-icon-button" onClick={toggleFullscreen}>
                                 <Maximize size={16} />
                             </IconButton>
                         </Tooltip>
                     </>
                 ) : (
-                    <Button 
-                        variant="contained" 
-                        color="success" 
-                        onClick={connectVnc} 
+                    <Button
+                        className="vnc-button"
+                        variant="contained"
+                        color="success"
+                        onClick={connectVnc}
                         disabled={status === 'connecting' || !selectedIp}
-                        sx={{ textTransform: 'none', px: 2, ml: 'auto' }}
                     >
                         {status === 'connecting' ? 'Connecting...' : 'Connect VNC'}
                     </Button>
                 )}
             </Toolbar>
-            
-            <Box 
-                ref={containerRef} 
-                sx={{ 
-                    flex: 1, 
-                    overflow: 'hidden', 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center', 
-                    bgcolor: 'transparent', 
-                    position: 'relative' 
-                }}
-            >
+
+            <Box className="vnc-screen-container" ref={containerRef}>
                 {status === 'disconnected' && <Typography color="text.secondary">VNC Disconnected</Typography>}
-                
+
                 {isDebug && isConnected && (
-                    <Box sx={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        bgcolor: 'rgba(0, 0, 0, 0.7)',
-                        color: 'info.main',
-                        p: 1,
-                        borderRadius: 1,
-                        fontFamily: 'monospace',
-                        fontSize: '0.85rem',
-                        pointerEvents: 'none',
-                        zIndex: 1000,
-                        border: '1px solid rgba(56, 189, 248, 0.3)'
-                    }}>
+                    <Box className="debug-stats-container">
                         <div>FPS: {stats.fps}</div>
                         <div>Ping: {stats.latency}ms</div>
                     </Box>
@@ -372,3 +343,4 @@ export default function VncApp({ token, target, initialIp }: VncAppProps) {
         </Box>
     );
 }
+

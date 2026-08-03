@@ -2,14 +2,14 @@ import * as mongoDB from "mongodb";
 
 let activeClient: mongoDB.MongoClient | null = null;
 
-export async function connectToDatabase(MongoURI: string) {
+export async function connectToDatabase(MongoURI: string): Promise<mongoDB.MongoClient | null> {
     const client: mongoDB.MongoClient = new mongoDB.MongoClient(MongoURI);
     try {
         await client.connect();
         return client;
     } catch (e) {
-        console.log(e);
-        return e;
+        console.error('Failed to connect to MongoDB:', e);
+        return null;
     }
 }
 
@@ -21,7 +21,7 @@ export async function initializeDatabase(): Promise<mongoDB.MongoClient | null> 
 
     try {
         const result = await connectToDatabase(process.env.MONGO_URI);
-        if (result instanceof mongoDB.MongoClient) {
+        if (result) {
             console.log('Successfully connected to MongoDB database.');
             activeClient = result;
             
@@ -30,7 +30,7 @@ export async function initializeDatabase(): Promise<mongoDB.MongoClient | null> 
             
             return result;
         } else {
-            console.warn('MongoDB connection returned an error, running in memory-only auth mode:', result);
+            console.warn('MongoDB connection returned null, running in memory-only auth mode.');
             return null;
         }
     } catch (error) {

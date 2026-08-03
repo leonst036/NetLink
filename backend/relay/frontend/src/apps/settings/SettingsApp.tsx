@@ -28,8 +28,12 @@ import {
   FormControlLabel,
   Checkbox,
   Divider,
-  useTheme
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
+import './SettingsApp.css';
 
 type TabId = 'general' | 'appearance' | 'logins' | 'security' | 'users';
 
@@ -38,7 +42,6 @@ interface SettingsAppProps {
 }
 
 export default function SettingsApp({ token }: SettingsAppProps) {
-  const theme = useTheme();
   const [activeTab, setActiveTab] = useState<TabId>('general');
 
   // Load functional settings from localStorage
@@ -87,6 +90,9 @@ export default function SettingsApp({ token }: SettingsAppProps) {
 
   const [usersList, setUsersList] = useState<any[]>([]);
   const [editingUser, setEditingUser] = useState<any | null>(null);
+
+  const [deleteUserDialog, setDeleteUserDialog] = useState<{ open: boolean, username: string }>({ open: false, username: '' });
+  const [deleteLoginDialog, setDeleteLoginDialog] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
 
   useEffect(() => {
     if (activeTab === 'logins') {
@@ -139,8 +145,12 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     }
   };
 
-  const deleteUser = async (username: string) => {
-    if (!window.confirm(`Are you sure you want to delete user ${username}?`)) return;
+  const handleDeleteUserClick = (username: string) => {
+    setDeleteUserDialog({ open: true, username });
+  };
+
+  const confirmDeleteUser = async () => {
+    const username = deleteUserDialog.username;
     try {
       const res = await fetch(`/api/users?username=${encodeURIComponent(username)}`, {
         method: 'DELETE',
@@ -156,6 +166,7 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     } catch (err) {
       console.error('Failed to delete user', err);
     }
+    setDeleteUserDialog({ open: false, username: '' });
   };
 
   const togglePermission = (perm: string) => {
@@ -215,8 +226,12 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     }
   };
 
-  const deleteLogin = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this login?')) return;
+  const handleDeleteLoginClick = (id: string) => {
+    setDeleteLoginDialog({ open: true, id });
+  };
+
+  const confirmDeleteLogin = async () => {
+    const id = deleteLoginDialog.id;
     try {
       const res = await fetch(`/api/server-logins?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
@@ -232,103 +247,89 @@ export default function SettingsApp({ token }: SettingsAppProps) {
     } catch (err) {
       console.error('Failed to delete login', err);
     }
+    setDeleteLoginDialog({ open: false, id: '' });
   };
 
   return (
-    <Box sx={{ display: 'flex', height: '100%', bgcolor: 'transparent' }}>
+    <RootContainer>
       {/* Sidebar */}
-      <Paper
-        elevation={0}
-        sx={{
-          width: 260,
-          bgcolor: 'rgba(0,0,0,0.2)',
-          borderRight: `1px solid rgba(255,255,255,0.05)`,
-          display: 'flex',
-          flexDirection: 'column',
-          borderRadius: 0,
-        }}
-      >
-        <Box sx={{ p: 3, pb: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Settings</Typography>
-        </Box>
-        <List sx={{ px: 1 }}>
+      <SidebarPaper elevation={0}>
+        <SidebarHeader>
+          <SidebarTitle variant="h6">Settings</SidebarTitle>
+        </SidebarHeader>
+        <SidebarList>
           {tabs.map(tab => (
-            <ListItem disablePadding key={tab.id} sx={{ mb: 0.5 }}>
-              <ListItemButton
+            <TabListItem disablePadding key={tab.id}>
+              <TabButton
                 selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id as TabId)}
-                sx={{ borderRadius: 2 }}
               >
-                <ListItemIcon sx={{ minWidth: 40, color: activeTab === tab.id ? 'primary.main' : 'inherit' }}>
+                <TabIcon $active={activeTab === tab.id}>
                   {tab.icon}
-                </ListItemIcon>
+                </TabIcon>
                 <ListItemText
                   primary={
-                    <Typography sx={{
-                      fontWeight: activeTab === tab.id ? 'bold' : 'medium',
-                      color: activeTab === tab.id ? 'primary.main' : 'inherit'
-                    }}>
+                    <TabText $active={activeTab === tab.id}>
                       {tab.label}
-                    </Typography>
+                    </TabText>
                   }
                 />
-              </ListItemButton>
-            </ListItem>
+              </TabButton>
+            </TabListItem>
           ))}
-        </List>
-      </Paper>
+        </SidebarList>
+      </SidebarPaper>
 
       {/* Main Content Area */}
-      <Box sx={{ flex: 1, p: 4, overflowY: 'auto' }}>
-        <Box sx={{ maxWidth: 800 }}>
+      <MainContentContainer>
+        <ContentMaxWidth>
           {activeTab === 'general' && (
             <Box>
-              <Typography variant="h5" sx={{ mb: 4, fontWeight: 'bold' }}>General Settings</Typography>
+              <SectionTitle variant="h5">General Settings</SectionTitle>
 
-              <Card variant="outlined" sx={{ mb: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+              <StyledCard variant="outlined" $mb>
+                <StyledCardContent>
+                  <CardSubtitle variant="subtitle2" color="text.secondary">
                     User Profile
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  </CardSubtitle>
+                  <VerticalStack>
+                    <FlexRowSpaceBetween>
                       <Typography>Username</Typography>
-                      <TextField
+                      <StyledTextField
                         size="small"
                         value={username}
-                        onChange={(e) => updateSetting('netlink_username', e.target.value, setUsername)}
-                        sx={{ width: 250 }}
+                        onChange={(e: any) => updateSetting('netlink_username', e.target.value, setUsername)}
                       />
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    </FlexRowSpaceBetween>
+                    <FlexRowSpaceBetween>
                       <Typography>Language</Typography>
-                      <Select size="small" value="en" sx={{ width: 250 }}>
+                      <StyledSelect size="small" value="en">
                         <MenuItem value="en">English (US)</MenuItem>
-                      </Select>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
+                      </StyledSelect>
+                    </FlexRowSpaceBetween>
+                  </VerticalStack>
+                </StyledCardContent>
+              </StyledCard>
 
-              <Card variant="outlined" sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+              <StyledCard variant="outlined">
+                <StyledCardContent>
+                  <CardSubtitle variant="subtitle2" color="text.secondary">
                     Desktop Behavior
-                  </Typography>
-                  <FormGroup sx={{ gap: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  </CardSubtitle>
+                  <StyledFormGroup>
+                    <FlexRowSpaceBetween>
                       <Typography>Show desktop icons</Typography>
                       <Switch defaultChecked />
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    </FlexRowSpaceBetween>
+                    <FlexRowSpaceBetween>
                       <Typography>Enable window animations</Typography>
                       <Switch defaultChecked />
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    </FlexRowSpaceBetween>
+                    <FlexRowSpaceBetween>
                       <Typography>Play notification sounds</Typography>
                       <Switch />
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    </FlexRowSpaceBetween>
+                    <FlexRowSpaceBetween>
                       <Typography>Enable debug mode (logs &amp; VNC FPS/Latency)</Typography>
                       <Switch
                         defaultChecked={localStorage.getItem('netlink_debug') === 'true'}
@@ -337,74 +338,70 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                           window.dispatchEvent(new Event('settingsChange'));
                         }}
                       />
-                    </Box>
-                  </FormGroup>
-                </CardContent>
-              </Card>
+                    </FlexRowSpaceBetween>
+                  </StyledFormGroup>
+                </StyledCardContent>
+              </StyledCard>
             </Box>
           )}
 
           {activeTab === 'appearance' && (
             <Box>
-              <Typography variant="h5" sx={{ mb: 4, fontWeight: 'bold' }}>Appearance</Typography>
+              <SectionTitle variant="h5">Appearance</SectionTitle>
 
-              <Card variant="outlined" sx={{ mb: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+              <StyledCard variant="outlined" $mb>
+                <StyledCardContent>
+                  <CardSubtitle variant="subtitle2" color="text.secondary">
                     Theme (Beta)
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 2 }}>
+                  </CardSubtitle>
+                  <FlexRowGap2>
                     <ThemeCard name="Dark" active={appTheme === 'Dark'} color="#0f172a" onClick={() => updateSetting('netlink_theme', 'Dark', setAppTheme)} />
                     <ThemeCard name="Light" active={appTheme === 'Light'} color="#f8fafc" textColor="#0f172a" onClick={() => updateSetting('netlink_theme', 'Light', setAppTheme)} />
-                  </Box>
-                </CardContent>
-              </Card>
+                  </FlexRowGap2>
+                </StyledCardContent>
+              </StyledCard>
 
-              <Card variant="outlined" sx={{ mb: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+              <StyledCard variant="outlined" $mb>
+                <StyledCardContent>
+                  <CardSubtitle variant="subtitle2" color="text.secondary">
                     Wallpaper
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                    <WallpaperThumb active={wallpaper === 'default'} bg='url("/login-bg.png") center/cover' onClick={() => updateSetting('netlink_wallpaper', 'default', setWallpaper)} />
-                    <WallpaperThumb active={wallpaper === 'wp1'} bg='linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp1', setWallpaper)} />
-                    <WallpaperThumb active={wallpaper === 'wp2'} bg='linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp2', setWallpaper)} />
-                    <WallpaperThumb active={wallpaper === 'wp3'} bg='linear-gradient(135deg, #064e3b 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp3', setWallpaper)} />
-                    <Box
+                  </CardSubtitle>
+                  <WallpaperContainer>
+                    <WallpaperThumb $active={wallpaper === 'default'} $bg='url("/login-bg.png") center/cover' onClick={() => updateSetting('netlink_wallpaper', 'default', setWallpaper)} />
+                    <WallpaperThumb $active={wallpaper === 'wp1'} $bg='linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp1', setWallpaper)} />
+                    <WallpaperThumb $active={wallpaper === 'wp2'} $bg='linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp2', setWallpaper)} />
+                    <WallpaperThumb $active={wallpaper === 'wp3'} $bg='linear-gradient(135deg, #064e3b 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp3', setWallpaper)} />
+                    <SolidWallpaperButton
                       onClick={() => updateSetting('netlink_wallpaper', 'solid', setWallpaper)}
-                      sx={{
-                        width: 100, height: 60, borderRadius: 2, cursor: 'pointer',
-                        bgcolor: '#090d1a', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: 'text.secondary', border: wallpaper === 'solid' ? `2px solid ${theme.palette.primary.main}` : `1px dashed ${theme.palette.divider}`
-                      }}
+                      $active={wallpaper === 'solid'}
                     >
                       Solid
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
+                    </SolidWallpaperButton>
+                  </WallpaperContainer>
+                </StyledCardContent>
+              </StyledCard>
 
-              <Card variant="outlined" sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+              <StyledCard variant="outlined">
+                <StyledCardContent>
+                  <CardSubtitle variant="subtitle2" color="text.secondary">
                     Display Settings
-                  </Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  </CardSubtitle>
+                  <FlexRowSpaceBetween>
                     <Typography>UI Scale</Typography>
-                    <Select size="small" value="100" sx={{ width: 250 }}>
+                    <StyledSelect size="small" value="100">
                       <MenuItem value="100">100% (Default)</MenuItem>
                       <MenuItem value="125">125%</MenuItem>
                       <MenuItem value="150">150%</MenuItem>
-                    </Select>
-                  </Box>
-                </CardContent>
-              </Card>
+                    </StyledSelect>
+                  </FlexRowSpaceBetween>
+                </StyledCardContent>
+              </StyledCard>
             </Box>
           )}
 
           {activeTab === 'logins' && (
             <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+              <SectionHeader>
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Server Logins</Typography>
                 <Button
                   variant="contained"
@@ -413,15 +410,15 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                 >
                   Add Login
                 </Button>
-              </Box>
+              </SectionHeader>
 
               {editingLogin ? (
-                <Card variant="outlined" sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
-                  <CardContent sx={{ p: 3 }}>
-                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                <StyledCard variant="outlined">
+                  <StyledCardContent>
+                    <CardSubtitle variant="subtitle2" color="text.secondary">
                       Edit Server Login
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    </CardSubtitle>
+                    <FormFieldsContainer>
                       <TextField label="Name" size="small" value={editingLogin.name} onChange={e => setEditingLogin({ ...editingLogin, name: e.target.value })} fullWidth />
                       <TextField label="IP Address" size="small" value={editingLogin.ip} onChange={e => setEditingLogin({ ...editingLogin, ip: e.target.value })} fullWidth />
                       <TextField label="Port" size="small" value={editingLogin.port} onChange={e => setEditingLogin({ ...editingLogin, port: e.target.value })} fullWidth />
@@ -431,16 +428,17 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                         <MenuItem value="ssh">SSH</MenuItem>
                         <MenuItem value="vnc">VNC</MenuItem>
                         <MenuItem value="sftp">SFTP</MenuItem>
+                        <MenuItem value="smb">SMB</MenuItem>
                       </Select>
-                      <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                      <ButtonActionsContainer $mt={2}>
                         <Button variant="contained" color="success" startIcon={<Save size={16} />} onClick={saveLogin}>Save</Button>
                         <Button variant="outlined" color="inherit" onClick={() => setEditingLogin(null)}>Cancel</Button>
-                      </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
+                      </ButtonActionsContainer>
+                    </FormFieldsContainer>
+                  </StyledCardContent>
+                </StyledCard>
               ) : (
-                <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
+                <StyledTableContainer component={Paper} elevation={0}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -453,17 +451,17 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                     <TableBody>
                       {logins.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>No saved logins yet. Click "Add Login" to create one.</TableCell>
+                          <EmptyTableCell colSpan={4} align="center">No saved logins yet. Click "Add Login" to create one.</EmptyTableCell>
                         </TableRow>
                       ) : (
                         logins.map((login) => (
                           <TableRow key={login.id}>
-                            <TableCell sx={{ fontWeight: 500 }}>{login.name}</TableCell>
-                            <TableCell><Chip label={login.type} size="small" color="primary" variant="outlined" sx={{ textTransform: 'uppercase' }} /></TableCell>
-                            <TableCell sx={{ color: 'text.secondary' }}>{login.loginUsername}@{login.ip}:{login.port}</TableCell>
+                            <NameTableCell>{login.name}</NameTableCell>
+                            <TableCell><StyledChip label={login.type} size="small" color="primary" variant="outlined" /></TableCell>
+                            <DetailsTableCell>{login.loginUsername}@{login.ip}:{login.port}</DetailsTableCell>
                             <TableCell align="right">
-                              <Button size="small" sx={{ minWidth: 'auto', mr: 1 }} onClick={() => setEditingLogin(login)}>Edit</Button>
-                              <IconButton size="small" color="error" onClick={() => deleteLogin(login.id)}>
+                              <EditButton size="small" onClick={() => setEditingLogin(login)}>Edit</EditButton>
+                              <IconButton size="small" color="error" onClick={() => handleDeleteLoginClick(login.id)}>
                                 <Trash2 size={16} />
                               </IconButton>
                             </TableCell>
@@ -472,14 +470,14 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                       )}
                     </TableBody>
                   </Table>
-                </TableContainer>
+                </StyledTableContainer>
               )}
             </Box>
           )}
 
           {activeTab === 'users' && canManageUsers && (
             <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+              <SectionHeader>
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>User Management</Typography>
                 <Button
                   variant="contained"
@@ -488,20 +486,20 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                 >
                   Add User
                 </Button>
-              </Box>
+              </SectionHeader>
 
               {editingUser ? (
-                <Card variant="outlined" sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
-                  <CardContent sx={{ p: 3 }}>
-                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+                <StyledCard variant="outlined">
+                  <StyledCardContent>
+                    <CardSubtitle variant="subtitle2" color="text.secondary">
                       {usersList.find(u => u.username === editingUser.username) ? "Edit User" : "New User"}
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    </CardSubtitle>
+                    <VerticalStack>
                       <TextField label="Username" size="small" value={editingUser.username} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} disabled={!!usersList.find(u => u.username === editingUser.username)} fullWidth />
                       <TextField label={usersList.find(u => u.username === editingUser.username) ? "New Password (Leave blank to keep current)" : "Password"} type="password" size="small" value={editingUser.password} onChange={e => setEditingUser({ ...editingUser, password: e.target.value })} fullWidth />
 
                       <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Permissions</Typography>
+                        <PermissionsTitle variant="subtitle2">Permissions</PermissionsTitle>
                         <FormGroup>
                           {ALL_PERMISSIONS.map(perm => (
                             <FormControlLabel
@@ -513,15 +511,15 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                         </FormGroup>
                       </Box>
 
-                      <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                      <ButtonActionsContainer $mt={1}>
                         <Button variant="contained" color="success" startIcon={<Save size={16} />} onClick={saveUser}>Save</Button>
                         <Button variant="outlined" color="inherit" onClick={() => setEditingUser(null)}>Cancel</Button>
-                      </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
+                      </ButtonActionsContainer>
+                    </VerticalStack>
+                  </StyledCardContent>
+                </StyledCard>
               ) : (
-                <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
+                <StyledTableContainer component={Paper} elevation={0}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -534,19 +532,19 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                     <TableBody>
                       {usersList.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>No users found.</TableCell>
+                          <EmptyTableCell colSpan={4} align="center">No users found.</EmptyTableCell>
                         </TableRow>
                       ) : (
                         usersList.map((user) => (
                           <TableRow key={user.username}>
-                            <TableCell sx={{ fontWeight: 500 }}>{user.username}</TableCell>
+                            <NameTableCell>{user.username}</NameTableCell>
                             <TableCell>
                               {user.role === 'admin' ? <Chip label="Admin" size="small" color="error" variant="outlined" /> : <Chip label="User" size="small" variant="outlined" />}
                             </TableCell>
-                            <TableCell sx={{ color: 'text.secondary' }}>{user.permissions?.length || 0} Granted</TableCell>
+                            <DetailsTableCell>{user.permissions?.length || 0} Granted</DetailsTableCell>
                             <TableCell align="right">
-                              <Button size="small" sx={{ minWidth: 'auto', mr: 1 }} onClick={() => setEditingUser(user)}>Edit</Button>
-                              <IconButton size="small" color="error" onClick={() => deleteUser(user.username)}>
+                              <EditButton size="small" onClick={() => setEditingUser(user)}>Edit</EditButton>
+                              <IconButton size="small" color="error" onClick={() => handleDeleteUserClick(user.username)}>
                                 <Trash2 size={16} />
                               </IconButton>
                             </TableCell>
@@ -555,74 +553,146 @@ export default function SettingsApp({ token }: SettingsAppProps) {
                       )}
                     </TableBody>
                   </Table>
-                </TableContainer>
+                </StyledTableContainer>
               )}
             </Box>
           )}
 
           {activeTab === 'security' && (
             <Box>
-              <Typography variant="h5" sx={{ mb: 4, fontWeight: 'bold' }}>Security Settings</Typography>
+              <SectionTitle variant="h5">Security Settings</SectionTitle>
 
-              <Card variant="outlined" sx={{ mb: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+              <StyledCard variant="outlined" $mb>
+                <StyledCardContent>
+                  <CardSubtitle variant="subtitle2" color="text.secondary">
                     Authentication
-                  </Typography>
-                  <FormGroup sx={{ gap: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  </CardSubtitle>
+                  <StyledFormGroup>
+                    <FlexRowSpaceBetween>
                       <Typography>Require password on wake</Typography>
                       <Switch defaultChecked />
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    </FlexRowSpaceBetween>
+                    <FlexRowSpaceBetween>
                       <Typography>Save credentials securely</Typography>
                       <Switch defaultChecked />
-                    </Box>
-                  </FormGroup>
-                  <Divider sx={{ my: 3 }} />
+                    </FlexRowSpaceBetween>
+                  </StyledFormGroup>
+                  <StyledDivider />
                   <Button variant="outlined" color="error">
                     Clear Saved Credentials
                   </Button>
-                </CardContent>
-              </Card>
+                </StyledCardContent>
+              </StyledCard>
             </Box>
           )}
 
-        </Box>
-      </Box>
-    </Box>
+        </ContentMaxWidth>
+      </MainContentContainer>
+
+      {/* Delete User Dialog */}
+      <Dialog open={deleteUserDialog.open} onClose={() => setDeleteUserDialog({ open: false, username: '' })}>
+        <DialogTitle>Delete User</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete user "{deleteUserDialog.username}"?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteUserDialog({ open: false, username: '' })} color="inherit">Cancel</Button>
+          <Button onClick={confirmDeleteUser} variant="contained" color="error">Delete</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Login Dialog */}
+      <Dialog open={deleteLoginDialog.open} onClose={() => setDeleteLoginDialog({ open: false, id: '' })}>
+        <DialogTitle>Delete Login</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this login?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteLoginDialog({ open: false, id: '' })} color="inherit">Cancel</Button>
+          <Button onClick={confirmDeleteLogin} variant="contained" color="error">Delete</Button>
+        </DialogActions>
+      </Dialog>
+    </RootContainer>
   );
 }
 
 // Subcomponents
 const ThemeCard = ({ name, active, color, textColor = 'white', accent, onClick }: { name: string, active: boolean, color: string, textColor?: string, accent?: string, onClick: () => void }) => {
-  const theme = useTheme();
   return (
-    <Box sx={{ width: 100, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }} onClick={onClick}>
-      <Box sx={{
-        width: '100%', height: 64, bgcolor: color, borderRadius: 2,
-        border: active ? `2px solid ${theme.palette.primary.main}` : `1px solid ${theme.palette.divider}`,
-        p: 1, position: 'relative'
-      }}>
-        <Box sx={{ width: '100%', height: 8, bgcolor: textColor === 'white' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', borderRadius: 1, mb: 1 }} />
-        <Box sx={{ width: '60%', height: 6, bgcolor: accent || (textColor === 'white' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'), borderRadius: 1 }} />
-      </Box>
-      <Typography variant="caption" sx={{ color: active ? 'primary.main' : 'text.secondary', fontWeight: active ? 'bold' : 'normal' }}>
+    <ThemeCardRoot onClick={onClick}>
+      <ThemeCardPreview $color={color} $active={active}>
+        <ThemeCardHeader $textColor={textColor} />
+        <ThemeCardBody $accent={accent} $textColor={textColor} />
+      </ThemeCardPreview>
+      <ThemeCardLabel variant="caption" $active={active}>
         {name}
-      </Typography>
-    </Box>
+      </ThemeCardLabel>
+    </ThemeCardRoot>
   );
 };
 
-const WallpaperThumb = ({ bg, active, onClick }: { bg: string, active: boolean, onClick: () => void }) => {
-  const theme = useTheme();
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        width: 100, height: 60, borderRadius: 2, cursor: 'pointer',
-        background: bg, border: active ? `2px solid ${theme.palette.primary.main}` : 'none'
-      }}
-    />
-  );
+// Styled Components Wrappers
+const RootContainer = (props: any) => <Box className="root-container" {...props} />;
+const SidebarPaper = (props: any) => <Paper className="sidebar-paper" {...props} />;
+const SidebarHeader = (props: any) => <Box className="sidebar-header" {...props} />;
+const SidebarTitle = (props: any) => <Typography className="sidebar-title" {...props} />;
+const SidebarList = (props: any) => <List className="sidebar-list" {...props} />;
+const TabListItem = (props: any) => <ListItem className="tab-list-item" {...props} />;
+const TabButton = (props: any) => <ListItemButton className="tab-button" {...props} />;
+const TabIcon = ({ $active, ...props }: any) => {
+  return <ListItemIcon className="tab-icon" sx={{ color: $active ? 'primary.main' : 'inherit' }} {...props} />;
+};
+const TabText = ({ $active, ...props }: any) => {
+  return <Typography className="tab-text" sx={{ fontWeight: $active ? 'bold' : 'medium', color: $active ? 'primary.main' : 'inherit' }} {...props} />;
+};
+const MainContentContainer = (props: any) => <Box className="main-content-container" {...props} />;
+const ContentMaxWidth = (props: any) => <Box className="content-max-width" {...props} />;
+const SectionTitle = (props: any) => <Typography className="section-title" {...props} />;
+const StyledCard = ({ $mb, ...props }: any) => (
+  <Card className="styled-card" sx={{ mb: $mb ? 3 : 0 }} {...props} />
+);
+const StyledCardContent = (props: any) => <CardContent className="styled-card-content" {...props} />;
+const CardSubtitle = (props: any) => <Typography className="card-subtitle" {...props} />;
+const VerticalStack = (props: any) => <Box className="vertical-stack" {...props} />;
+const FlexRowSpaceBetween = (props: any) => <Box className="flex-row-space-between" {...props} />;
+const StyledTextField = (props: any) => <TextField className="styled-text-field" {...props} />;
+const StyledSelect = (props: any) => <Select className="styled-select" {...props} />;
+const StyledFormGroup = (props: any) => <FormGroup className="styled-form-group" {...props} />;
+const FlexRowGap2 = (props: any) => <Box className="flex-row-gap-2" {...props} />;
+const WallpaperContainer = (props: any) => <Box className="wallpaper-container" {...props} />;
+const WallpaperThumb = ({ $bg, $active, ...props }: any) => {
+  return <Box className="wallpaper-thumb" sx={{ background: $bg, border: $active ? (theme) => `2px solid ${theme.palette.primary.main}` : 'none' }} {...props} />;
+};
+const SolidWallpaperButton = ({ $active, ...props }: any) => {
+  return <Box className="solid-wallpaper-button" sx={{ border: $active ? (theme) => `2px solid ${theme.palette.primary.main}` : (theme) => `1px dashed ${theme.palette.divider}` }} {...props} />;
+};
+const SectionHeader = (props: any) => <Box className="section-header" {...props} />;
+const FormFieldsContainer = (props: any) => <Box className="form-fields-container" {...props} />;
+const ButtonActionsContainer = ({ $mt, ...props }: any) => (
+  <Box className="button-actions-container" sx={{ mt: $mt !== undefined ? $mt : 0 }} {...props} />
+);
+const StyledTableContainer = (props: any) => <TableContainer className="styled-table-container" {...props} />;
+const EmptyTableCell = (props: any) => {
+  return <TableCell className="empty-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
+};
+const NameTableCell = (props: any) => <TableCell className="name-table-cell" {...props} />;
+const StyledChip = (props: any) => <Chip className="styled-chip" {...props} />;
+const DetailsTableCell = (props: any) => {
+  return <TableCell className="details-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
+};
+const EditButton = (props: any) => <Button className="edit-button" {...props} />;
+const PermissionsTitle = (props: any) => <Typography className="permissions-title" {...props} />;
+const StyledDivider = (props: any) => <Divider className="styled-divider" {...props} />;
+const ThemeCardRoot = (props: any) => <Box className="theme-card-root" {...props} />;
+const ThemeCardPreview = ({ $color, $active, ...props }: any) => {
+  return <Box className="theme-card-preview" sx={{ backgroundColor: $color, border: $active ? (theme) => `2px solid ${theme.palette.primary.main}` : (theme) => `1px solid ${theme.palette.divider}` }} {...props} />;
+};
+const ThemeCardHeader = ({ $textColor, ...props }: any) => (
+  <Box className="theme-card-header" sx={{ backgroundColor: $textColor === 'white' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} {...props} />
+);
+const ThemeCardBody = ({ $accent, $textColor, ...props }: any) => (
+  <Box className="theme-card-body" sx={{ backgroundColor: $accent || ($textColor === 'white' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)') }} {...props} />
+);
+const ThemeCardLabel = ({ $active, ...props }: any) => {
+  return <Typography className="theme-card-label" sx={{ color: $active ? 'primary.main' : 'text.secondary', fontWeight: $active ? 'bold' : 'normal' }} {...props} />;
 };

@@ -33,10 +33,12 @@ export function startVnc(ws: WebSocket, host: string, port: number): void {
             vncSocket.write(message);
         }
     });
+
     vncSocket.on('error', (err) => {
         console.error(`VNC Error for ${host}:`, err.message);
         ws.close();
     });
+
     ws.on('close', () => {
         console.log(`VNC connection closed for ${host}`);
         vncSocket.end();

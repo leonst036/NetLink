@@ -13,8 +13,8 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY main.ts ./
 COPY httpServer.ts ./
-COPY websockets/ ./websockets/
-COPY network/ ./network/
+COPY protocols/ ./protocols/
+COPY services/ ./services/
 
 
 # Compile TS code to the "dist" directory

@@ -5,11 +5,11 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const target = env.VITE_RELAY_HOST || 'localhost:4535'
-  
+
   // If user provided http/https prefix, use it, otherwise assume https for remote hosts
   let targetUrl = target;
   if (!target.startsWith('http')) {
-      targetUrl = target.includes('localhost') ? `http://${target}` : `https://${target}`;
+    targetUrl = target.includes('localhost') ? `http://${target}` : `http://${target}`;
   }
 
   return {

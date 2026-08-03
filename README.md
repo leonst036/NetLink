@@ -1,88 +1,141 @@
 # NetLink
 
-NetLink is a web-based remote management desktop environment. It allows you to securely access and manage your infrastructure from a web browser. The system uses a relay server architecture to bypass NATs and firewalls, and provides a windowed interface for SSH, VNC, SFTP, and network topology visualization.
+NetLink is a web-based tool to reach your home network (or any network you have a local server running on) from anywhere, using SSH, VNC, and SFTP. 
 
-## 🚀 Setup & Servers
+Think of it as your personal, self-hosted remote access gateway. It has a central "Relay Server" you put on the open internet, and a "Local Server" daemon that sits in your home or target network.
 
-To run NetLink, three core components need to be started. The focus is on the central Relay Server, which acts as the middleman, and the Local Server, which acts as a bridge in the target network.
+## Features
 
-### 1. Relay Server (Central Middleman)
-The Relay Server acts as a secure intermediary. It routes traffic (WebSockets/API) between the web frontend and the local servers. It also manages user accounts and Role-Based Access Control (RBAC) via MongoDB.
+- **SSH Terminal**: An in-browser terminal that lets you run commands on the remote device.  
+- **File Management**: A web interface to access files on the remote device.  
+- **VNC**: A web interface to control your device graphically.
 
-**Setup (Manual):**
-```bash
-cd backend/relay
-npm install
-npm run start
-```
-*Note: Create a `.env` file in the `backend/relay` folder and configure `PORT`, `MONGO_URI`, and `JWT_SECRET`.*
-
-**Setup (Docker):**
-```bash
-cd backend/relay
-docker build -t netlink-relay .
-docker run -d -p 4535:4535 -p 4536:4536 --env-file .env netlink-relay
-```
-
-### 2. Local Server (Target Bridge)
-This server runs on the machine or within the network you want to manage remotely (acting as a bridge or direct target). It establishes an outgoing connection to the Relay Server and accepts commands (SSH, SFTP, VNC) from the frontend.
-
-**Setup (Manual):**
-```bash
-cd backend/local_server
-npm install
-npm run start
-```
-*Note: Configure a `.env` file with `RELAY_TOKEN` to connect to the Relay Server.*
-
-**Setup (Docker):**
-```bash
-cd backend/local_server
-docker build -t netlink-local .
-docker run -d --env-file .env netlink-local
-```
-
-### 3. Frontend (Web Interface)
-The frontend is the React/Vite-based user interface that you open in your browser.
-
-**Setup:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Afterwards, open your browser to the URL provided by Vite (usually `http://localhost:5173`).
+#### More coming soon...
 
 ---
 
-## 🏗️ Architecture
+## 🛠️ How to set this thing up
 
-*   **Frontend (`/frontend`)**: A feature-rich, desktop-like web application (React, TypeScript). Includes apps for SSH (`xterm.js`), VNC (`@novnc/novnc`), SFTP, Network Topology (`@xyflow/react`), and settings.
-*   **Local Server (`/backend/local_server`)**: A Node.js/TypeScript service on the target device. Provides SSH, SFTP, and VNC connections to local and remote devices, forwarding the data to connected WebSocket clients.
-*   **Relay Server (`/backend/relay`)**: A central Node.js/TypeScript server. Securely connects clients to Local Servers and uses MongoDB for authentication and secure storage of credentials.
+Because NetLink is split into two parts, you'll need to set up both for the magic to happen.
 
-## ✨ Features
+### Part 1: The Relay Server (Your Gateway)
+This needs to run somewhere with a direct connection to the internet (like a VPS). It serves the web UI and handles the WebSocket connections coming from your local daemon.
 
--   **Desktop Environment**: Window-based UI for multiple simultaneous connections and apps.
--   **Terminal (SSH)**: Full terminal emulation (`xterm.js`) for remote SSH access.
--   **Remote Desktop (VNC)**: In-browser VNC client with dynamic resolution adaptation (`noVNC`).
--   **File Manager (SFTP)**: SFTP interface for file uploads, downloads, and directory management.
--   **Network Topology**: Interactive visualization of the network graph and connected devices.
--   **Relay Support**: Access to local machines behind firewalls or NATs.
--   **Security & Permissions**: JWT-based authentication with Role-Based Access Control (RBAC) via MongoDB.
--   **Centralized Credentials**: Secure storage and management of server logins (SSH, VNC, SFTP).
+By default, it uses port **4535** for the web UI (HTTP) and **4536** for the WebSocket connection.
 
-## 🛠️ Technology Stack
-
--   **Frontend**: React, TypeScript, Vite, CSS (`react-rnd`, `lucide-react`, `xterm.js`, `noVNC`, `xyflow`)
--   **Backend**: Node.js, TypeScript
--   **Networking**: WebSockets (`ws`), `net`
--   **Protocols**: `ssh2`, `ssh2-sftp-client`
--   **Database & Auth**: MongoDB, JSON Web Tokens (`jsonwebtoken`)
-
-### Build Utilities
-
-To clean up generated TypeScript build artifacts (JavaScript and source maps) in the backend, you can use the provided script:
+**Setup with Docker (Recommended for sanity):**
 ```bash
-./clean_generated.sh
+cd backend/relay
+docker build -t netlink-relay .
+# Run it (pass your env variables here)
+docker run -d -p 4535:4535 -p 4536:4536 --name netlink-relay netlink-relay
 ```
+
+**Setup (Manual):**
+If you prefer doing things by hand, remember that you have to build the frontend first!
+```bash
+# 1. Build the UI
+cd backend/relay/frontend
+npm install
+npm run build
+
+# 2. Start the relay server
+cd ../
+npm install
+npm run start
+```
+
+### Part 2: The Local Server (The Daemon)
+This runs on a machine inside the network you want to access (like a Raspberry Pi at home). It connects *out* to your Relay Server, meaning you don't have to open any ports on your home router!
+
+**Setup with Docker:**
+```bash
+cd backend/local_server
+docker build -t netlink-local .
+# Make sure you provide an .env file with your RELAY_TOKEN!
+docker run -d --env-file .env netlink-local
+```
+
+**Setup (Manual):**
+```bash
+cd backend/local_server
+npm install
+npm run start
+```
+
+---
+
+## 🔧 Environment Variables
+
+Here are all the ways you can configure both servers. You can put these in a `.env` file or pass them directly to Docker. 
+
+### Relay Server Variables (`backend/relay`)
+| Variable | Default | What it does |
+| :--- | :--- | :--- |
+| `HTTP_PORT` | `4535` | Port for the web UI and REST API. |
+| `WS_PORT` | `4536` | Port for the WebSocket connections from your local server. |
+| `JWT_SECRET` | `default_secret` | Secret key for auth tokens. **Definitely change this** if you expose it to the internet! |
+| `ADMIN_USERNAME` | `admin` | Username to log into the web UI. |
+| `ADMIN_PASSWORD` | `admin` | Password to log into the web UI. |
+| `MONGO_URI` | *(empty)* | Connection string for MongoDB. If you don't set this, it falls back to a memory-only auth mode. |
+| `USE_SSL` | `'false'` | Set to `'true'` if you want the Node app to handle HTTPS/WSS natively (instead of using a reverse proxy). |
+| `SSL_KEY_PATH` | `key.pem` | Path to the SSL key (if `USE_SSL` is true). |
+| `SSL_CERT_PATH`| `cert.pem`| Path to the SSL cert (if `USE_SSL` is true). |
+| `FRONTEND_PATH`| *(auto)* | Path to the compiled frontend files. Usually auto-detects `frontend/dist`. |
+
+### Local Server Variables (`backend/local_server`)
+| Variable | Default | What it does |
+| :--- | :--- | :--- |
+| `RELAY_TOKEN` | *(required)* | The auth token used to connect to your Relay Server. Don't leave home without it. |
+| `RELAY_URL` | *(empty)* | Full WebSocket URL of your relay (e.g., `wss://relay.example.com`). If you set this, it overrides the host/port configs below. |
+| `RELAY_HOST` | `localhost` | The IP or domain of your Relay Server. (Can also use `RELAY_IP` or `RELAY_DOMAIN`). |
+| `RELAY_PORT` | `4536` | The WebSocket port your relay is listening on. |
+| `RELAY_SSL` | `'true'` | Set to `'false'` if you are connecting to your relay without SSL (like testing locally). |
+| `REJECT_UNAUTHORIZED` | `'true'` | Set to `'false'` to accept self-signed SSL certificates from your relay. |
+| `SCAN_CIDR` | *(auto)* | Manual CIDR block to scan for devices (e.g., `192.168.1.0/24`). If empty, it tries to guess based on your IP. |
+| `DEMO_TIMEOUT` | *(empty)* | Timeout in seconds before killing demo connections. |
+| `SSL_KEY_PATH` | `key.pem` | Path for the local server's internal HTTPS API key. |
+| `SSL_CERT_PATH`| `cert.pem`| Path for the local server's internal HTTPS API cert. |
+
+---
+
+## 📝 To-Do
+- Mobile Version: Enhance interaction with touch screen for better use on tablets and laptops with touch screens
+
+## 📁 File Structure
+
+```
+NetLink/
+├── backend/
+│   ├── local_server/              # Daemon running on target local network
+│   │   ├── protocols/             # Connection protocols & routing
+│   │   ├── services/              # Server services (relay connection & network scanner)
+│   │   ├── Dockerfile
+│   │   ├── httpServer.ts
+│   │   ├── main.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   └── relay/                     # Central Relay Server (Web UI, WebSocket relay & Auth)
+│       ├── assets/                # Deployment scripts & assets
+│       ├── auth/                  # Authentication & Token management
+│       ├── database/              # MongoDB database integration
+│       ├── frontend/              # In-browser Web Desktop UI (React + Vite)
+│       ├── http/                  # HTTP server & REST routes
+│       ├── websocket/             # WebSocket management & HTTPS helper
+│       ├── Dockerfile
+│       ├── main.ts
+│       ├── package.json
+│       └── tsconfig.json
+│
+├── frontend -> backend/relay/frontend  # Symlink to Relay Web Frontend
+├── clean_generated.sh
+├── shell-netlink.nix
+├── LICENSE
+└── README.md
+```
+### To-Do
+-   **Mobile Version**: Enhance interaction with touch screen for better use on tablets und laptops with touch screens
+
+---
+If you have trouble opening the frontend folder, go to backend/relay/frontend .

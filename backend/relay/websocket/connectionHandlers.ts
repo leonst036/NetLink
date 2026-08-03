@@ -1,4 +1,5 @@
 import { WebSocket } from 'ws';
+import crypto from 'crypto';
 import { 
     controlConnections, 
     pendingSessions, 
@@ -74,34 +75,35 @@ export function handleLocalServerConnection(
 export function handleClientConnection(
     ws: WebSocket, 
     identifier: string, 
-    targetId: string
+    targetId: string,
+    sessionId: string | null
 ): void {
     console.log(`Client requested connection to target: ${targetId}`);
 
     // Initiate session using the control connection
     const controlWs = controlConnections.get(targetId);
     if (controlWs && controlWs.readyState === WebSocket.OPEN) {
-        const newSessionId = Math.random().toString(36).substring(2, 15);
-        pendingSessions.set(newSessionId, ws);
-        console.log(`Requesting new data connection from local server: ${targetId} (Session: ${newSessionId})`);
+        const activeSessionId = sessionId || crypto.randomUUID();
+        pendingSessions.set(activeSessionId, ws);
+        console.log(`Requesting new data connection from local server: ${targetId} (Session: ${activeSessionId})`);
         
         controlWs.send(JSON.stringify({
             type: 'init_session',
-            sessionId: newSessionId
+            sessionId: activeSessionId
         }));
 
         // Timeout after 10 seconds if server doesn't establish the connection
         const timeoutId = setTimeout(() => {
-            if (pendingSessions.has(newSessionId)) {
-                console.warn(`Session ${newSessionId} initiation timed out`);
-                pendingSessions.delete(newSessionId);
+            if (pendingSessions.has(activeSessionId)) {
+                console.warn(`Session ${activeSessionId} initiation timed out`);
+                pendingSessions.delete(activeSessionId);
                 ws.close(4008, 'Local server failed to respond in time');
             }
         }, 10000);
 
         ws.on('close', () => {
             clearTimeout(timeoutId);
-            pendingSessions.delete(newSessionId);
+            pendingSessions.delete(activeSessionId);
         });
     } else {
         console.warn(`Target local server ${targetId} not online`);

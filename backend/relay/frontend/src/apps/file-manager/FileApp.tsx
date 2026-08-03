@@ -1,26 +1,33 @@
 import { useState, useEffect, useRef } from 'react';
 import { Folder, File, ArrowLeft, RefreshCw, HardDrive, ShieldAlert, Upload, Download, Trash2, FolderPlus, X } from 'lucide-react';
-import { 
-  Box, 
-  Typography, 
-  TextField, 
-  Select, 
-  MenuItem, 
-  Button, 
-  IconButton, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  LinearProgress, 
+import {
+  Box,
+  Typography,
+  Select,
+  MenuItem,
+  Button,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  LinearProgress,
   Alert,
   Card,
   CardContent,
-  useTheme
+  useTheme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField
 } from '@mui/material';
-import GeminiLoader from '../components/GeminiLoader';
+import './FileApp.css';
+import GeminiLoader from '../../components/GeminiLoader';
+import SftpLogin from './SftpLogin';
+import SmbLogin from './SmbLogin';
 
 interface FileAppProps {
   token: string;
@@ -44,9 +51,7 @@ interface FileItem {
 
 export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const theme = useTheme();
-  const [selectedIp, setSelectedIp] = useState(initialIp || '');
-  const [username, setUsername] = useState('root');
-  const [password, setPassword] = useState('');
+  const [protocolType, setProtocolType] = useState<'sftp' | 'smb'>('sftp');
   const [savedLogins, setSavedLogins] = useState<any[]>([]);
 
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
@@ -62,6 +67,10 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const downloadTotalSizeRef = useRef<number>(0);
   const downloadReceivedRef = useRef<number>(0);
+
+  const [folderDialog, setFolderDialog] = useState<{ open: boolean, defaultName: string }>({ open: false, defaultName: '' });
+  const [folderName, setFolderName] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean, itemName: string }>({ open: false, itemName: '' });
 
   const socketRef = useRef<WebSocket | null>(null);
   const downloadChunksRef = useRef<Blob[]>([]);
@@ -128,20 +137,30 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     }
   };
 
-  const handleCreateFolder = () => {
-    const folderName = prompt('Enter new folder name:');
+  const handleCreateFolderClick = () => {
+    setFolderName('New Folder');
+    setFolderDialog({ open: true, defaultName: 'New Folder' });
+  };
+
+  const confirmCreateFolder = () => {
     if (folderName && socketRef.current?.readyState === WebSocket.OPEN) {
       const targetPath = normalizePath(currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`);
       socketRef.current.send(JSON.stringify({ type: 'mkdir', path: targetPath }));
     }
+    setFolderDialog({ open: false, defaultName: '' });
   };
 
-  const handleDeleteItem = (itemName: string) => {
-    const confirmDelete = window.confirm(`Are you sure you want to delete "${itemName}"?`);
-    if (confirmDelete && socketRef.current?.readyState === WebSocket.OPEN) {
+  const handleDeleteItemClick = (itemName: string) => {
+    setDeleteDialog({ open: true, itemName });
+  };
+
+  const confirmDeleteItem = () => {
+    const itemName = deleteDialog.itemName;
+    if (itemName && socketRef.current?.readyState === WebSocket.OPEN) {
       const targetPath = normalizePath(currentPath === '/' ? `/${itemName}` : `${currentPath}/${itemName}`);
       socketRef.current.send(JSON.stringify({ type: 'delete', path: targetPath }));
     }
+    setDeleteDialog({ open: false, itemName: '' });
   };
 
   const sendNextChunk = () => {
@@ -173,7 +192,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     reader.readAsArrayBuffer(slice);
   };
 
-  const connectSftp = () => {
+  const handleConnect = (params: any) => {
     if (!token) return;
     if (socketRef.current) socketRef.current.close();
 
@@ -205,13 +224,8 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
         const data = JSON.parse(textData);
 
         if (data.type === 'ready_for_credentials') {
-          setStatusMessage('Sending SFTP credentials...');
-          socket.send(JSON.stringify({
-            type: 'connect_sftp',
-            ip: selectedIp || 'localhost',
-            username,
-            password
-          }));
+          setStatusMessage(`Sending ${params.type === 'connect_smb' ? 'SMB' : 'SFTP'} credentials...`);
+          socket.send(JSON.stringify(params));
         }
         else if (data.type === 'connected') {
           setStatus('connected');
@@ -248,7 +262,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
               bytes[i] = binaryString.charCodeAt(i);
             }
             downloadChunksRef.current.push(new Blob([bytes]));
-            
+
             downloadReceivedRef.current += bytes.byteLength;
             if (downloadTotalSizeRef.current > 0) {
               setDownloadProgress(Math.min(100, Math.round((downloadReceivedRef.current / downloadTotalSizeRef.current) * 100)));
@@ -358,20 +372,12 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
       .then(res => res.json())
       .then(data => {
         if (data.logins) {
-          setSavedLogins(data.logins.filter((l: any) => l.type === 'sftp'));
+          setSavedLogins(data.logins.filter((l: any) => l.type === 'sftp' || l.type === 'smb'));
         }
       })
       .catch(err => console.error('Failed to fetch logins', err));
   }, [token]);
 
-  const applyLogin = (e: any) => {
-    const login = savedLogins.find(l => l.id === e.target.value);
-    if (login) {
-      setSelectedIp(login.ip);
-      setUsername(login.loginUsername);
-      setPassword(login.password);
-    }
-  };
 
   const navigateTo = (path: string, pushToHistory = true) => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
@@ -416,170 +422,151 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'transparent' }}>
+    <RootContainer>
       {/* Login Screen */}
       {status === 'disconnected' && (
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3, background: 'transparent' }}>
-          <Card sx={{ width: '100%', maxWidth: 380, bgcolor: 'rgba(30, 41, 59, 0.4)', backdropFilter: 'blur(16px)', border: `1px solid ${theme.palette.divider}`, borderRadius: 4, boxShadow: 24 }}>
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                <Box sx={{ bgcolor: 'warning.light', p: 1.5, borderRadius: 2, border: '1px solid rgba(251, 146, 60, 0.2)' }}>
+        <LoginContainer>
+          <LoginCard>
+            <LoginCardContent>
+              <IconWrapper>
+                <IconContainer>
                   <Folder size={28} color={theme.palette.warning.main} />
+                </IconContainer>
+              </IconWrapper>
+
+              <LoginTitle variant="h6" align="center" gutterBottom>File Explorer</LoginTitle>
+              <LoginSubtitle variant="body2" color="text.secondary" align="center">Access remote files via SFTP or SMB</LoginSubtitle>
+
+              <LoginForm>
+                <Box>
+                  <FormLabelText variant="caption" color="text.secondary">Protocol</FormLabelText>
+                  <Select
+                    fullWidth
+                    size="small"
+                    value={protocolType}
+                    onChange={e => setProtocolType(e.target.value as 'sftp' | 'smb')}
+                  >
+                    <MenuItem value="sftp">SFTP (SSH File Transfer)</MenuItem>
+                    <MenuItem value="smb">SMB / CIFS (Windows Share)</MenuItem>
+                  </Select>
                 </Box>
-              </Box>
 
-              <Typography variant="h6" sx={{ fontWeight: 'bold' }} align="center" gutterBottom>SFTP File Client</Typography>
-              <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 4 }}>Access remote files securely</Typography>
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                {savedLogins.length > 0 && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Saved Logins</Typography>
-                    <Select fullWidth size="small" value="" displayEmpty onChange={applyLogin}>
-                      <MenuItem value="" disabled>Select a saved server...</MenuItem>
-                      {savedLogins.map(l => <MenuItem key={l.id} value={l.id}>{l.name} ({l.ip})</MenuItem>)}
-                    </Select>
-                  </Box>
+                {protocolType === 'sftp' ? (
+                  <SftpLogin initialIp={initialIp} savedLogins={savedLogins} onConnect={handleConnect} />
+                ) : (
+                  <SmbLogin initialIp={initialIp} savedLogins={savedLogins} onConnect={handleConnect} />
                 )}
-
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Target IP / Hostname</Typography>
-                  <TextField fullWidth size="small" placeholder="e.g. 192.168.1.10" value={selectedIp} onChange={e => setSelectedIp(e.target.value)} />
-                </Box>
-
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Username</Typography>
-                  <TextField fullWidth size="small" value={username} onChange={e => setUsername(e.target.value)} />
-                </Box>
-
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mb: 1, display: 'block' }}>Password</Typography>
-                  <TextField fullWidth size="small" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-                </Box>
 
                 {statusMessage && (
                   <Alert severity="error" icon={<ShieldAlert size={16} />}>{statusMessage}</Alert>
                 )}
-
-                <Button 
-                  variant="contained" 
-                  color="warning" 
-                  onClick={connectSftp} 
-                  sx={{ mt: 1, py: 1.2, fontWeight: 'bold' }}
-                >
-                  Connect SFTP
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
+              </LoginForm>
+            </LoginCardContent>
+          </LoginCard>
+        </LoginContainer>
       )}
 
       {/* Connecting Loader */}
       {status === 'connecting' && (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 3, bgcolor: 'transparent' }}>
+        <LoadingContainer>
           <GeminiLoader size={64} />
-          <Typography color="text.secondary" sx={{ fontWeight: 500, letterSpacing: '0.02em' }}>{statusMessage}</Typography>
-        </Box>
+          <LoadingText color="text.secondary">{statusMessage}</LoadingText>
+        </LoadingContainer>
       )}
 
       {/* Main File Explorer View */}
       {status === 'connected' && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <ExplorerContainer>
           {/* Action Header / Breadcrumb */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
-            <IconButton onClick={goBack} disabled={history.length === 0} sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
+          <Toolbar>
+            <ToolbarIconButton onClick={goBack} disabled={history.length === 0}>
               <ArrowLeft size={16} />
-            </IconButton>
+            </ToolbarIconButton>
 
-            <IconButton onClick={refreshList} sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
+            <ToolbarIconButton onClick={refreshList}>
               <RefreshCw size={16} />
-            </IconButton>
+            </ToolbarIconButton>
 
             {/* Breadcrumb Path Bar */}
-            <Box sx={{ 
-              flex: 1, display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.8, 
-              bgcolor: 'rgba(0, 0, 0, 0.3)', borderRadius: 1, border: `1px solid rgba(255,255,255,0.05)`,
-              fontFamily: 'monospace', color: 'info.main', overflow: 'hidden'
-            }}>
+            <PathBar>
               <HardDrive size={14} color="#64748b" />
-              <Typography noWrap sx={{ fontFamily: 'inherit', fontSize: '0.85rem' }}>{currentPath}</Typography>
-            </Box>
+              <Typography variant="caption" sx={{ px: 0.8, py: 0.2, borderRadius: 0.5, backgroundColor: 'rgba(251, 146, 60, 0.2)', color: '#fb923c', fontWeight: 'bold', fontSize: '0.7rem', textTransform: 'uppercase' }}>
+                {protocolType}
+              </Typography>
+              <PathText noWrap>{currentPath}</PathText>
+            </PathBar>
 
             <input type="file" ref={fileInputRef} onChange={handleFileSelect} style={{ display: 'none' }} disabled={isUploading} />
 
-            <Button 
-              variant="outlined" 
-              color="inherit" 
-              onClick={handleCreateFolder} 
+            <ToolbarButton
+              variant="outlined"
+              color="inherit"
+              onClick={handleCreateFolderClick}
               startIcon={<FolderPlus size={14} />}
-              sx={{ textTransform: 'none' }}
             >
               New Folder
-            </Button>
-            <Button 
-              variant="outlined" 
-              color="inherit" 
-              onClick={() => fileInputRef.current?.click()} 
-              disabled={isUploading} 
+            </ToolbarButton>
+            <ToolbarButton
+              variant="outlined"
+              color="inherit"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
               startIcon={<Upload size={14} />}
-              sx={{ textTransform: 'none' }}
             >
               {isUploading ? `Uploading ${uploadProgress}%` : 'Upload'}
-            </Button>
+            </ToolbarButton>
 
-            <Button 
-              variant="contained" 
-              color="error" 
+            <ToolbarButton
+              variant="contained"
+              color="error"
               onClick={disconnectSftp}
-              sx={{ textTransform: 'none' }}
             >
               Disconnect
-            </Button>
-          </Box>
+            </ToolbarButton>
+          </Toolbar>
 
           {appError && (
-            <Alert severity="error" onClose={() => setAppError(null)} sx={{ borderRadius: 0, '& .MuiAlert-message': { width: '100%' } }}>
+            <StyledAlert severity="error" onClose={() => setAppError(null)}>
               {appError}
-            </Alert>
+            </StyledAlert>
           )}
 
           {/* Upload Progress Bar */}
           {isUploading && uploadProgress !== null && (
-            <Box sx={{ p: 1.5, bgcolor: 'rgba(234, 88, 12, 0.1)', borderBottom: `1px solid rgba(234, 88, 12, 0.2)` }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'warning.main', mb: 1, fontSize: '0.85rem' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <UploadProgressContainer>
+              <ProgressHeader $colorType="warning">
+                <ProgressLabelSection>
                   <Typography variant="body2">Uploading {uploadFileRef.current?.name}...</Typography>
-                  {transferSpeed && <Typography variant="caption" sx={{ opacity: 0.8 }}>({transferSpeed})</Typography>}
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  {transferSpeed && <TransferSpeedText variant="caption">({transferSpeed})</TransferSpeedText>}
+                </ProgressLabelSection>
+                <ProgressActionsSection>
                   <Typography variant="body2">{uploadProgress}%</Typography>
-                  <IconButton size="small" color="error" onClick={cancelUpload} sx={{ p: 0 }}><X size={14} /></IconButton>
-                </Box>
-              </Box>
+                  <CancelIconButton size="small" color="error" onClick={cancelUpload}><X size={14} /></CancelIconButton>
+                </ProgressActionsSection>
+              </ProgressHeader>
               <LinearProgress variant="determinate" value={uploadProgress} color="warning" />
-            </Box>
+            </UploadProgressContainer>
           )}
 
           {/* Download Progress Bar */}
           {isDownloading && (
-            <Box sx={{ p: 1.5, bgcolor: 'rgba(56, 189, 248, 0.1)', borderBottom: `1px solid rgba(56, 189, 248, 0.2)` }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'info.main', mb: 1, fontSize: '0.85rem' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <DownloadProgressContainer>
+              <ProgressHeader $colorType="info">
+                <ProgressLabelSection>
                   <Typography variant="body2">Downloading {downloadFileNameRef.current}...</Typography>
-                  {transferSpeed && <Typography variant="caption" sx={{ opacity: 0.8 }}>({transferSpeed})</Typography>}
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  {transferSpeed && <TransferSpeedText variant="caption">({transferSpeed})</TransferSpeedText>}
+                </ProgressLabelSection>
+                <ProgressActionsSection>
                   <Typography variant="body2">{downloadProgress !== null ? `${downloadProgress}%` : '...'}</Typography>
-                  <IconButton size="small" color="error" onClick={cancelDownload} sx={{ p: 0 }}><X size={14} /></IconButton>
-                </Box>
-              </Box>
+                  <CancelIconButton size="small" color="error" onClick={cancelDownload}><X size={14} /></CancelIconButton>
+                </ProgressActionsSection>
+              </ProgressHeader>
               <LinearProgress variant={downloadProgress !== null ? "determinate" : "indeterminate"} value={downloadProgress || 0} color="info" />
-            </Box>
+            </DownloadProgressContainer>
           )}
 
           {/* Files List Panel */}
-          <TableContainer component={Box} sx={{ flex: 1, overflowY: 'auto' }}>
+          <StyledTableContainer component={Box}>
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
@@ -591,77 +578,74 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
               </TableHead>
               <TableBody>
                 {currentPath !== '/' && (
-                  <TableRow 
-                    hover 
-                    onClick={() => navigateTo('..')} 
-                    sx={{ cursor: 'pointer' }}
+                  <StyledTableRow
+                    hover
+                    onClick={() => navigateTo('..')}
                   >
                     <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main', fontWeight: 500 }}>
+                      <UpFolderContainer>
                         <Folder size={16} /> ..
-                      </Box>
+                      </UpFolderContainer>
                     </TableCell>
                     <TableCell>--</TableCell>
                     <TableCell>--</TableCell>
                     <TableCell></TableCell>
-                  </TableRow>
+                  </StyledTableRow>
                 )}
 
                 {files.map((file) => {
                   const isDir = file.type === 'd';
                   return (
-                    <TableRow
+                    <StyledTableRow
                       key={file.name}
                       hover
                       onClick={() => (file.type === 'd' || file.type === 'l') ? navigateTo(`${currentPath === '/' ? '' : currentPath}/${file.name}`) : triggerDownload(file.name, file.size)}
-                      sx={{ cursor: 'pointer' }}
                     >
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: isDir ? 'warning.main' : 'text.primary', fontWeight: isDir ? 500 : 400 }}>
+                        <FileItemContainer $isDir={isDir}>
                           {isDir ? <Folder size={16} /> : <File size={16} color="#94a3b8" />}
-                          <Typography noWrap sx={{ maxWidth: 200, fontSize: '0.85rem' }}>{file.name}</Typography>
-                        </Box>
+                          <FileNameText noWrap>{file.name}</FileNameText>
+                        </FileItemContainer>
                       </TableCell>
-                      <TableCell sx={{ color: 'text.secondary' }}>
+                      <SecondaryTableCell>
                         {isDir ? '--' : formatSize(file.size)}
-                      </TableCell>
-                      <TableCell sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>
+                      </SecondaryTableCell>
+                      <MonospaceTableCell>
                         {file.rights ? `${file.type}${file.rights.user}${file.rights.group}${file.rights.other}` : '--'}
-                      </TableCell>
+                      </MonospaceTableCell>
                       <TableCell align="right">
                         {!isDir && (
-                          <IconButton 
-                            size="small" 
-                            color="info" 
-                            onClick={(e) => { e.stopPropagation(); triggerDownload(file.name, file.size); }}
-                            sx={{ mr: 1 }}
+                          <ActionIconButton
+                            size="small"
+                            color="info"
+                            onClick={(e: any) => { e.stopPropagation(); triggerDownload(file.name, file.size); }}
                           >
                             <Download size={14} />
-                          </IconButton>
+                          </ActionIconButton>
                         )}
-                        <IconButton 
-                          size="small" 
-                          color="error" 
-                          onClick={(e) => { e.stopPropagation(); handleDeleteItem(file.name); }}
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e: any) => { e.stopPropagation(); handleDeleteItemClick(file.name); }}
                         >
                           <Trash2 size={14} />
                         </IconButton>
                       </TableCell>
-                    </TableRow>
+                    </StyledTableRow>
                   );
                 })}
 
                 {files.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                    <EmptyTableCell colSpan={4} align="center">
                       This folder is empty.
-                    </TableCell>
+                    </EmptyTableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-          </TableContainer>
-        </Box>
+          </StyledTableContainer>
+        </ExplorerContainer>
       )}
 
       {/* Spin Animation Keyframe */}
@@ -671,6 +655,89 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </Box>
+
+      {/* Folder Dialog */}
+      <Dialog open={folderDialog.open} onClose={() => setFolderDialog({ open: false, defaultName: '' })}>
+        <DialogTitle>Create New Folder</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Folder Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={folderName}
+            onChange={(e) => setFolderName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && confirmCreateFolder()}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFolderDialog({ open: false, defaultName: '' })} color="inherit">Cancel</Button>
+          <Button onClick={confirmCreateFolder} variant="contained" color="primary">Create</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, itemName: '' })}>
+        <DialogTitle>Delete Item</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete "{deleteDialog.itemName}"?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog({ open: false, itemName: '' })} color="inherit">Cancel</Button>
+          <Button onClick={confirmDeleteItem} variant="contained" color="error">Delete</Button>
+        </DialogActions>
+      </Dialog>
+    </RootContainer>
   );
 }
+
+// Styled Components Wrappers
+const RootContainer = (props: any) => <Box className="fileapp-root-container" {...props} />;
+const LoginContainer = (props: any) => <Box className="fileapp-login-container" {...props} />;
+const LoginCard = (props: any) => <Card className="fileapp-login-card" {...props} />;
+const LoginCardContent = (props: any) => <CardContent className="fileapp-login-card-content" {...props} />;
+const IconWrapper = (props: any) => <Box className="fileapp-icon-wrapper" {...props} />;
+const IconContainer = (props: any) => <Box className="fileapp-icon-container" {...props} />;
+const LoginTitle = (props: any) => <Typography className="fileapp-login-title" {...props} />;
+const LoginSubtitle = (props: any) => <Typography className="fileapp-login-subtitle" {...props} />;
+const LoginForm = (props: any) => <Box className="fileapp-login-form" {...props} />;
+const FormLabelText = (props: any) => <Typography className="fileapp-form-label-text" {...props} />;
+const LoadingContainer = (props: any) => <Box className="fileapp-loading-container" {...props} />;
+const LoadingText = (props: any) => <Typography className="fileapp-loading-text" {...props} />;
+const ExplorerContainer = (props: any) => <Box className="fileapp-explorer-container" {...props} />;
+const Toolbar = (props: any) => <Box className="fileapp-toolbar" {...props} />;
+const ToolbarIconButton = (props: any) => <IconButton className="fileapp-toolbar-icon-button" {...props} />;
+const PathBar = (props: any) => <Box className="fileapp-path-bar" {...props} />;
+const PathText = (props: any) => <Typography className="fileapp-path-text" {...props} />;
+const ToolbarButton = (props: any) => <Button className="fileapp-toolbar-button" {...props} />;
+const StyledAlert = (props: any) => <Alert className="fileapp-styled-alert" {...props} />;
+const UploadProgressContainer = (props: any) => <Box className="fileapp-upload-progress-container" {...props} />;
+const DownloadProgressContainer = (props: any) => <Box className="fileapp-download-progress-container" {...props} />;
+const ProgressHeader = ({ $colorType, ...props }: any) => {
+  return <Box className="fileapp-progress-header" sx={{ color: $colorType === 'warning' ? 'warning.main' : 'info.main' }} {...props} />;
+};
+const ProgressLabelSection = (props: any) => <Box className="fileapp-progress-label-section" {...props} />;
+const ProgressActionsSection = (props: any) => <Box className="fileapp-progress-actions-section" {...props} />;
+const TransferSpeedText = (props: any) => <Typography className="fileapp-transfer-speed-text" {...props} />;
+const CancelIconButton = (props: any) => <IconButton className="fileapp-cancel-icon-button" {...props} />;
+const StyledTableContainer = (props: any) => <TableContainer className="fileapp-styled-table-container" {...props} />;
+const StyledTableRow = (props: any) => <TableRow className="fileapp-styled-table-row" {...props} />;
+const UpFolderContainer = (props: any) => {
+  return <Box className="fileapp-up-folder-container" sx={{ color: 'warning.main' }} {...props} />;
+};
+const FileItemContainer = ({ $isDir, ...props }: any) => {
+  return <Box className="fileapp-file-item-container" sx={{ color: $isDir ? 'warning.main' : 'text.primary', fontWeight: $isDir ? 500 : 400 }} {...props} />;
+};
+const FileNameText = (props: any) => <Typography className="fileapp-file-name-text" {...props} />;
+const SecondaryTableCell = (props: any) => {
+  return <TableCell className="fileapp-secondary-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
+};
+const MonospaceTableCell = (props: any) => {
+  return <TableCell className="fileapp-monospace-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
+};
+const ActionIconButton = (props: any) => <IconButton className="fileapp-action-icon-button" {...props} />;
+const EmptyTableCell = (props: any) => {
+  return <TableCell className="fileapp-empty-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
+};
