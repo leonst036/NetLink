@@ -9,9 +9,12 @@ export function handleInstallScriptRoute(req: http.IncomingMessage, res: http.Se
     const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     const pathname = parsedUrl.pathname;
     const xForwardedProto = req.headers['x-forwarded-proto'];
-    const isHttps = (req.socket as any).encrypted || (typeof xForwardedProto === 'string' && xForwardedProto.includes('https')) || xForwardedProto === 'https';
-    const protocol = isHttps ? 'https' : 'http';
+    let isHttps = (req.socket as any).encrypted || (typeof xForwardedProto === 'string' && xForwardedProto.includes('https')) || xForwardedProto === 'https';
     const host = req.headers.host || 'localhost';
+    if (!isHttps && !host.includes('localhost') && !host.startsWith('127.') && !host.startsWith('192.168.') && !host.startsWith('10.')) {
+        isHttps = true;
+    }
+    const protocol = isHttps ? 'https' : 'http';
     const relayUrl = `${protocol}://${host}`;
     const isPs1 = pathname.endsWith('.ps1');
     const scriptName = isPs1 ? 'install_local_server.ps1' : 'install_local_server.sh';
@@ -32,9 +35,12 @@ export function handleDemoScriptRoute(req: http.IncomingMessage, res: http.Serve
     const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     const pathname = parsedUrl.pathname;
     const xForwardedProto = req.headers['x-forwarded-proto'];
-    const isHttps = (req.socket as any).encrypted || (typeof xForwardedProto === 'string' && xForwardedProto.includes('https')) || xForwardedProto === 'https';
-    const protocol = isHttps ? 'https' : 'http';
+    let isHttps = (req.socket as any).encrypted || (typeof xForwardedProto === 'string' && xForwardedProto.includes('https')) || xForwardedProto === 'https';
     const host = req.headers.host || 'localhost';
+    if (!isHttps && !host.includes('localhost') && !host.startsWith('127.') && !host.startsWith('192.168.') && !host.startsWith('10.')) {
+        isHttps = true;
+    }
+    const protocol = isHttps ? 'https' : 'http';
     const relayUrl = `${protocol}://${host}`;
     const isPs1 = pathname.endsWith('.ps1');
     const scriptName = isPs1 ? 'demo_setup.ps1' : 'demo_setup.sh';
