@@ -28,7 +28,6 @@ import {
   FormControlLabel,
   Checkbox,
   Divider,
-  useTheme,
   Dialog,
   DialogTitle,
   DialogContent,

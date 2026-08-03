@@ -243,7 +243,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
 
   const addDeviceToGraph = (server: ServerData) => {
     if (nodes.find(n => n.id === server.ip)) {
-      addNotification('Device is already in the graph.', 'warning');
+      addNotification('Device is already in the graph.', 'info');
       return;
     }
     const nickname = nicknames[server.ip] || server.hostname || '';
