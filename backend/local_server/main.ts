@@ -21,9 +21,9 @@ wss.on('connection', (ws: WebSocket) => {
     handleWebSocketConnection(ws);
 });
 
-// 3. Start local HTTPS server
-server.listen(8080, () => {
-    console.log('NetLink Server running at https://localhost:8080');
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
+server.listen(PORT, () => {
+    console.log(`NetLink Server running at https://localhost:${PORT}`);
 });
 
 // 4.Connect to cloud relay if configured

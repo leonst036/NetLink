@@ -57,7 +57,7 @@ fi
 echo "Starting NetLink Node in Docker (Will automatically destruct after 24h)..."
 
 # Run docker container
-docker run -d --rm --network host --add-host=host.docker.internal:host-gateway --name netlink-demo-$TARGET_ID -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -e DEMO_TIMEOUT=86400 -e SCAN_CIDR="$SCAN_CIDR" leon036/netlink-node:latest || error_exit "Failed to start the Docker container."
+docker run -d --rm --network host --add-host=host.docker.internal:host-gateway --name netlink-demo-$TARGET_ID -e PORT=0 -e RELAY_URL="$DOCKER_RELAY_URL" -e RELAY_TOKEN="$JWT_TOKEN" -e DEMO_TIMEOUT=86400 -e SCAN_CIDR="$SCAN_CIDR" leon036/netlink-node:latest || error_exit "Failed to start the Docker container."
 
 echo ""
 echo "====================================="
