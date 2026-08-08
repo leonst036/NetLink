@@ -52,3 +52,5 @@ backend/**/*.d.ts.map
 # NetStore Runtime Apps
 backend/local_server/NetStore/Applications/
 backend/relay/NetStore/Applications/
+
+.agents/*
