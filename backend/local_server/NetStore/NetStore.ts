@@ -10,6 +10,21 @@ const __dirname = path.dirname(__filename);
 const NET_STORE_DIR = __dirname.includes('dist') 
     ? path.join(__dirname, '..', '..', 'NetStore', 'Applications') 
     : path.join(__dirname, 'Applications');
+    
+const PERMISSIONS_FILE = path.join(NET_STORE_DIR, 'permissions.json');
+
+function getGrantedPermissions(): Record<string, string[]> {
+    if (!fs.existsSync(PERMISSIONS_FILE)) return {};
+    try {
+        return JSON.parse(fs.readFileSync(PERMISSIONS_FILE, 'utf-8'));
+    } catch {
+        return {};
+    }
+}
+
+function saveGrantedPermissions(perms: Record<string, string[]>) {
+    fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
+}
 
 // Create directory and index.json if missing
 export function InitNetStore(): void {
@@ -36,8 +51,38 @@ export async function StartLocalApps(): Promise<void> {
         const entryFile = fs.existsSync(entryTs) ? entryTs : (fs.existsSync(entryJs) ? entryJs : null);
 
         if (entryFile) {
+            let requestedFolders: any[] = [];
+            let appName = app.name || app.id;
+            
+            if (Array.isArray(app.requiredExternalFolders)) {
+                requestedFolders = app.requiredExternalFolders;
+            }
+
+            const granted = getGrantedPermissions();
+            const appGranted = granted[app.id] || [];
+
+            if (requestedFolders.length > 0) {
+                const allGranted = requestedFolders.every(f => appGranted.includes(f.path));
+                
+                if (!allGranted) {
+                    console.warn(`Local App ${app.id} requires external folder permissions but they are not granted. Waiting for admin approval...`);
+                    // We don't send WebSocket from here directly. The Relay Server handles the prompt and resyncs.
+                    continue; 
+                }
+            }
+
+            const extraFlags: string[] = [];
+            if (appGranted.length > 0 && requestedFolders.length > 0) {
+                requestedFolders.forEach(f => {
+                    if (appGranted.includes(f.path)) {
+                        if (f.mode === 'write') extraFlags.push(`--allow-write=${f.path}`);
+                        extraFlags.push(`--allow-read=${f.path}`);
+                    }
+                });
+            }
+
             try {
-                await denoSandbox.startApp(app.id, entryFile, appDir);
+                await denoSandbox.startApp(app.id, entryFile, appDir, extraFlags);
                 console.log(`Started local Deno sandbox for app: ${app.id}`);
             } catch (err) {
                 console.error(`Failed to start local Deno sandbox for app ${app.id}:`, err);
@@ -164,6 +209,21 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
             ws.send(JSON.stringify({ type: 'sync-app-backends', backends: relayBackends }));
         }
     }
+    
+    // Listen for sync_app requests to trigger a resync for a specific app
+    ws.on('message', (data: any) => {
+        try {
+            const message = JSON.parse(data.toString());
+            if (message.type === 'sync_app' && message.appId) {
+                console.log(`Received request to resync app ${message.appId}`);
+                const appSyncFiles = getAppSyncFiles().filter(b => b.appId === message.appId);
+                if (appSyncFiles.length > 0) {
+                    ws.send(JSON.stringify({ type: 'sync-app-backends', backends: appSyncFiles }));
+                }
+                StartLocalApps(); // Attempt to start it locally again
+            }
+        } catch (err) {}
+    });
 }
 
 export async function installApplication(appId: string): Promise<void> {

@@ -27,21 +27,24 @@ export class DenoSandbox {
     }
 
     // Start a Deno app sandbox
-    public async startApp(appId: string, entryFile: string, appDir: string): Promise<AppProcess> {
+    public async startApp(appId: string, entryFile: string, appDir: string, extraFlags: string[] = []): Promise<AppProcess> {
         // Stop if already running
         this.stopApp(appId);
 
         const port = await this.getAvailablePort();
         const denoCmd = fs.existsSync('/home/leon/.deno/bin/deno') ? '/home/leon/.deno/bin/deno' : 'deno';
 
-        // Spawn deno with restricted permissions
-        const denoProcess = spawn(denoCmd, [
+        const args = [
             'run',
             '--allow-net', // Need net to run web server
             `--allow-read=${appDir}`, // Only read own app dir
             '--allow-env=PORT', // Allow reading PORT
+            ...extraFlags,
             entryFile
-        ], {
+        ];
+
+        // Spawn deno with restricted permissions
+        const denoProcess = spawn(denoCmd, args, {
             env: { ...process.env, PORT: port.toString() }
         });
 

@@ -25,19 +25,22 @@ export class DenoSandbox {
         });
     }
 
-    public async startApp(appId: string, entryFile: string, appDir: string): Promise<AppProcess> {
+    public async startApp(appId: string, entryFile: string, appDir: string, extraFlags: string[] = []): Promise<AppProcess> {
         this.stopApp(appId);
 
         const port = await this.getAvailablePort();
         const denoCmd = fs.existsSync('/home/leon/.deno/bin/deno') ? '/home/leon/.deno/bin/deno' : 'deno';
 
-        const denoProcess = spawn(denoCmd, [
+        const args = [
             'run',
             '--allow-net',
             `--allow-read=${appDir}`,
             '--allow-env=PORT',
+            ...extraFlags,
             entryFile
-        ], {
+        ];
+
+        const denoProcess = spawn(denoCmd, args, {
             env: { ...process.env, PORT: port.toString() }
         });
 

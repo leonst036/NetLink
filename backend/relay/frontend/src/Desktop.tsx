@@ -5,6 +5,7 @@ import Dock from './components/Dock';
 import GeminiLoader from './components/GeminiLoader';
 import { Terminal, Network, Monitor, Folder, Settings, StoreIcon } from 'lucide-react';
 import { Box, Alert } from '@mui/material';
+import PermissionModal from './components/PermissionModal';
 import './Desktop.css';
 import { useWindowStore } from './store/useWindowStore';
 import { useNotificationStore } from './store/useNotificationStore';
@@ -30,6 +31,10 @@ interface DesktopProps {
 export default function Desktop({ token, onLogout, target, setTarget, allowedTargets }: DesktopProps) {
     const [servers, setServers] = useState<ServerDevice[]>([]);
     const [isScanning, setIsScanning] = useState(false);
+    
+    // Permission state
+    const [permissionRequests, setPermissionRequests] = useState<any[]>([]);
+    const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
 
     const { notifications, addNotification, removeNotification } = useNotificationStore();
 
@@ -101,6 +106,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
 
         const socketUrl = `${protocol}//${host}/desktop?token=${encodeURIComponent(token)}&target=${encodeURIComponent(target)}`;
         const ws = new WebSocket(socketUrl);
+        setWsConnection(ws);
 
         ws.onmessage = (event) => {
             try {
@@ -110,6 +116,8 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                 } else if (data.type === 'server_list' && data.devices) {
                     setServers(data.devices);
                     setIsScanning(false);
+                } else if (data.type === 'permission_request') {
+                    setPermissionRequests(prev => [...prev, data]);
                 }
             } catch (err) {
                 console.error('Failed to parse websocket message', err);
@@ -121,6 +129,18 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [target]);
+
+    const handlePermissionResponse = (appId: string, granted: boolean, folders: any[]) => {
+        if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+            wsConnection.send(JSON.stringify({
+                type: 'permission_response',
+                appId,
+                granted,
+                folders
+            }));
+        }
+        setPermissionRequests(prev => prev.filter(req => req.appId !== appId));
+    };
 
     return (
         <Box className="desktop-container" sx={{ background: getBackgroundStyle() }}>
@@ -149,6 +169,18 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                 username={settings.username}
                 onLogout={onLogout}
             />
+
+            {/* Permission Modals */}
+            {permissionRequests.map((req, i) => (
+                <PermissionModal
+                    key={req.appId + i}
+                    open={true}
+                    appId={req.appId}
+                    appName={req.appName}
+                    folders={req.folders}
+                    onRespond={handlePermissionResponse}
+                />
+            ))}
 
             {/* Windows Area */}
             <Box
