@@ -75,7 +75,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     };
 
     // Window states
-    const { activeWindow, graphWindow, settingsWindow, storeWindow, terminals, vncWindows, sftpWindows, setGraphWindow, setSettingsWindow, setStoreWindow, openTerminal, openVnc, openSftp, bringToFront, closeTerminal, closeVnc, closeSftp, minimizeTerminal, minimizeVnc, minimizeSftp } = useWindowStore();
+    const { activeWindow, graphWindow, settingsWindow, storeWindow, terminals, vncWindows, sftpWindows, dynamicWindows, setGraphWindow, setSettingsWindow, setStoreWindow, openTerminal, openVnc, openSftp, bringToFront, closeTerminal, closeVnc, closeSftp, minimizeTerminal, minimizeVnc, minimizeSftp, closeDynamicApp, minimizeDynamicApp } = useWindowStore();
 
 
 
@@ -284,6 +284,37 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         </Suspense>
                     </Window>
                 ))}
+
+                {dynamicWindows.map(dyn => {
+                    const isSecure = window.location.protocol === 'https:';
+                    const protocol = isSecure ? 'https:' : 'http:';
+                    let host = window.location.host;
+                    if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535';
+                    
+                    return (
+                    <Window
+                        key={dyn.id}
+                        id={dyn.id}
+                        title={dyn.title}
+                        icon={<StoreIcon size={14} color="#a78bfa" />}
+                        isActive={activeWindow === dyn.id}
+                        isMinimized={dyn.isMinimized}
+                        onMinimize={() => minimizeDynamicApp(dyn.id, true)}
+                        onFocus={() => bringToFront(dyn.id)}
+                        onClose={() => closeDynamicApp(dyn.id)}
+                        defaultPosition={{ x: 300, y: 150 }}
+                        defaultSize={{ width: 800, height: 600 }}
+                    >
+                        <Box sx={{ width: '100%', height: '100%', background: '#fff' }}>
+                            <iframe 
+                                src={`${protocol}//${host}/apps/${dyn.appId}/frontend/index.html`}
+                                style={{ width: '100%', height: '100%', border: 'none' }}
+                                title={dyn.title}
+                                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                            />
+                        </Box>
+                    </Window>
+                )})}
             </Box>
 
             {/* Dock Navigation */}

@@ -22,6 +22,13 @@ export interface SftpInstance {
     isMinimized: boolean;
 }
 
+export interface DynamicAppInstance {
+    id: string; // The window ID
+    appId: string; // The NetStore app ID
+    title: string;
+    isMinimized: boolean;
+}
+
 export interface ServerDevice {
     ip: string;
     hostname: string;

@@ -8,6 +8,14 @@ import {
     bridgeSockets,
     frontendClients
 } from './connectionManager.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { appRouter } from '../http/requestHandler.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const RELAY_APPS_DIR = path.join(__dirname, '..', 'NetStore', 'Applications');
 
 /**
  * Handles incoming local server registration and session requests.
@@ -38,7 +46,7 @@ export function handleLocalServerConnection(
 
         console.log(`Registered local server connection: ${identifier}`);
 
-        ws.on('message', (data: any) => {
+        ws.on('message', async (data: any) => {
             try {
                 const message = JSON.parse(data.toString());
                 if (message.type === 'server_list' && Array.isArray(message.devices)) {
@@ -49,6 +57,48 @@ export function handleLocalServerConnection(
                 if ((message.type === 'applications' || message.type === 'application_json') && Array.isArray(message.applications)) {
                     console.log(`Received ${message.applications.length} applications from local server: ${identifier}`);
                     serverApplications.set(identifier, message.applications);
+                }
+
+                if (message.type === 'sync-app-backends' && Array.isArray(message.backends)) {
+                    console.log(`Syncing ${message.backends.length} applications from local server: ${identifier}`);
+                    for (const app of message.backends) {
+                        const appId = app.appId;
+                        const appDir = path.join(RELAY_APPS_DIR, appId);
+                        
+                        if (!fs.existsSync(appDir)) {
+                            fs.mkdirSync(appDir, { recursive: true });
+                        }
+                        
+                        for (const fileData of app.files) {
+                            const filePath = path.join(appDir, fileData.path);
+                            const fileDir = path.dirname(filePath);
+                            if (!fs.existsSync(fileDir)) {
+                                fs.mkdirSync(fileDir, { recursive: true });
+                            }
+                            const decodedContent = Buffer.from(fileData.content, 'base64');
+                            fs.writeFileSync(filePath, decodedContent);
+                        }
+
+                        const relayDir = path.join(appDir, 'relay');
+                        const entryTs = path.join(relayDir, 'index.ts');
+                        const entryJs = path.join(relayDir, 'index.js');
+                        const entryFile = fs.existsSync(entryTs) ? entryTs : (fs.existsSync(entryJs) ? entryJs : null);
+
+                        if (entryFile) {
+                            try {
+                                const moduleUrl = `file://${entryFile}?update=${Date.now()}`;
+                                const appModule = await import(moduleUrl);
+                                if (typeof appModule.registerRoutes === 'function') {
+                                    appModule.registerRoutes(appRouter);
+                                    console.log(`Registered backend routes for app: ${appId}`);
+                                } else {
+                                    console.warn(`App ${appId} does not export registerRoutes(appRouter) in relay/index.ts`);
+                                }
+                            } catch (err) {
+                                console.error(`Failed to load backend for app ${appId}:`, err);
+                            }
+                        }
+                    }
                 }
                 
                 // Forward message (scanning, server_list, etc.) to all connected frontend clients

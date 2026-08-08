@@ -212,7 +212,8 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       }
       notifyUser(`Opening ${app.name}...`, 'info');
     } else {
-      notifyUser(`Opening ${app.name}...`, 'info');
+      windowStore.openDynamicApp(app.id, app.name);
+      notifyUser(`Opening ${app.name}...`, 'success');
     }
   };
 

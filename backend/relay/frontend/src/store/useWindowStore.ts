@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TerminalInstance, VncInstance, SftpInstance } from '../types';
+import type { TerminalInstance, VncInstance, SftpInstance, DynamicAppInstance } from '../types';
 
 interface WindowState {
     activeWindow: string | null;
@@ -9,6 +9,7 @@ interface WindowState {
     terminals: TerminalInstance[];
     vncWindows: VncInstance[];
     sftpWindows: SftpInstance[];
+    dynamicWindows: DynamicAppInstance[];
 
     setActiveWindow: (id: string | null) => void;
     setGraphWindow: (state: Partial<WindowState['graphWindow']>) => void;
@@ -27,6 +28,10 @@ interface WindowState {
     closeSftp: (id: string) => void;
     minimizeSftp: (id: string, isMinimized: boolean) => void;
 
+    openDynamicApp: (appId: string, title: string) => void;
+    closeDynamicApp: (id: string) => void;
+    minimizeDynamicApp: (id: string, isMinimized: boolean) => void;
+
     bringToFront: (id: string) => void;
 }
 
@@ -38,6 +43,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     terminals: [],
     vncWindows: [],
     sftpWindows: [],
+    dynamicWindows: [],
 
     setActiveWindow: (id) => set({ activeWindow: id }),
 
@@ -72,6 +78,15 @@ export const useWindowStore = create<WindowState>((set, get) => ({
         sftpWindows: state.sftpWindows.map(t => t.id === id ? { ...t, isMinimized } : t)
     })),
 
+    openDynamicApp: (appId, title) => {
+        const id = `dynamic-${appId}-${Date.now()}`;
+        set((state) => ({ dynamicWindows: [...state.dynamicWindows, { id, appId, title, isMinimized: false }], activeWindow: id }));
+    },
+    closeDynamicApp: (id) => set((state) => ({ dynamicWindows: state.dynamicWindows.filter(t => t.id !== id) })),
+    minimizeDynamicApp: (id, isMinimized) => set((state) => ({
+        dynamicWindows: state.dynamicWindows.map(t => t.id === id ? { ...t, isMinimized } : t)
+    })),
+
     bringToFront: (id) => {
         set({ activeWindow: id });
         if (id === 'graph') get().setGraphWindow({ isMinimized: false });
@@ -80,5 +95,6 @@ export const useWindowStore = create<WindowState>((set, get) => ({
         else if (id.startsWith('terminal-')) get().minimizeTerminal(id, false);
         else if (id.startsWith('vnc-')) get().minimizeVnc(id, false);
         else if (id.startsWith('sftp-')) get().minimizeSftp(id, false);
+        else if (id.startsWith('dynamic-')) get().minimizeDynamicApp(id, false);
     }
 }));

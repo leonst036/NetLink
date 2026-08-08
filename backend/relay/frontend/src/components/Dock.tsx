@@ -7,7 +7,7 @@ import { useWindowStore } from '../store/useWindowStore';
 export default function Dock() {
     const {
         graphWindow, settingsWindow, storeWindow, activeWindow,
-        terminals, vncWindows, sftpWindows,
+        terminals, vncWindows, sftpWindows, dynamicWindows,
         setGraphWindow, setSettingsWindow, setStoreWindow, bringToFront,
         openTerminal, openSftp, openVnc
     } = useWindowStore();
@@ -87,6 +87,17 @@ export default function Dock() {
         }
     };
 
+    const handleDynamicDockClick = (dyn: any) => {
+        if (dyn.isMinimized) {
+            useWindowStore.getState().minimizeDynamicApp(dyn.id, false);
+            bringToFront(dyn.id);
+        } else if (activeWindow === dyn.id) {
+            useWindowStore.getState().minimizeDynamicApp(dyn.id, true);
+        } else {
+            bringToFront(dyn.id);
+        }
+    };
+
     return (
         <Paper className="dock-container" elevation={16}>
             <DockIcon
@@ -129,7 +140,7 @@ export default function Dock() {
                 onClick={handleStoreClick}
             />
 
-            {(terminals.length > 0 || vncWindows.length > 0 || sftpWindows.length > 0) && (
+            {(terminals.length > 0 || vncWindows.length > 0 || sftpWindows.length > 0 || dynamicWindows.length > 0) && (
                 <Box className="dock-divider" />
             )}
 
@@ -163,6 +174,17 @@ export default function Dock() {
                     isOpen={activeWindow === sftp.id && !sftp.isMinimized}
                     isMinimized={sftp.isMinimized}
                     onClick={() => handleSftpDockClick(sftp)}
+                />
+            ))}
+
+            {dynamicWindows.map((dyn: any) => (
+                <DockIcon
+                    key={dyn.id}
+                    icon={<StoreIcon size={24} color="#a78bfa" />}
+                    label={dyn.title}
+                    isOpen={activeWindow === dyn.id && !dyn.isMinimized}
+                    isMinimized={dyn.isMinimized}
+                    onClick={() => handleDynamicDockClick(dyn)}
                 />
             ))}
         </Paper>
