@@ -13,7 +13,7 @@
     "color": "#10b981",
     "shortDesc": "Real-time network topology visualization.",
     "fullDesc": "View and manage all connected devices in your subnet using an interactive node graph.",
-    "isFeatured": true
+    "isFeatured": false
   },
   {
     "id": "net-terminal",
