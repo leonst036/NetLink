@@ -12,6 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { appRouter } from '../http/requestHandler.js';
+import { denoSandbox } from '../sandbox/DenoSandbox.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,16 +87,10 @@ export function handleLocalServerConnection(
 
                         if (entryFile) {
                             try {
-                                const moduleUrl = `file://${entryFile}?update=${Date.now()}`;
-                                const appModule = await import(moduleUrl);
-                                if (typeof appModule.registerRoutes === 'function') {
-                                    appModule.registerRoutes(appRouter);
-                                    console.log(`Registered backend routes for app: ${appId}`);
-                                } else {
-                                    console.warn(`App ${appId} does not export registerRoutes(appRouter) in relay/index.ts`);
-                                }
+                                await denoSandbox.startApp(appId, entryFile, appDir);
+                                console.log(`Started Deno sandbox for app: ${appId}`);
                             } catch (err) {
-                                console.error(`Failed to load backend for app ${appId}:`, err);
+                                console.error(`Failed to start Deno sandbox for app ${appId}:`, err);
                             }
                         }
                     }

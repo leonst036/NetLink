@@ -17,6 +17,8 @@ COPY database/ ./database/
 COPY websocket/ ./websocket/
 COPY http/ ./http/
 COPY assets/ ./assets/
+COPY NetStore/ ./NetStore/
+COPY sandbox/ ./sandbox/
 
 # Compile TS code to the "dist" directory
 RUN npx tsc --outDir dist
@@ -38,6 +40,9 @@ ENV NODE_ENV=production
 
 # Install openssl in the production container for certificate auto-generation
 RUN apk add --no-cache openssl
+
+# Install deno
+COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
 
 # Copy package manifests to install production dependencies
 COPY package*.json ./

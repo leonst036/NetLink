@@ -8,6 +8,8 @@ import { authenticateToken } from './auth/authenticator.js';
 import { handleLocalServerConnection, handleClientConnection, handleDesktopConnection } from './websocket/connectionHandlers.js';
 import { createServer } from './websocket/httpsHelper.js';
 import { handleRequest, appRouter } from './http/requestHandler.js';
+import { denoSandbox } from './sandbox/DenoSandbox.js';
+import { WebSocket as WsClient } from 'ws';
 
 dotenv.config();
 
@@ -65,6 +67,33 @@ wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
             // WS connection was successfully routed to an app router
             return;
         } else {
+            // Check if it's a proxied app request: /api/<appId>/...
+            const match = pathname.match(/^\/api\/([^\/]+)(?:\/|$)/);
+            if (match) {
+                const appId = match[1] as string;
+                const app = denoSandbox.getApp(appId);
+                const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'topology', 'users', 'applications', 'netstore'];
+                if (app && !systemRoutes.includes(appId)) {
+                    // Bridge websocket to Deno
+                    const targetUrl = `ws://localhost:${app.port}${req.url}`;
+                    const targetWs = new WsClient(targetUrl, {
+                        headers: {
+                            ...req.headers,
+                            host: `localhost:${app.port}`
+                        }
+                    });
+
+                    targetWs.on('open', () => console.log(`Bridged WS to Deno app ${appId}`));
+                    targetWs.on('message', (msg, isBinary) => ws.send(msg, { binary: isBinary }));
+                    targetWs.on('close', () => ws.close());
+                    targetWs.on('error', (err) => console.error(`Deno WS Error [${appId}]:`, err));
+
+                    ws.on('message', (msg, isBinary) => targetWs.readyState === WsClient.OPEN && targetWs.send(msg, { binary: isBinary }));
+                    ws.on('close', () => targetWs.close());
+                    return;
+                }
+            }
+
             console.warn(`Unsupported request path: ${pathname}`);
             ws.close(1003, 'Unsupported Path');
         }

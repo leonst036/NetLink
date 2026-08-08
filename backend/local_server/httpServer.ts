@@ -1,9 +1,12 @@
 import https from 'https';
+import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import dotenv from 'dotenv';
+import httpProxy from 'http-proxy';
+import { denoSandbox } from './sandbox/DenoSandbox.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +38,27 @@ export function createHttpsServer(): https.Server {
         cert: fs.readFileSync(certPath)
     };
 
+    const proxy = httpProxy.createProxyServer({});
+    proxy.on('error', (err, req, res) => {
+        console.error('Local Proxy error:', err);
+        if (res instanceof http.ServerResponse) { // Or res.writeHead
+            res.writeHead(502, { 'Content-Type': 'text/plain' });
+            res.end('Bad Gateway');
+        }
+    });
+
     return https.createServer(options, (req, res) => {
+        // Proxy app requests
+        const match = req.url?.match(/^\/api\/([^\/]+)(?:\/|$)/);
+        if (match) {
+            const appId = match[1] as string;
+            const app = denoSandbox.getApp(appId);
+            if (app) {
+                proxy.web(req, res, { target: `http://localhost:${app.port}` });
+                return;
+            }
+        }
+
         if (req.url === '/' || req.url === '/index.html') {
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(fs.readFileSync(path.join(__dirname, '../../frontend/index.html')));

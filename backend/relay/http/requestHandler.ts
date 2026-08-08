@@ -10,8 +10,20 @@ import { handleInstallScriptRoute, handleDemoScriptRoute, handleDemoSetupRoute }
 import { handleFaviconRoute, handleStaticFileRoute, handleAppFrontendRoute } from './routes/staticRoutes.js';
 import { handleNetStoreApplicationsRoute } from './routes/netStoreRoutes.js';
 import { Router } from './Router.js';
+import httpProxy from 'http-proxy';
+import { denoSandbox } from '../sandbox/DenoSandbox.js';
 
 export const appRouter = new Router();
+const proxy = httpProxy.createProxyServer({});
+
+// Log proxy errors
+proxy.on('error', (err, req, res) => {
+    console.error('Proxy error:', err);
+    if (res instanceof http.ServerResponse) {
+        res.writeHead(502, { 'Content-Type': 'text/plain' });
+        res.end('Bad Gateway');
+    }
+});
 
 // Health check route
 appRouter.get('/health', (req, res) => {
@@ -61,6 +73,19 @@ appRouter.get('/api/netstore', (req, res, parsedUrl) => handleNetStoreApplicatio
 export function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
     const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     
+    // Check if it's a proxied app request: /api/<appId>/...
+    const match = parsedUrl.pathname.match(/^\/api\/([^\/]+)(?:\/|$)/);
+    if (match) {
+        const appId = match[1] as string;
+        const app = denoSandbox.getApp(appId);
+        // Exclude system api routes like login, register, servers etc.
+        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'topology', 'users', 'applications', 'netstore'];
+        if (app && !systemRoutes.includes(appId)) {
+            proxy.web(req, res, { target: `http://localhost:${app.port}` });
+            return;
+        }
+    }
+
     // First, try to handle the request with the dynamic router
     const handled = appRouter.handle(req, res, parsedUrl);
     

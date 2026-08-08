@@ -9,8 +9,8 @@ This guide explains how to build and structure a custom NetStore application.
 NetLink applications are separated by where their code runs. A typical application has three parts:
 
 1. **Frontend**: The React UI that runs in the browser.
-2. **Local Server**: Backend code that runs on the edge device (e.g., Raspberry Pi) where the local server is installed.
-3. **Relay Server**: Backend code that runs on the cloud relay server to handle global API requests, routing, and database interactions.
+2. **Local Server**: Backend code that runs on the edge device (e.g., Raspberry Pi). Apps run securely in a Deno sandbox.
+3. **Relay Server**: Backend code that runs on the cloud relay server to handle global API requests, routing, and database interactions. Apps run securely in a Deno sandbox.
 
 When you install an application into the `Applications` folder on your local server, NetLink automatically synchronizes the `relay` backend code to the cloud relay server over a secure WebSocket connection. You don't have to manually deploy code to two different machines!
 
@@ -88,43 +88,54 @@ export default function App({ token }: AppProps) {
 }
 ```
 
-### 3. Registering Backend Routes (`relay/index.ts`)
+### 3. Registering Backend Routes (`relay/index.ts` & `local_server/index.ts`)
 
-If your app needs a custom backend API on the cloud relay server, you can easily register routes. Create `relay/index.ts` and export a `registerRoutes` function. 
+If your app needs a custom backend API, you can write Deno-compatible code in `relay/index.ts` or `local_server/index.ts`. 
 
-NetLink provides a built-in `Router` that you can use to add `GET`, `POST`, `PUT`, `DELETE` endpoints, as well as WebSocket connections via `ws`.
+NetLink runs these files in an isolated **Deno Sandbox** for security. Your code runs as a standard HTTP server. NetLink will assign an available port via the `PORT` environment variable and automatically proxy requests to it.
 
 ```typescript
-export function registerRoutes(appRouter: any) {
-    
-    // Register a GET route
-    appRouter.get('/api/my-cool-app/status', (req: any, res: any, parsedUrl: any) => {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'running' }));
-    });
+// Example: A Deno app server
+const port = parseInt(Deno.env.get("PORT") || "8000");
 
-    // Register a POST route
-    appRouter.post('/api/my-cool-app/ping', (req: any, res: any, parsedUrl: any) => {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: 'Pong from the Relay Server!' }));
-    });
+Deno.serve({ port }, (req) => {
+    const url = new URL(req.url);
     
-    // Register a WebSocket route for real-time communication
-    appRouter.ws('/api/my-cool-app/stream', (ws: any, req: any, parsedUrl: any) => {
-        ws.send(JSON.stringify({ message: 'Welcome to the WebSocket stream!' }));
-        ws.on('message', (data: any) => {
-            console.log('Received data from client:', data.toString());
-            ws.send(JSON.stringify({ echo: data.toString() }));
+    // Check if it's a websocket request
+    if (req.headers.get("upgrade") === "websocket") {
+        const { socket, response } = Deno.upgradeWebSocket(req);
+        socket.onopen = () => console.log("WS client connected!");
+        socket.onmessage = (e) => {
+            console.log("WS received:", e.data);
+            socket.send("Echo: " + e.data);
+        };
+        return response;
+    }
+
+    if (req.method === "GET" && url.pathname.endsWith("/status")) {
+        return new Response(JSON.stringify({ status: 'running' }), {
+            headers: { 'Content-Type': 'application/json' }
         });
-    });
-}
+    }
+
+    if (req.method === "POST" && url.pathname.endsWith("/ping")) {
+        return new Response(JSON.stringify({ message: 'Pong from Deno Sandbox!' }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+    
+    return new Response("Not Found", { status: 404 });
+});
 ```
 
-When the local server connects to the relay, it will automatically send this file to the cloud, and the relay server will dynamically load your routes.
+When the local server connects to the relay, it will automatically send this file to the cloud, and the relay server will launch it securely.
 
-### 4. Local Server Logic (`local_server/index.ts`)
+### 4. Sandbox Permissions
 
-*(Note: Local server dynamic routing is structured similarly if your app needs to talk directly to edge hardware like serial ports or local network interfaces).*
+For security, your Deno apps are restricted:
+- No file system access outside your app's directory.
+- No `Deno.run` or `Deno.Command` execution.
+- Network access is permitted to host the server and fetch external APIs.
 
 ---
 

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocket } from 'ws';
+import { denoSandbox } from '../sandbox/DenoSandbox.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +21,29 @@ export function InitNetStore(): void {
         fs.writeFileSync(indexPath, JSON.stringify([]));
     }
     WriteApplicationJson();
+    StartLocalApps();
+}
+
+// Start any local applications that have a local_server/index.ts
+export async function StartLocalApps(): Promise<void> {
+    const apps = ScanApplications();
+    for (const app of apps) {
+        if (!app.id) continue;
+        const appDir = path.join(NET_STORE_DIR, app.id);
+        const localServerDir = path.join(appDir, 'local_server');
+        const entryTs = path.join(localServerDir, 'index.ts');
+        const entryJs = path.join(localServerDir, 'index.js');
+        const entryFile = fs.existsSync(entryTs) ? entryTs : (fs.existsSync(entryJs) ? entryJs : null);
+
+        if (entryFile) {
+            try {
+                await denoSandbox.startApp(app.id, entryFile, appDir);
+                console.log(`Started local Deno sandbox for app: ${app.id}`);
+            } catch (err) {
+                console.error(`Failed to start local Deno sandbox for app ${app.id}:`, err);
+            }
+        }
+    }
 }
 
 // Scan application subdirectories for index.json
