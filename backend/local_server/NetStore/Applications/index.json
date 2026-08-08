@@ -32,11 +32,6 @@
     "isFeatured": false
   },
   {
-    "id": "security-test",
-    "name": "Security Test App",
-    "version": "1.0.0"
-  },
-  {
     "id": "sftp-client",
     "name": "SFTP Client",
     "author": "NetLink Native",
@@ -70,8 +65,18 @@
   },
   {
     "id": "test-app",
-    "name": "Test App",
-    "version": "1.0.0"
+    "name": "Test Application",
+    "author": "Antigravity",
+    "category": "Utilities",
+    "rating": 5,
+    "downloads": "New",
+    "size": "50 KB",
+    "version": "v1.0.0",
+    "icon": "Box",
+    "color": "#eab308",
+    "shortDesc": "A simple test application to verify GitHub downloads.",
+    "fullDesc": "This application was automatically created to test the NetStore GitHub installation mechanism. It contains basic frontend and local_server files.",
+    "isFeatured": true
   },
   {
     "id": "vnc-viewer",

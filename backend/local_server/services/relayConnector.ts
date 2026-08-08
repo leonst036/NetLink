@@ -65,7 +65,7 @@ export function handleRelayConnection(token: string): void {
 
         // Send applications JSON from NetStore
         try {
-            sendApplicationJson(controlWs);
+            await sendApplicationJson(controlWs);
         } catch (err) {
             console.error('Error sending applications JSON:', err);
         }
@@ -89,6 +89,20 @@ export function handleRelayConnection(token: string): void {
 
                 sessionWs.on('error', (err) => {
                     console.error(`Data session socket error (${message.sessionId}):`, err);
+                });
+            } else if (message.type === 'install_application' && message.appId) {
+                console.log(`Relay requested installation of app: ${message.appId}`);
+                import('../NetStore/NetStore.js').then((ns) => {
+                    if (ns.installApplication) {
+                        ns.installApplication(message.appId).then(() => {
+                            console.log(`Successfully installed ${message.appId}. Syncing with relay...`);
+                            ns.sendApplicationJson(controlWs);
+                        }).catch((err: any) => {
+                            console.error(`Failed to install app ${message.appId}:`, err);
+                        });
+                    }
+                }).catch(err => {
+                    console.error('Failed to import NetStore.js:', err);
                 });
             }
         } catch (err) {

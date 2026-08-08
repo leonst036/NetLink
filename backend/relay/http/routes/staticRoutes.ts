@@ -104,8 +104,8 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     const appId = parts[2] as string;
     const subPath = parts.slice(4).join('/');
     
-    // Relay apps directory is at ../NetStore/Applications relative to the src/dist root
-    const RELAY_APPS_DIR = path.join(__dirname, '..', 'NetStore', 'Applications');
+    // Relay apps directory is at ../../NetStore/Applications relative to the src/dist/http/routes root
+    const RELAY_APPS_DIR = path.join(__dirname, '..', '..', 'NetStore', 'Applications');
     const safeSuffix = path.normalize(subPath).replace(/^(\.\.[\/\\])+/, '');
     let filePath = path.join(RELAY_APPS_DIR, appId, 'frontend', safeSuffix);
 

@@ -48,3 +48,7 @@ backend/**/*.js.map
 backend/**/*.d.ts
 backend/**/*.d.ts.map
 !backend/relay/frontend/
+
+# NetStore Runtime Apps
+backend/local_server/NetStore/Applications/
+backend/relay/NetStore/Applications/

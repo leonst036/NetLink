@@ -115,24 +115,18 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             isFeatured: item.isFeatured
           }));
           setStoreCatalog(parsedCatalog);
+          
+          const backendInstalledIds = data.filter((item: any) => item.installed).map((item: any) => item.id);
+          setInstalledAppIds((prev) => Array.from(new Set([...prev, ...backendInstalledIds])));
         }
       })
       .catch((err) => {
         console.warn('Store fetch error:', err.message);
       });
-  }, []);
+  }, [props.target]);
 
-  // Installed App State with localStorage persistence
-  const [installedAppIds, setInstalledAppIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('netstore_installed_apps');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Failed to load installed apps', e);
-    }
-    return ['net-graph', 'net-terminal', 'vnc-viewer', 'sftp-client', 'sys-settings'];
-  });
-
+  // Installed App State
+  const [installedAppIds, setInstalledAppIds] = useState<string[]>([]);
   const [installingMap, setInstallingMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -159,22 +153,41 @@ export default function NetStoreApp(props: NetStoreAppProps) {
 
     setInstallingMap((prev) => ({ ...prev, [app.id]: 15 }));
 
-    let progress = 15;
-    const interval = setInterval(() => {
-      progress += 35;
-      if (progress >= 100) {
-        clearInterval(interval);
-        setInstallingMap((prev) => {
-          const copy = { ...prev };
-          delete copy[app.id];
-          return copy;
-        });
-        setInstalledAppIds((prev) => [...prev, app.id]);
-        notifyUser(`${app.name} has been installed!`, 'success');
-      } else {
-        setInstallingMap((prev) => ({ ...prev, [app.id]: progress }));
+    const targetId = props.target;
+    
+    fetch('/api/applications/install', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
+      },
+      body: JSON.stringify({ appId: app.id, target: targetId })
+    })
+    .then(async (res) => {
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to install application');
       }
-    }, 350);
+      return res.json();
+    })
+    .then(() => {
+      setInstallingMap((prev) => {
+        const copy = { ...prev };
+        delete copy[app.id];
+        return copy;
+      });
+      setInstalledAppIds((prev) => [...prev, app.id]);
+      notifyUser(`${app.name} has been installed!`, 'success');
+    })
+    .catch((err) => {
+      console.error(err);
+      notifyUser(`Failed to install ${app.name}: ${err.message}`, 'warning');
+      setInstallingMap((prev) => {
+        const copy = { ...prev };
+        delete copy[app.id];
+        return copy;
+      });
+    });
   };
 
   const handleUninstall = (app: AppItem, e?: React.MouseEvent) => {
@@ -210,10 +223,9 @@ export default function NetStoreApp(props: NetStoreAppProps) {
           windowStore.bringToFront('settings');
           break;
       }
-      notifyUser(`Opening ${app.name}...`, 'info');
     } else {
-      windowStore.openDynamicApp(app.id, app.name);
       notifyUser(`Opening ${app.name}...`, 'success');
+      windowStore.openDynamicApp(app.id, app.name);
     }
   };
 
@@ -376,14 +388,25 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1.5 }}>
                   {installedAppIds.includes(featuredApp.id) ? (
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      startIcon={<ExternalLink size={16} />}
-                      onClick={(e) => handleOpenApp(featuredApp, e)}
-                    >
-                      Open Application
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<ExternalLink size={16} />}
+                        onClick={(e) => handleOpenApp(featuredApp, e)}
+                      >
+                        Open Application
+                      </Button>
+                      {!featuredApp.nativeKey && (
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          onClick={(e) => handleUninstall(featuredApp, e)}
+                        >
+                          Uninstall
+                        </Button>
+                      )}
+                    </Box>
                   ) : (
                     <Button
                       variant="contained"
@@ -494,15 +517,27 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                               Update
                             </Button>
                           ) : (
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              color="success"
-                              startIcon={<ExternalLink size={14} />}
-                              onClick={(e) => handleOpenApp(app, e)}
-                            >
-                              Open
-                            </Button>
+                            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                              {!app.nativeKey && (
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="error"
+                                  onClick={(e) => handleUninstall(app, e)}
+                                >
+                                  Uninstall
+                                </Button>
+                              )}
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="success"
+                                startIcon={<ExternalLink size={14} />}
+                                onClick={(e) => handleOpenApp(app, e)}
+                              >
+                                Open
+                              </Button>
+                            </Box>
                           )
                         ) : (
                           <Button

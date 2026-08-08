@@ -134,14 +134,87 @@ export function getAppSyncFiles(): any[] {
 }
 
 // Send application JSON over WebSocket to relay server
-export function sendApplicationJson(ws: WebSocket): void {
-    const applications = ScanApplications();
+export async function sendApplicationJson(ws: WebSocket): Promise<void> {
+    let applications = ScanApplications();
     const relayBackends = getAppSyncFiles();
+    
+    try {
+        const { getGitHubApplicationsList } = await import('./gitHubApplications.js');
+        const githubApps = await getGitHubApplicationsList();
+        
+        const appMap = new Map();
+        for (const app of githubApps) {
+            appMap.set(app.id, { ...app, installed: false });
+        }
+        
+        for (const app of applications) {
+            // Local apps override github apps properties if they exist
+            const existing = appMap.get(app.id) || {};
+            appMap.set(app.id, { ...existing, ...app, installed: true });
+        }
+        
+        applications = Array.from(appMap.values());
+    } catch (err) {
+        console.error('Failed to load GitHub applications:', err);
+    }
     
     if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'applications', applications }));
         if (relayBackends.length > 0) {
             ws.send(JSON.stringify({ type: 'sync-app-backends', backends: relayBackends }));
         }
+    }
+}
+
+export async function installApplication(appId: string): Promise<void> {
+    console.log(`Starting installation of application: ${appId}`);
+    try {
+        const treeUrl = `https://api.github.com/repos/leonst036/NetLink/git/trees/NetStore?recursive=1`;
+        const treeRes = await fetch(treeUrl);
+        if (!treeRes.ok) throw new Error(`Failed to fetch GitHub tree: ${treeRes.statusText}`);
+        
+        const treeData = await treeRes.json();
+        if (!treeData.tree || !Array.isArray(treeData.tree)) {
+            throw new Error('Invalid tree data from GitHub');
+        }
+
+        const appPrefix = `applications/${appId}/`;
+        const appFiles = treeData.tree.filter((node: any) => node.type === 'blob' && node.path.startsWith(appPrefix));
+        
+        if (appFiles.length === 0) {
+            throw new Error(`Application ${appId} not found or has no files on GitHub branch`);
+        }
+
+        const appDir = path.join(NET_STORE_DIR, appId);
+        if (!fs.existsSync(appDir)) {
+            fs.mkdirSync(appDir, { recursive: true });
+        }
+
+        // Fetch each file
+        for (const fileNode of appFiles) {
+            const rawUrl = `https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/NetStore/${fileNode.path}`;
+            const relativePath = fileNode.path.substring(appPrefix.length);
+            const localPath = path.join(appDir, relativePath);
+            
+            const fileDir = path.dirname(localPath);
+            if (!fs.existsSync(fileDir)) {
+                fs.mkdirSync(fileDir, { recursive: true });
+            }
+
+            console.log(`Downloading ${fileNode.path}...`);
+            const fileRes = await fetch(rawUrl);
+            if (!fileRes.ok) throw new Error(`Failed to fetch ${fileNode.path}`);
+            
+            const buffer = await fileRes.arrayBuffer();
+            fs.writeFileSync(localPath, Buffer.from(buffer));
+        }
+
+        console.log(`Successfully installed application: ${appId}`);
+        // Reload applications and notify relay or start sandboxes
+        WriteApplicationJson();
+        await StartLocalApps();
+    } catch (err) {
+        console.error(`Error during installation of ${appId}:`, err);
+        throw err;
     }
 }
