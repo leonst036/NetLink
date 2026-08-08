@@ -1,6 +1,7 @@
 import { WebSocket } from 'ws';
 import { handleWebSocketConnection } from '../protocols/router.js';
 import { runNetworkScan } from './scanner.js';
+import { sendApplicationJson } from '../NetStore/NetStore.js';
 
 /**
  * Helper to construct the relay connection URL.
@@ -60,6 +61,13 @@ export function handleRelayConnection(token: string): void {
             }
         } catch (err) {
             console.error('Error running network scan:', err);
+        }
+
+        // Send applications JSON from NetStore
+        try {
+            sendApplicationJson(controlWs);
+        } catch (err) {
+            console.error('Error sending applications JSON:', err);
         }
     });
 

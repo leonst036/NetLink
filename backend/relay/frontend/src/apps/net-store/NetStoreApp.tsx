@@ -29,20 +29,13 @@ import {
   Star,
   Download,
   ExternalLink,
+  X,
+  Sparkles,
   Network,
   Terminal,
   Monitor,
   Folder,
-  Settings,
-  ShieldAlert,
-  Lock,
-  Activity,
-  Cpu,
-  Zap,
-  Database,
-  FileText,
-  X,
-  Sparkles
+  ShieldAlert
 } from 'lucide-react';
 import './NetStoreApp.css';
 import { useWindowStore } from '../../store/useWindowStore';
@@ -65,126 +58,69 @@ interface AppItem {
   isFeatured?: boolean;
 }
 
-const STORE_CATALOG: AppItem[] = [
-  {
-    id: 'net-graph',
-    name: 'Network Topology Explorer',
-    author: 'NetLink Core',
-    category: 'Monitoring',
-    rating: 4.9,
-    downloads: '12.4k',
-    size: '1.2 MB',
-    version: 'v2.4.0',
-    nativeKey: 'graph',
-    color: '#38bdf8',
-    icon: <Network size={22} color="#38bdf8" />,
-    shortDesc: 'Interactive network visualization map with node inspection, live ping monitors, and auto-discovery.',
-    fullDesc: 'The Network Topology Explorer provides full visibility into your connected subnet infrastructure. View live node statuses, auto-detect active gateway IP addresses, inspect node detail cards, and initiate remote terminal or VNC sessions directly from the graph canvas.',
-    features: [
-      'Real-time interactive canvas with pan and zoom',
-      'Auto-discovery of active network nodes',
-      'Direct terminal, VNC, and SFTP session launcher',
-      'WebSocket live status streaming'
-    ],
-    isFeatured: true
-  },
-  {
-    id: 'port-sentinel',
-    name: 'Port Sentinel Scanner',
-    author: 'SecurityLab',
-    category: 'Security',
-    rating: 4.9,
-    downloads: '8.7k',
-    size: '3.4 MB',
-    version: 'v1.8.2',
-    color: '#f43f5e',
-    icon: <ShieldAlert size={22} color="#f43f5e" />,
-    shortDesc: 'Ultra-fast stealth TCP/UDP port scanner and service banner auditor for target hosts.',
-    fullDesc: 'Port Sentinel allows network administrators and security engineers to audit open ports across internal and external subnets. It supports multi-threaded SYN scanning, service version detection, OS fingerprinting, and automated vulnerability check reporting.',
-    features: [
-      'High-speed multi-threaded SYN & UDP scan engine',
-      'Service banner grabbing and version detection',
-      'CVE vulnerability correlation',
-      'Exportable PDF & JSON security audit reports'
-    ],
-    isFeatured: true
-  },
-  {
-    id: 'net-terminal',
-    name: 'NetLink Terminal',
-    author: 'NetLink Core',
-    category: 'Remote Access',
-    rating: 4.8,
-    downloads: '18.9k',
-    size: '850 KB',
-    version: 'v3.1.0',
-    nativeKey: 'terminal',
-    color: '#a78bfa',
-    icon: <Terminal size={22} color="#a78bfa" />,
-    shortDesc: 'Full xterm-compatible SSH and remote shell terminal with multi-tab session management.',
-    fullDesc: 'Powerful, full-featured web terminal engine supporting ANSI colors, custom shortcuts, session logging, and direct SSH relay bridging to target nodes without third-party plugins.',
-    features: [
-      'Full xterm.js emulation engine',
-      'Multi-tab concurrent session support',
-      'Custom color schemes and font sizing',
-      'Session history & command completion'
-    ]
-  },
-  {
-    id: 'vnc-viewer',
-    name: 'VNC Remote Desktop',
-    author: 'NetLink Core',
-    category: 'Remote Access',
-    rating: 4.7,
-    downloads: '9.2k',
-    size: '2.1 MB',
-    version: 'v1.5.0',
-    nativeKey: 'vnc',
-    color: '#10b981',
-    icon: <Monitor size={22} color="#10b981" />,
-    shortDesc: 'High-performance graphical remote desktop control via web VNC protocol with scaling.',
-    fullDesc: 'Access graphical Linux and Windows remote desktops directly inside your browser window. Features RFB protocol compression, automatic desktop resolution scaling, and seamless clipboard synchronization.',
-    features: [
-      'Ultra-low latency HTML5 VNC client',
-      'Seamless remote clipboard copy & paste',
-      'Fullscreen and dynamic window scaling',
-      'Encrypted password storage'
-    ]
-  },
-  {
-    id: 'sftp-client',
-    name: 'File Manager & SFTP',
-    author: 'NetLink Core',
-    category: 'Utilities',
-    rating: 4.6,
-    downloads: '15.1k',
-    size: '1.8 MB',
-    version: 'v2.0.4',
-    nativeKey: 'sftp',
-    color: '#fb923c',
-    icon: <Folder size={22} color="#fb923c" />,
-    shortDesc: 'Remote file browser supporting SFTP file transfer, code editing, and permission controls.',
-    fullDesc: 'Dual-pane remote file browser enabling fast drag-and-drop file transfers between your local desktop and target servers. Includes built-in code editor with syntax highlighting.',
-    features: [
-      'Dual-pane remote filesystem navigation',
-      'Integrated syntax-highlighted code editor',
-      'Batch file upload and download queues',
-      'Linux file permissions (chmod/chown) manager'
-    ]
-  },
-];
+
 
 type MainTab = 'discover' | 'all' | 'installed' | 'updates';
 
 interface NetStoreAppProps {
   token?: string;
+  target?: string;
 }
 
-export default function NetStoreApp(_props: NetStoreAppProps) {
+function getAppIcon(app: any) {
+  if (typeof app.icon === 'object' && app.icon !== null) {
+    return app.icon;
+  }
+  const iconStr = typeof app.icon === 'string' ? app.icon : '';
+  const color = app.color || '#38bdf8';
+  if (iconStr === 'Network' || app.id === 'net-graph') return <Network size={22} color={color} />;
+  if (iconStr === 'ShieldAlert' || app.id === 'port-sentinel') return <ShieldAlert size={22} color={color} />;
+  if (iconStr === 'Terminal' || app.id === 'net-terminal') return <Terminal size={22} color={color} />;
+  if (iconStr === 'Monitor' || app.id === 'vnc-viewer') return <Monitor size={22} color={color} />;
+  if (iconStr === 'Folder' || app.id === 'sftp-client') return <Folder size={22} color={color} />;
+  return <Store size={22} color={color} />;
+}
+
+export default function NetStoreApp(props: NetStoreAppProps) {
   const [activeTab, setActiveTab] = useState<MainTab>('discover');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedApp, setSelectedApp] = useState<AppItem | null>(null);
+  const [storeCatalog, setStoreCatalog] = useState<AppItem[]>([]);
+
+  useEffect(() => {
+    const url = props.target ? `/api/applications?target=${encodeURIComponent(props.target)}` : '/api/applications';
+    fetch(url)
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error('Failed to fetch store applications');
+      })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const parsedCatalog: AppItem[] = data.map((item: any) => ({
+            id: item.id || `app-${Math.random()}`,
+            name: item.name || 'Unnamed App',
+            author: item.author || 'Community',
+            category: item.category || 'Utilities',
+            rating: item.rating || 5.0,
+            downloads: item.downloads || '1.0k',
+            size: item.size || '1 MB',
+            version: item.version || 'v1.0.0',
+            nativeKey: item.nativeKey,
+            color: item.color || '#38bdf8',
+            icon: getAppIcon(item),
+            shortDesc: item.shortDesc || item.shortDescription || '',
+            fullDesc: item.fullDesc || item.fullDescription || '',
+            features: item.features || [],
+            isFeatured: item.isFeatured
+          }));
+          setStoreCatalog(parsedCatalog);
+        }
+      })
+      .catch((err) => {
+        console.warn('Store fetch error:', err.message);
+      });
+  }, []);
 
   // Installed App State with localStorage persistence
   const [installedAppIds, setInstalledAppIds] = useState<string[]>(() => {
@@ -280,18 +216,22 @@ export default function NetStoreApp(_props: NetStoreAppProps) {
     }
   };
 
+  const installedCount = storeCatalog.filter(app => installedAppIds.includes(app.id)).length;
+  // TODO: Implement actual version comparison logic for updates
+  const updatesCount = 0;
+
   const tabs = [
     { id: 'discover', label: 'Discover', icon: <ShoppingBag size={18} /> },
     { id: 'all', label: 'All Applications', icon: <LayoutGrid size={18} /> },
-    { id: 'installed', label: `Installed (${installedAppIds.length})`, icon: <CheckCircle2 size={18} /> },
-    { id: 'updates', label: 'Updates (2)', icon: <RefreshCw size={18} /> },
+    { id: 'installed', label: `Installed (${installedCount})`, icon: <CheckCircle2 size={18} /> },
+    { id: 'updates', label: `Updates (${updatesCount})`, icon: <RefreshCw size={18} /> },
   ];
 
   const categories = ['All', 'Monitoring', 'Security', 'Remote Access', 'Utilities', 'Developer Tools', 'System'];
 
-  const filteredApps = STORE_CATALOG.filter((app) => {
+  const filteredApps = storeCatalog.filter((app) => {
     if (activeTab === 'installed' && !installedAppIds.includes(app.id)) return false;
-    if (activeTab === 'updates' && app.id !== 'wireshark-web' && app.id !== 'net-graph') return false;
+    if (activeTab === 'updates') return false; // No mock updates for now
 
     if (selectedCategory !== 'All' && app.category !== selectedCategory) return false;
 
@@ -307,7 +247,7 @@ export default function NetStoreApp(_props: NetStoreAppProps) {
     return true;
   });
 
-  const featuredApp = STORE_CATALOG[0];
+  const featuredApp = storeCatalog.find((app) => app.isFeatured) || storeCatalog[0];
 
   return (
     <Box className="netstore-root">
@@ -417,7 +357,7 @@ export default function NetStoreApp(_props: NetStoreAppProps) {
       <Box className="netstore-main">
         <Box className="netstore-content-max">
           {/* Featured Banner on Discover Tab */}
-          {activeTab === 'discover' && !searchQuery && selectedCategory === 'All' && (
+          {activeTab === 'discover' && !searchQuery && selectedCategory === 'All' && featuredApp && (
             <Card className="netstore-hero-card" variant="outlined">
               <Box className="netstore-hero-content">
                 <Chip

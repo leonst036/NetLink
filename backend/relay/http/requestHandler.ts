@@ -8,6 +8,7 @@ import { handleTopologyRoute } from './routes/topologyRoutes.js';
 import { handleGetServersRoute, handleServerLoginsRoute } from './routes/serverRoutes.js';
 import { handleInstallScriptRoute, handleDemoScriptRoute, handleDemoSetupRoute } from './routes/scriptRoutes.js';
 import { handleFaviconRoute, handleStaticFileRoute } from './routes/staticRoutes.js';
+import { handleNetStoreApplicationsRoute } from './routes/netStoreRoutes.js';
 
 /**
  * Main HTTP Request Handler - routes incoming HTTP requests to dedicated route controllers.
@@ -87,6 +88,12 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     // User management routes
     if (pathname === '/api/users') {
         handleUsersRoute(parsedUrl, req, res);
+        return;
+    }
+
+    // NetStore application catalog route
+    if (pathname === '/api/applications' || pathname === '/api/netstore') {
+        handleNetStoreApplicationsRoute(parsedUrl, req, res);
         return;
     }
 

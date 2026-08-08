@@ -220,7 +220,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultSize={{ width: 800, height: 550 }}
                     >
                         <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
-                            <NetStoreApp token={token} />
+                            <NetStoreApp token={token} target={target} />
                         </Suspense>
                     </Window>
                 )}

@@ -4,6 +4,7 @@ import {
     controlConnections, 
     pendingSessions, 
     serverDevices,
+    serverApplications,
     bridgeSockets,
     frontendClients
 } from './connectionManager.js';
@@ -44,6 +45,11 @@ export function handleLocalServerConnection(
                     console.log(`Received ${message.devices.length} devices from local server: ${identifier}`);
                     serverDevices.set(identifier, message.devices);
                 }
+
+                if ((message.type === 'applications' || message.type === 'application_json') && Array.isArray(message.applications)) {
+                    console.log(`Received ${message.applications.length} applications from local server: ${identifier}`);
+                    serverApplications.set(identifier, message.applications);
+                }
                 
                 // Forward message (scanning, server_list, etc.) to all connected frontend clients
                 const clients = frontendClients.get(identifier);
@@ -64,6 +70,7 @@ export function handleLocalServerConnection(
             if (controlConnections.get(identifier) === ws) {
                 controlConnections.delete(identifier);
                 serverDevices.delete(identifier);
+                serverApplications.delete(identifier);
             }
         });
     }
