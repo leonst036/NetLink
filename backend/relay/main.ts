@@ -7,7 +7,7 @@ import { initializeDatabase } from './database/MongoManager.js';
 import { authenticateToken } from './auth/authenticator.js';
 import { handleLocalServerConnection, handleClientConnection, handleDesktopConnection } from './websocket/connectionHandlers.js';
 import { createServer } from './websocket/httpsHelper.js';
-import { handleRequest } from './http/requestHandler.js';
+import { handleRequest, appRouter } from './http/requestHandler.js';
 
 dotenv.config();
 
@@ -61,6 +61,9 @@ wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
         } else if (pathname === '/desktop') {
             const targetId = target || identifier;
             handleDesktopConnection(ws, targetId);
+        } else if (appRouter.handleWs(ws, req, reqUrl)) {
+            // WS connection was successfully routed to an app router
+            return;
         } else {
             console.warn(`Unsupported request path: ${pathname}`);
             ws.close(1003, 'Unsupported Path');

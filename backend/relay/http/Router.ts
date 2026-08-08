@@ -1,7 +1,9 @@
 import http from 'http';
 import { URL } from 'url';
+import { WebSocket } from 'ws';
 
 export type RouteHandler = (req: http.IncomingMessage, res: http.ServerResponse, parsedUrl: URL) => void;
+export type WSRouteHandler = (ws: WebSocket, req: http.IncomingMessage, parsedUrl: URL) => void;
 
 interface Route {
     method: string;
@@ -9,8 +11,14 @@ interface Route {
     handler: RouteHandler;
 }
 
+interface WSRoute {
+    path: string;
+    handler: WSRouteHandler;
+}
+
 export class Router {
     private routes: Route[] = [];
+    private wsRoutes: WSRoute[] = [];
 
     public get(path: string, handler: RouteHandler) {
         this.add('GET', path, handler);
@@ -42,6 +50,20 @@ export class Router {
         for (const route of this.routes) {
             if ((route.method === 'ALL' || route.method === reqMethod) && route.path === parsedUrl.pathname) {
                 route.handler(req, res, parsedUrl);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public ws(path: string, handler: WSRouteHandler) {
+        this.wsRoutes.push({ path, handler });
+    }
+
+    public handleWs(ws: WebSocket, req: http.IncomingMessage, parsedUrl: URL): boolean {
+        for (const route of this.wsRoutes) {
+            if (route.path === parsedUrl.pathname) {
+                route.handler(ws, req, parsedUrl);
                 return true;
             }
         }

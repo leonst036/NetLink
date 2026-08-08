@@ -92,7 +92,7 @@ export default function App({ token }: AppProps) {
 
 If your app needs a custom backend API on the cloud relay server, you can easily register routes. Create `relay/index.ts` and export a `registerRoutes` function. 
 
-NetLink provides a built-in `Router` that you can use to add `GET`, `POST`, `PUT`, or `DELETE` endpoints.
+NetLink provides a built-in `Router` that you can use to add `GET`, `POST`, `PUT`, `DELETE` endpoints, as well as WebSocket connections via `ws`.
 
 ```typescript
 export function registerRoutes(appRouter: any) {
@@ -109,6 +109,14 @@ export function registerRoutes(appRouter: any) {
         res.end(JSON.stringify({ message: 'Pong from the Relay Server!' }));
     });
     
+    // Register a WebSocket route for real-time communication
+    appRouter.ws('/api/my-cool-app/stream', (ws: any, req: any, parsedUrl: any) => {
+        ws.send(JSON.stringify({ message: 'Welcome to the WebSocket stream!' }));
+        ws.on('message', (data: any) => {
+            console.log('Received data from client:', data.toString());
+            ws.send(JSON.stringify({ echo: data.toString() }));
+        });
+    });
 }
 ```
 
