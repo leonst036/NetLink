@@ -1,14 +1,14 @@
 import React from 'react';
-import { Network, Terminal, Folder, Monitor, Settings } from 'lucide-react';
+import { Network, Terminal, Folder, Monitor, Settings, StoreIcon } from 'lucide-react';
 import { Box, Paper, Tooltip } from '@mui/material';
 import './Dock.css';
 import { useWindowStore } from '../store/useWindowStore';
 
 export default function Dock() {
     const {
-        graphWindow, settingsWindow, activeWindow,
+        graphWindow, settingsWindow, storeWindow, activeWindow,
         terminals, vncWindows, sftpWindows,
-        setGraphWindow, setSettingsWindow, bringToFront,
+        setGraphWindow, setSettingsWindow, setStoreWindow, bringToFront,
         openTerminal, openSftp, openVnc
     } = useWindowStore();
 
@@ -37,6 +37,20 @@ export default function Dock() {
             setSettingsWindow({ isMinimized: true });
         } else {
             bringToFront('settings');
+        }
+    };
+
+    const handleStoreClick = () => {
+        if (!storeWindow.isOpen) {
+            setStoreWindow({ isOpen: true, isMinimized: false, zIndex: 1 });
+            bringToFront('store');
+        } else if (storeWindow.isMinimized) {
+            setStoreWindow({ isMinimized: false });
+            bringToFront('store');
+        } else if (activeWindow === 'store') {
+            setStoreWindow({ isMinimized: true });
+        } else {
+            bringToFront('store');
         }
     };
 
@@ -106,6 +120,13 @@ export default function Dock() {
                 isOpen={settingsWindow.isOpen}
                 isMinimized={settingsWindow.isOpen && settingsWindow.isMinimized}
                 onClick={handleSettingsClick}
+            />
+            <DockIcon
+                icon={<StoreIcon size={24} color="#ec4899" />}
+                label="NetStore"
+                isOpen={storeWindow.isOpen}
+                isMinimized={storeWindow.isOpen && storeWindow.isMinimized}
+                onClick={handleStoreClick}
             />
 
             {(terminals.length > 0 || vncWindows.length > 0 || sftpWindows.length > 0) && (

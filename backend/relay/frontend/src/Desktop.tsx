@@ -3,7 +3,7 @@ import Window from './Window';
 import TopBar from './components/TopBar';
 import Dock from './components/Dock';
 import GeminiLoader from './components/GeminiLoader';
-import { Terminal, Network, Monitor, Folder, Settings } from 'lucide-react';
+import { Terminal, Network, Monitor, Folder, Settings, StoreIcon } from 'lucide-react';
 import { Box, Alert } from '@mui/material';
 import './Desktop.css';
 import { useWindowStore } from './store/useWindowStore';
@@ -17,6 +17,7 @@ const NetworkGraph = lazy(() => import('./apps/network-graph/NetworkGraph'));
 const VncApp = lazy(() => import('./apps/vnc/VncApp'));
 const FileApp = lazy(() => import('./apps/file-manager/FileApp'));
 const SettingsApp = lazy(() => import('./apps/settings/SettingsApp'));
+const NetStoreApp = lazy(() => import('./apps/net-store/NetStoreApp'));
 
 interface DesktopProps {
     token: string;
@@ -74,7 +75,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     };
 
     // Window states
-    const { activeWindow, graphWindow, settingsWindow, terminals, vncWindows, sftpWindows, setGraphWindow, setSettingsWindow, openTerminal, openVnc, openSftp, bringToFront, closeTerminal, closeVnc, closeSftp, minimizeTerminal, minimizeVnc, minimizeSftp } = useWindowStore();
+    const { activeWindow, graphWindow, settingsWindow, storeWindow, terminals, vncWindows, sftpWindows, setGraphWindow, setSettingsWindow, setStoreWindow, openTerminal, openVnc, openSftp, bringToFront, closeTerminal, closeVnc, closeSftp, minimizeTerminal, minimizeVnc, minimizeSftp } = useWindowStore();
 
 
 
@@ -201,6 +202,25 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     >
                         <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
                             <SettingsApp token={token} />
+                        </Suspense>
+                    </Window>
+                )}
+
+                {storeWindow.isOpen && (
+                    <Window
+                        id="store"
+                        title="NetStore"
+                        icon={<StoreIcon size={14} color="#ec4899" />}
+                        isActive={activeWindow === 'store'}
+                        isMinimized={storeWindow.isMinimized}
+                        onMinimize={() => setStoreWindow({ isMinimized: true })}
+                        onFocus={() => bringToFront('store')}
+                        onClose={() => setStoreWindow({ isOpen: false })}
+                        defaultPosition={{ x: 120, y: 120 }}
+                        defaultSize={{ width: 800, height: 550 }}
+                    >
+                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
+                            <NetStoreApp token={token} />
                         </Suspense>
                     </Window>
                 )}

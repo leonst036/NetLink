@@ -5,6 +5,7 @@ interface WindowState {
     activeWindow: string | null;
     graphWindow: { isOpen: boolean; isMinimized: boolean; zIndex: number };
     settingsWindow: { isOpen: boolean; isMinimized: boolean; zIndex: number };
+    storeWindow: { isOpen: boolean; isMinimized: boolean; zIndex: number };
     terminals: TerminalInstance[];
     vncWindows: VncInstance[];
     sftpWindows: SftpInstance[];
@@ -12,6 +13,7 @@ interface WindowState {
     setActiveWindow: (id: string | null) => void;
     setGraphWindow: (state: Partial<WindowState['graphWindow']>) => void;
     setSettingsWindow: (state: Partial<WindowState['settingsWindow']>) => void;
+    setStoreWindow: (state: Partial<WindowState['storeWindow']>) => void;
 
     openTerminal: (ip: string) => void;
     closeTerminal: (id: string) => void;
@@ -32,6 +34,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     activeWindow: 'graph',
     graphWindow: { isOpen: true, isMinimized: false, zIndex: 1 },
     settingsWindow: { isOpen: false, isMinimized: false, zIndex: 1 },
+    storeWindow: { isOpen: false, isMinimized: false, zIndex: 1 },
     terminals: [],
     vncWindows: [],
     sftpWindows: [],
@@ -40,6 +43,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
 
     setGraphWindow: (state) => set((prev) => ({ graphWindow: { ...prev.graphWindow, ...state } })),
     setSettingsWindow: (state) => set((prev) => ({ settingsWindow: { ...prev.settingsWindow, ...state } })),
+    setStoreWindow: (state) => set((prev) => ({ storeWindow: { ...prev.storeWindow, ...state } })),
 
     openTerminal: (ip) => {
         const id = `terminal-${Date.now()}`;
@@ -72,6 +76,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
         set({ activeWindow: id });
         if (id === 'graph') get().setGraphWindow({ isMinimized: false });
         else if (id === 'settings') get().setSettingsWindow({ isMinimized: false });
+        else if (id === 'store') get().setStoreWindow({ isMinimized: false });
         else if (id.startsWith('terminal-')) get().minimizeTerminal(id, false);
         else if (id.startsWith('vnc-')) get().minimizeVnc(id, false);
         else if (id.startsWith('sftp-')) get().minimizeSftp(id, false);
