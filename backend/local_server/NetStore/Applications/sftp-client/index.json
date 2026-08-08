@@ -1,0 +1,16 @@
+{
+  "id": "sftp-client",
+  "name": "SFTP Client",
+  "author": "NetLink Native",
+  "category": "Utilities",
+  "rating": 5.0,
+  "downloads": "Built-in",
+  "size": "System",
+  "version": "v1.0.0",
+  "nativeKey": "sftp",
+  "icon": "Folder",
+  "color": "#ec4899",
+  "shortDesc": "Secure file transfer between devices.",
+  "fullDesc": "Browse, upload, and download files using a dual-pane secure FTP interface.",
+  "isFeatured": false
+}

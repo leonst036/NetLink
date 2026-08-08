@@ -1,0 +1,75 @@
+import http from 'http';
+import { URL } from 'url';
+import { handleLogin } from '../auth/login.js';
+import { getMongoClient } from '../database/MongoManager.js';
+import { handleRegisterRoute, handleValidateTargetRoute } from './routes/authRoutes.js';
+import { handleUsersRoute } from './routes/userRoutes.js';
+import { handleTopologyRoute } from './routes/topologyRoutes.js';
+import { handleGetServersRoute, handleServerLoginsRoute } from './routes/serverRoutes.js';
+import { handleInstallScriptRoute, handleDemoScriptRoute, handleDemoSetupRoute } from './routes/scriptRoutes.js';
+import { handleFaviconRoute, handleStaticFileRoute, handleAppFrontendRoute } from './routes/staticRoutes.js';
+import { handleNetStoreApplicationsRoute } from './routes/netStoreRoutes.js';
+import { Router } from './Router.js';
+
+export const appRouter = new Router();
+
+// Health check route
+appRouter.get('/health', (req, res) => {
+    const mongoClient = getMongoClient();
+    if (mongoClient) {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('NetLink Relay Server is running with MongoDB.\n');
+    } else {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('NetLink Relay Server is running but MongoDB is not available.\n');
+    }
+});
+
+// Favicon route
+appRouter.get('/favicon.svg', (req, res) => { handleFaviconRoute(res); });
+
+// Auth routes
+appRouter.post('/api/login', handleLogin);
+appRouter.post('/login', handleLogin);
+appRouter.post('/api/register', (req, res) => handleRegisterRoute(req, res));
+appRouter.post('/register', (req, res) => handleRegisterRoute(req, res));
+appRouter.post('/api/validate-target', (req, res, parsedUrl) => handleValidateTargetRoute(parsedUrl, req, res));
+
+// Script routes
+appRouter.get('/api/install.sh', handleInstallScriptRoute);
+appRouter.get('/api/demo.sh', handleDemoScriptRoute);
+appRouter.get('/api/demo-setup', handleDemoSetupRoute);
+
+// Server & Devices routes
+appRouter.get('/api/servers', (req, res, parsedUrl) => handleGetServersRoute(parsedUrl, req, res));
+appRouter.get('/api/server-logins', (req, res, parsedUrl) => handleServerLoginsRoute(parsedUrl, req, res));
+
+// Topology routes
+appRouter.get('/api/topology', (req, res, parsedUrl) => handleTopologyRoute(parsedUrl, req, res));
+
+// User management routes
+appRouter.get('/api/users', (req, res, parsedUrl) => handleUsersRoute(parsedUrl, req, res));
+
+// NetStore application catalog route
+appRouter.get('/api/applications', (req, res, parsedUrl) => handleNetStoreApplicationsRoute(parsedUrl, req, res));
+appRouter.get('/api/netstore', (req, res, parsedUrl) => handleNetStoreApplicationsRoute(parsedUrl, req, res));
+
+
+/**
+ * Main HTTP Request Handler - routes incoming HTTP requests to dedicated route controllers.
+ */
+export function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
+    const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    
+    // First, try to handle the request with the dynamic router
+    const handled = appRouter.handle(req, res, parsedUrl);
+    
+    // If no route matched, fallback to static file serving
+    if (!handled) {
+        if (parsedUrl.pathname.startsWith('/apps/')) {
+            handleAppFrontendRoute(parsedUrl.pathname, res);
+        } else {
+            handleStaticFileRoute(parsedUrl.pathname, res);
+        }
+    }
+}

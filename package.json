@@ -1,0 +1,13 @@
+{
+  "name": "netlink-monorepo",
+  "version": "1.0.0",
+  "description": "NetLink Remote Access Gateway",
+  "type": "module",
+  "scripts": {
+    "dev": "node start-dev.js",
+    "build": "npm run build --prefix backend/relay && npm run build --prefix backend/local_server"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED"
+}
