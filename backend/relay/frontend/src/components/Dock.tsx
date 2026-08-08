@@ -5,8 +5,8 @@ import './Dock.css';
 import { useWindowStore } from '../store/useWindowStore';
 
 export default function Dock() {
-    const { 
-        graphWindow, settingsWindow, activeWindow, 
+    const {
+        graphWindow, settingsWindow, activeWindow,
         terminals, vncWindows, sftpWindows,
         setGraphWindow, setSettingsWindow, bringToFront,
         openTerminal, openSftp, openVnc

@@ -9,13 +9,10 @@ const JWT_SECRET = 'dev_secret_key_change_in_production';
 // Pre-generated JWT token signed with JWT_SECRET containing payload { deviceId: "local-server" }
 const RELAY_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6ImxvY2FsLXNlcnZlciIsImlhdCI6MTc4NjE0ODk1M30.LYcW99CQ4nfekI73qy5hwkzZLmlrbOx3MPa9huMt4pI';
 
-console.log('🔨 [1/3] Building Relay Server TypeScript...');
+console.log('🔨 [1/2] Building Relay Server TypeScript...');
 execSync('npx tsc --outDir dist', { cwd: path.join(__dirname, 'backend/relay'), stdio: 'inherit' });
 
-console.log('🔨 [2/3] Building Web Frontend...');
-execSync('npm run build', { cwd: path.join(__dirname, 'backend/relay/frontend'), stdio: 'inherit' });
-
-console.log('🔨 [3/3] Building Local Server TypeScript...');
+console.log('🔨 [2/2] Building Local Server TypeScript...');
 execSync('npx tsc --outDir dist', { cwd: path.join(__dirname, 'backend/local_server'), stdio: 'inherit' });
 
 console.log('\n🚀 Starting NetLink Development Environment...\n');
@@ -44,7 +41,22 @@ relayProcess.stderr.on('data', data => {
     process.stderr.write(`\x1b[31m[RELAY ERR]\x1b[0m ${data.toString()}`);
 });
 
-// 2. Delay slightly to let Relay start, then launch Local Server
+// 2. Start Vite Dev Server (Frontend Auto-Update / HMR)
+const viteBin = path.join(__dirname, 'backend/relay/frontend/node_modules/vite/bin/vite.js');
+const viteProcess = spawn('node', [viteBin], {
+    cwd: path.join(__dirname, 'backend/relay/frontend'),
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe']
+});
+
+viteProcess.stdout.on('data', data => {
+    process.stdout.write(`\x1b[35m[VITE]\x1b[0m ${data.toString()}`);
+});
+viteProcess.stderr.on('data', data => {
+    process.stderr.write(`\x1b[31m[VITE ERR]\x1b[0m ${data.toString()}`);
+});
+
+// 3. Delay slightly to let Relay start, then launch Local Server
 setTimeout(() => {
     const localEnv = {
         ...process.env,
@@ -70,13 +82,15 @@ setTimeout(() => {
 
     console.log('===========================================================');
     console.log(' NetLink Dev Environment Running!');
-    console.log(' 🌐 Web UI: http://localhost:4535');
+    console.log(' 🌐 Web UI (Vite Dev / Hot Reload): http://localhost:5173');
+    console.log(' 🌐 Relay Backend API:             http://localhost:4535');
     console.log(' 🔑 Login: admin / admin');
     console.log(' 🎯 Default Target: local-server (auto-detected)');
     console.log('===========================================================\n');
 
     const cleanExit = () => {
         console.log('\nStopping NetLink dev servers...');
+        viteProcess.kill();
         localProcess.kill();
         relayProcess.kill();
         process.exit(0);
