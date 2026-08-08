@@ -78,5 +78,21 @@
     "shortDesc": "Remote desktop access via VNC.",
     "fullDesc": "Connect to your devices' desktop environments effortlessly using standard VNC protocols.",
     "isFeatured": false
+  },
+  {
+    "id": "test-app",
+    "name": "Test Application",
+    "author": "Antigravity",
+    "category": "Utilities",
+    "rating": 5,
+    "downloads": "New",
+    "size": "50 KB",
+    "version": "v1.0.0",
+    "nativeKey": "test",
+    "icon": "Box",
+    "color": "#eab308",
+    "shortDesc": "A simple test application to verify GitHub downloads.",
+    "fullDesc": "This application was automatically created to test the NetStore GitHub installation mechanism. It contains basic frontend and local_server files.",
+    "isFeatured": true
   }
 ]
