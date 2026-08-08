@@ -16,6 +16,7 @@ COPY auth/ ./auth/
 COPY database/ ./database/
 COPY websocket/ ./websocket/
 COPY http/ ./http/
+COPY assets/ ./assets/
 
 # Compile TS code to the "dist" directory
 RUN npx tsc --outDir dist
@@ -46,6 +47,9 @@ RUN npm ci --omit=dev
 
 # Copy the compiled JavaScript files from the builder stage
 COPY --from=builder /app/dist ./
+
+# Copy assets
+COPY --from=builder /app/assets ./assets
 
 # Copy the frontend built files
 COPY --from=builder /app/frontend/dist ./frontend/dist

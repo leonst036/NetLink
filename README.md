@@ -16,7 +16,24 @@ Think of it as your personal, self-hosted remote access gateway. It has a centra
 
 ## 🛠️ How to set this thing up
 
-Because NetLink is split into two parts, you'll need to set up both for the magic to happen.
+### 🚀 Quick Start with Docker Compose (Recommended)
+
+Run the full stack (MongoDB, Relay Server, and Local Server) with a single command:
+
+```bash
+docker compose up -d --build
+# or with docker-compose:
+docker-compose up -d --build
+```
+
+- **Web UI**: Access at [http://localhost:4535](http://localhost:4535) (Default login: `admin` / `admin`).
+- **MongoDB**: Automatically initialized with pre-configured token for the local server container.
+
+---
+
+### Manual / Individual Setup
+
+Because NetLink is split into two parts, you can also set up components individually.
 
 ### Part 1: The Relay Server (Your Gateway)
 This needs to run somewhere with a direct connection to the internet (like a VPS). It serves the web UI and handles the WebSocket connections coming from your local daemon.

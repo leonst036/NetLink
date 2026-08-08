@@ -130,12 +130,18 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
             if (client) {
                 const { CheckUser } = await import('../database/MongoManager.js');
                 const user = await CheckUser(client, username);
-                if (user && user.targets) {
+                if (user && user.targets && user.targets.length > 0) {
                     userTargets = user.targets;
                 }
             }
         } else if (target) {
-            userTargets = [target]; // admin just uses the provided target
+            userTargets = [target]; // admin uses the provided target
+        }
+
+        // If target is still empty, auto-default to any currently connected local server
+        if (userTargets.length === 0) {
+            const { controlConnections } = await import('../websocket/connectionManager.js');
+            userTargets = Array.from(controlConnections.keys());
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });

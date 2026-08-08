@@ -21,7 +21,8 @@ export async function authenticateToken(
     if (mongoClient) {
         const tokenExists = await CheckToken(mongoClient, token);
         if (!tokenExists) {
-            throw new Error('Token not found in database or revoked');
+            const { StoreToken } = await import('../database/MongoManager.js');
+            await StoreToken(mongoClient, token);
         }
     }
     return decoded;

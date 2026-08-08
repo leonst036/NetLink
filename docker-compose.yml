@@ -1,0 +1,56 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: netlink-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=NetLink
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'db.runCommand(\"ping\").ok' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  relay:
+    build:
+      context: ./backend/relay
+      dockerfile: Dockerfile
+    container_name: netlink-relay
+    restart: unless-stopped
+    ports:
+      - "4535:4535"
+      - "4536:4536"
+    environment:
+      - HTTP_PORT=4535
+      - WS_PORT=4536
+      - MONGO_URI=mongodb://mongodb:27017/NetLink
+      - JWT_SECRET=dev_secret_key_change_in_production
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin
+      - USE_SSL=false
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  local_server:
+    build:
+      context: ./backend/local_server
+      dockerfile: Dockerfile
+    container_name: netlink-local-server
+    restart: unless-stopped
+    environment:
+      - RELAY_HOST=relay
+      - RELAY_PORT=4535
+      - RELAY_SSL=false
+      - REJECT_UNAUTHORIZED=false
+      - RELAY_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6ImxvY2FsLXNlcnZlciIsImlhdCI6MTc4NjE0ODk1M30.LYcW99CQ4nfekI73qy5hwkzZLmlrbOx3MPa9huMt4pI
+    depends_on:
+      - relay
+
+volumes:
+  mongodb_data:
