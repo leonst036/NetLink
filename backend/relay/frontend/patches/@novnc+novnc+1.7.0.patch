@@ -1,0 +1,23 @@
+diff --git a/node_modules/@novnc/novnc/core/rfb.js b/node_modules/@novnc/novnc/core/rfb.js
+index 80011e4..b8d033e 100644
+--- a/node_modules/@novnc/novnc/core/rfb.js
++++ b/node_modules/@novnc/novnc/core/rfb.js
+@@ -460,6 +460,18 @@ export default class RFB extends EventTargetMixin {
+         this._xvpOp(1, 4);
+     }
+ 
++    sendSetMonitor(monitorNumber) {
++        if (this._rfbConnectionState !== 'connected' || this._viewOnly) {
++            return;
++        }
++        const arr = new Uint8Array(4);
++        arr[0] = 254;
++        arr[1] = monitorNumber;
++        arr[2] = 0; // padding
++        arr[3] = 0; // padding
++        this._sock.send(arr);
++    }
++
+     // Send a key press. If 'down' is not specified then send a down key
+     // followed by an up key.
+     sendKey(keysym, code, down) {

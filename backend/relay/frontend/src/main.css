@@ -1,0 +1,41 @@
+.MuiButton-root {
+  border-radius: 24px !important;
+  text-transform: none !important;
+  padding: 8px 24px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.MuiButton-contained {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+}
+
+.MuiButton-contained:hover {
+  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3) !important;
+  transform: translateY(-2px) scale(1.02) !important;
+}
+
+.MuiPaper-root {
+  background-image: none !important;
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(255,255,255,0.05) !important;
+}
+
+.MuiOutlinedInput-root {
+  border-radius: 8px !important;
+  background-color: rgba(255,255,255,0.03) !important;
+}
+
+.MuiOutlinedInput-root fieldset {
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+.MuiOutlinedInput-root:hover fieldset {
+  border-color: rgba(255,255,255,0.2) !important;
+}
+
+.MuiAlert-root {
+  border-radius: 12px !important;
+  background-color: rgba(15, 23, 42, 0.8) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+}

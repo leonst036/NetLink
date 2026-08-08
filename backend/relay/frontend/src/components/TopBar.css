@@ -1,0 +1,47 @@
+.topbar-appbar {
+    background-color: rgba(15, 23, 42, 0.65) !important;
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    z-index: 9999;
+}
+
+.topbar-toolbar {
+    justify-content: space-between;
+    min-height: 32px !important;
+}
+
+.topbar-left-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.topbar-brand-text {
+    font-weight: bold;
+}
+
+.topbar-target-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.topbar-target-select {
+    height: 24px;
+    font-size: 0.8rem;
+}
+
+.topbar-target-select .MuiSelect-select {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.topbar-right-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.topbar-logout-button {
+    text-transform: none;
+}

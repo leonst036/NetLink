@@ -1,0 +1,25 @@
+{
+  "name": "relay",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "main.ts",
+  "scripts": {
+    "start": "node main.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.1.1",
+    "@types/ws": "^8.5.10",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.5.0",
+    "ws": "^8.21.0"
+  }
+}
