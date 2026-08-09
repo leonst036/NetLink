@@ -1,16 +1,5 @@
 {
   "id": "vnc-viewer",
-  "name": "VNC Viewer",
-  "author": "NetLink Native",
-  "category": "Remote Access",
-  "rating": 5.0,
-  "downloads": "Built-in",
-  "size": "System",
   "version": "v1.0.0",
-  "nativeKey": "vnc",
-  "icon": "Monitor",
-  "color": "#6366f1",
-  "shortDesc": "Remote desktop access via VNC.",
-  "fullDesc": "Connect to your devices' desktop environments effortlessly using standard VNC protocols.",
-  "isFeatured": false
+  "nativeKey": "vnc"
 }

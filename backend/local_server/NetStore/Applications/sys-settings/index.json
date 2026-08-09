@@ -1,16 +1,5 @@
 {
   "id": "sys-settings",
-  "name": "System Settings",
-  "author": "NetLink Native",
-  "category": "System",
-  "rating": 5.0,
-  "downloads": "Built-in",
-  "size": "System",
   "version": "v1.0.0",
-  "nativeKey": "settings",
-  "icon": "Settings",
-  "color": "#94a3b8",
-  "shortDesc": "Configure your NetLink system.",
-  "fullDesc": "Manage accounts, network ranges, appearance, and other backend configurations.",
-  "isFeatured": false
+  "nativeKey": "settings"
 }
