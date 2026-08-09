@@ -80,12 +80,18 @@ export default function DockerManager() {
             body: JSON.stringify({ ...credentials, command })
         });
         
-        if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error || 'Request failed');
+        const rawText = await res.text();
+        let data: any = null;
+        try {
+            data = JSON.parse(rawText);
+        } catch {
+            throw new Error(rawText || `Backend server returned non-JSON error (Status ${res.status})`);
         }
         
-        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data?.error || `Execution error (Status ${res.status})`);
+        }
+        
         return data;
     };
 
