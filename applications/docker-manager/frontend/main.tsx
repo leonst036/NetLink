@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import './styles.css';
 import LoginPanel from './components/LoginPanel';
 import DashboardHeader from './components/DashboardHeader';
 import ContainerCard from './components/ContainerCard';
@@ -477,7 +478,7 @@ export default function DockerManager() {
     }
 
     return (
-        <div className="dm-dashboard">
+        <div className="stitch-app">
             <DashboardHeader
                 credentials={credentials}
                 metrics={{
@@ -490,109 +491,171 @@ export default function DockerManager() {
                 }}
                 refreshData={refreshData}
                 handlePrune={handlePrune}
-                onOpenRunModal={() => setRunModalOpen(true)}
                 setConnected={setConnected}
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
             />
 
-            <div className="dm-content-scroll">
-                {notification && (
-                    <div className={`dm-toast ${notification.type}`}>
-                        <span>{notification.message}</span>
+            <div className="stitch-body">
+                <aside className="stitch-sidebar">
+                    <button className="stitch-btn-deploy" onClick={() => setRunModalOpen(true)}>
+                        + DEPLOY NEW
+                    </button>
+
+                    <nav className="stitch-nav-group">
                         <button 
-                            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.1rem', padding: '0 4px' }} 
-                            onClick={() => setNotification(null)}
+                            className={`stitch-nav-item ${activeTab === 'containers' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('containers')}
                         >
-                            ×
+                            <div className="stitch-nav-item-left">
+                                <span className="material-symbols-outlined">view_module</span>
+                                <span>Containers</span>
+                            </div>
+                            <span className="stitch-nav-badge">{containers.length}</span>
                         </button>
-                    </div>
-                )}
 
-                {activeTab === 'containers' && (
-                    <div>
-                        <div className="dm-filter-bar" style={{ borderRadius: '14px', marginBottom: '20px' }}>
-                            <div style={{ display: 'flex', gap: '6px', background: 'rgba(255,255,255,0.05)', padding: '3px', borderRadius: '10px' }}>
-                                <button
-                                    className={`dm-btn dm-btn-sm ${statusFilter === 'all' ? 'dm-btn-primary' : 'dm-btn-secondary'}`}
-                                    onClick={() => setStatusFilter('all')}
-                                >
-                                    All ({containers.length})
-                                </button>
-                                <button
-                                    className={`dm-btn dm-btn-sm ${statusFilter === 'running' ? 'dm-btn-primary' : 'dm-btn-secondary'}`}
-                                    onClick={() => setStatusFilter('running')}
-                                >
-                                    Running ({runningCount})
-                                </button>
-                                <button
-                                    className={`dm-btn dm-btn-sm ${statusFilter === 'stopped' ? 'dm-btn-primary' : 'dm-btn-secondary'}`}
-                                    onClick={() => setStatusFilter('stopped')}
-                                >
-                                    Stopped ({stoppedCount})
-                                </button>
+                        <button 
+                            className={`stitch-nav-item ${activeTab === 'images' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('images')}
+                        >
+                            <div className="stitch-nav-item-left">
+                                <span className="material-symbols-outlined">layers</span>
+                                <span>Images</span>
+                            </div>
+                            <span className="stitch-nav-badge">{images.length}</span>
+                        </button>
+
+                        <button 
+                            className={`stitch-nav-item ${activeTab === 'volumes' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('volumes')}
+                        >
+                            <div className="stitch-nav-item-left">
+                                <span className="material-symbols-outlined">storage</span>
+                                <span>Volumes</span>
+                            </div>
+                            <span className="stitch-nav-badge">{volumes.length}</span>
+                        </button>
+
+                        <button 
+                            className={`stitch-nav-item ${activeTab === 'networks' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('networks')}
+                        >
+                            <div className="stitch-nav-item-left">
+                                <span className="material-symbols-outlined">lan</span>
+                                <span>Networks</span>
+                            </div>
+                            <span className="stitch-nav-badge">{networks.length}</span>
+                        </button>
+
+                        <button 
+                            className={`stitch-nav-item ${activeTab === 'compose' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('compose')}
+                        >
+                            <div className="stitch-nav-item-left">
+                                <span className="material-symbols-outlined">account_tree</span>
+                                <span>Compose</span>
+                            </div>
+                        </button>
+                    </nav>
+                </aside>
+
+                <main className="stitch-main">
+                    {notification && (
+                        <div className={`dm-toast ${notification.type}`}>
+                            <span>{notification.message}</span>
+                            <button 
+                                style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.1rem', padding: '0 4px' }} 
+                                onClick={() => setNotification(null)}
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
+
+                    {activeTab === 'containers' && (
+                        <div>
+                            <div className="stitch-toolbar">
+                                <div className="stitch-search">
+                                    <span className="material-symbols-outlined stitch-search-icon">search</span>
+                                    <input
+                                        className="stitch-search-input"
+                                        type="text"
+                                        placeholder="Search containers..."
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="stitch-filters">
+                                    <span style={{ fontSize: '0.82rem', color: 'var(--dm-on-surface-variant)', marginRight: '4px' }}>Filter by:</span>
+                                    <button
+                                        className={`stitch-filter-btn ${statusFilter === 'all' ? 'active' : ''}`}
+                                        onClick={() => setStatusFilter('all')}
+                                    >
+                                        All ({containers.length})
+                                    </button>
+                                    <button
+                                        className={`stitch-filter-btn ${statusFilter === 'running' ? 'active' : ''}`}
+                                        onClick={() => setStatusFilter('running')}
+                                    >
+                                        Running ({runningCount})
+                                    </button>
+                                    <button
+                                        className={`stitch-filter-btn ${statusFilter === 'stopped' ? 'active' : ''}`}
+                                        onClick={() => setStatusFilter('stopped')}
+                                    >
+                                        Stopped ({stoppedCount})
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="dm-search-wrapper">
-                                <span className="dm-search-icon">🔍</span>
-                                <input
-                                    className="dm-input"
-                                    type="text"
-                                    placeholder="Search containers by name, image, or ID..."
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                />
+                            <div className="stitch-grid">
+                                {filteredContainers.map(container => (
+                                    <ContainerCard
+                                        key={container.ID}
+                                        container={container}
+                                        stats={stats}
+                                        handleAction={handleAction}
+                                        handleViewLogs={handleViewLogs}
+                                        handleInspect={handleInspect}
+                                        handleExec={handleExec}
+                                        handleRemove={handleRemove}
+                                    />
+                                ))}
+                                {filteredContainers.length === 0 && <EmptyState />}
                             </div>
                         </div>
+                    )}
 
-                        <div className="dm-container-grid">
-                            {filteredContainers.map(container => (
-                                <ContainerCard
-                                    key={container.ID}
-                                    container={container}
-                                    stats={stats}
-                                    handleAction={handleAction}
-                                    handleViewLogs={handleViewLogs}
-                                    handleInspect={handleInspect}
-                                    handleExec={handleExec}
-                                    handleRemove={handleRemove}
-                                />
-                            ))}
-                            {filteredContainers.length === 0 && <EmptyState />}
-                        </div>
-                    </div>
-                )}
+                    {activeTab === 'images' && (
+                        <ImagesTab
+                            images={images}
+                            handlePull={handlePullImage}
+                            handleRemoveImage={handleRemoveImage}
+                        />
+                    )}
 
-                {activeTab === 'images' && (
-                    <ImagesTab
-                        images={images}
-                        handlePull={handlePullImage}
-                        handleRemoveImage={handleRemoveImage}
-                    />
-                )}
+                    {activeTab === 'volumes' && (
+                        <VolumesTab
+                            volumes={volumes}
+                            handleCreateVolume={handleCreateVolume}
+                            handleRemoveVolume={handleRemoveVolume}
+                        />
+                    )}
 
-                {activeTab === 'volumes' && (
-                    <VolumesTab
-                        volumes={volumes}
-                        handleCreateVolume={handleCreateVolume}
-                        handleRemoveVolume={handleRemoveVolume}
-                    />
-                )}
+                    {activeTab === 'networks' && (
+                        <NetworksTab
+                            networks={networks}
+                            handleCreateNetwork={handleCreateNetwork}
+                            handleRemoveNetwork={handleRemoveNetwork}
+                        />
+                    )}
 
-                {activeTab === 'networks' && (
-                    <NetworksTab
-                        networks={networks}
-                        handleCreateNetwork={handleCreateNetwork}
-                        handleRemoveNetwork={handleRemoveNetwork}
-                    />
-                )}
-
-                {activeTab === 'compose' && (
-                    <ComposeTab
-                        handleDeployCompose={handleDeployCompose}
-                        handleDownCompose={handleDownCompose}
-                    />
-                )}
+                    {activeTab === 'compose' && (
+                        <ComposeTab
+                            handleDeployCompose={handleDeployCompose}
+                            handleDownCompose={handleDownCompose}
+                        />
+                    )}
+                </main>
             </div>
 
             {/* Modals */}
