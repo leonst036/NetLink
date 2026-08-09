@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import './styles.css';
 import LoginPanel from './components/LoginPanel';
 import DashboardHeader from './components/DashboardHeader';
 import ContainerCard from './components/ContainerCard';
