@@ -2,6 +2,30 @@ import { Client } from "npm:ssh2";
 
 const port = parseInt(Deno.env.get("PORT") || "8000");
 
+async function executeLocal(command: string): Promise<{ code: number; stdout: string; stderr: string }> {
+    try {
+        const cmd = new Deno.Command("sh", {
+            args: ["-c", command],
+            stdout: "piped",
+            stderr: "piped",
+        });
+        const process = cmd.spawn();
+        const { code, stdout, stderr } = await process.output();
+        const decoder = new TextDecoder();
+        return {
+            code,
+            stdout: decoder.decode(stdout),
+            stderr: decoder.decode(stderr),
+        };
+    } catch (err: any) {
+        return {
+            code: 1,
+            stdout: "",
+            stderr: err.message || "Failed to execute local command",
+        };
+    }
+}
+
 Deno.serve({ port }, async (req) => {
     const url = new URL(req.url);
 
@@ -16,48 +40,65 @@ Deno.serve({ port }, async (req) => {
         });
     }
 
-    if (req.method === "POST" && url.pathname.endsWith("/execute")) {
+    if (req.method === "POST" && (url.pathname.endsWith("/execute") || url.pathname.includes("/execute"))) {
         try {
             const body = await req.json();
             const { host, port: sshPort, username, password, command } = body;
 
-            if (!host || !username || !command) {
-                return new Response(JSON.stringify({ error: "Missing required fields (host, username, command)" }), {
+            if (!command) {
+                return new Response(JSON.stringify({ error: "Missing required field (command)" }), {
                     status: 400,
                     headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
                 });
             }
 
-            const output = await new Promise((resolve, reject) => {
-                const conn = new Client();
-                let stdout = "";
-                let stderr = "";
+            const cleanHost = (host || "").trim().toLowerCase();
+            const isLocal = !cleanHost || cleanHost === "localhost" || cleanHost === "127.0.0.1" || cleanHost === "local";
 
-                conn.on("ready", () => {
-                    conn.exec(command, (err: any, stream: any) => {
-                        if (err) {
-                            conn.end();
-                            return reject(err);
-                        }
-                        stream.on("close", (code: number, signal: any) => {
-                            conn.end();
-                            resolve({ code, stdout, stderr });
-                        }).on("data", (data: any) => {
-                            stdout += data.toString();
-                        }).stderr.on("data", (data: any) => {
-                            stderr += data.toString();
+            let output: { code: number; stdout: string; stderr: string };
+
+            if (!isLocal && username && password) {
+                try {
+                    output = await new Promise((resolve, reject) => {
+                        const conn = new Client();
+                        let stdout = "";
+                        let stderr = "";
+
+                        conn.on("ready", () => {
+                            conn.exec(command, (err: any, stream: any) => {
+                                if (err) {
+                                    conn.end();
+                                    return reject(err);
+                                }
+                                stream.on("close", (code: number) => {
+                                    conn.end();
+                                    resolve({ code: code || 0, stdout, stderr });
+                                }).on("data", (data: any) => {
+                                    stdout += data.toString();
+                                }).stderr.on("data", (data: any) => {
+                                    stderr += data.toString();
+                                });
+                            });
+                        }).on("error", (err: any) => {
+                            reject(err);
+                        }).connect({
+                            host: cleanHost,
+                            port: sshPort || 22,
+                            username,
+                            password,
+                            readyTimeout: 10000,
                         });
                     });
-                }).on("error", (err: any) => {
-                    reject(err);
-                }).connect({
-                    host,
-                    port: sshPort || 22,
-                    username,
-                    password,
-                    readyTimeout: 10000,
-                });
-            });
+                } catch (sshErr: any) {
+                    if (cleanHost === "localhost" || cleanHost === "127.0.0.1") {
+                        output = await executeLocal(command);
+                    } else {
+                        throw sshErr;
+                    }
+                }
+            } else {
+                output = await executeLocal(command);
+            }
 
             return new Response(JSON.stringify(output), {
                 headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -71,5 +112,9 @@ Deno.serve({ port }, async (req) => {
         }
     }
 
-    return new Response("Not Found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+    return new Response(JSON.stringify({ error: "Not Found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    });
 });
+

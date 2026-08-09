@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import LoginPanel from './components/LoginPanel.tsx';
-import DashboardHeader from './components/DashboardHeader.tsx';
-import ContainerCard from './components/ContainerCard.tsx';
-import EmptyState from './components/EmptyState.tsx';
-import LogModal from './components/LogModal.tsx';
-import RunContainerModal from './components/RunContainerModal.tsx';
-import InspectModal from './components/InspectModal.tsx';
-import ExecModal from './components/ExecModal.tsx';
-import ImagesTab from './tabs/ImagesTab.tsx';
-import VolumesTab from './tabs/VolumesTab.tsx';
-import NetworksTab from './tabs/NetworksTab.tsx';
-import ComposeTab from './tabs/ComposeTab.tsx';
+import LoginPanel from './components/LoginPanel';
+import DashboardHeader from './components/DashboardHeader';
+import ContainerCard from './components/ContainerCard';
+import EmptyState from './components/EmptyState';
+import LogModal from './components/LogModal';
+import RunContainerModal from './components/RunContainerModal';
+import InspectModal from './components/InspectModal';
+import ExecModal from './components/ExecModal';
+import ImagesTab from './tabs/ImagesTab';
+import VolumesTab from './tabs/VolumesTab';
+import NetworksTab from './tabs/NetworksTab';
+import ComposeTab from './tabs/ComposeTab';
 
 const LOCAL_STORAGE_KEY = 'netstore_docker_manager_creds';
 

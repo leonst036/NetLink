@@ -76,13 +76,14 @@ services:
 
 export default function ComposeTab({ handleDeployCompose, handleDownCompose }: { handleDeployCompose: (stackName: string, yamlContent: string) => Promise<any>; handleDownCompose: (stackName: string) => Promise<any> }) {
     const [stackName, setStackName] = useState('my-app-stack');
-    const [yaml, setYaml] = useState(STACK_TEMPLATES.nginx.yaml);
+    const [yaml, setYaml] = useState(STACK_TEMPLATES['nginx']?.yaml || '');
     const [deploying, setDeploying] = useState(false);
     const [output, setOutput] = useState<{ stdout?: string; stderr?: string } | null>(null);
 
     const handleSelectTemplate = (key: string) => {
-        if (STACK_TEMPLATES[key]) {
-            setYaml(STACK_TEMPLATES[key].yaml);
+        const tmpl = STACK_TEMPLATES[key];
+        if (tmpl) {
+            setYaml(tmpl.yaml);
         }
     };
 

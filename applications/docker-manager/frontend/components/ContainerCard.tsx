@@ -10,7 +10,7 @@ export default function ContainerCard({ container, stats, handleAction, handleVi
     const parsePercent = (str?: string) => {
         if (!str) return 0;
         const match = str.match(/([0-9.]+)/);
-        return match ? Math.min(100, parseFloat(match[1])) : 0;
+        return match && match[1] ? Math.min(100, parseFloat(match[1])) : 0;
     };
 
     const cpuVal = parsePercent(cStats.CPUPerc);
