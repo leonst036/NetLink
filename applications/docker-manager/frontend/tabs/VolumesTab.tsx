@@ -24,22 +24,22 @@ export default function VolumesTab({ volumes, handleCreateVolume, handleRemoveVo
 
     return (
         <div>
-            <div className="dm-action-bar">
-                <form onSubmit={onCreateSubmit} className="dm-form-inline">
+            <div className="dm-filter-bar" style={{ borderRadius: '14px', marginBottom: '20px' }}>
+                <form onSubmit={onCreateSubmit} style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '600px' }}>
                     <input
-                        className="dm-input"
+                        className="dm-input dm-input-bare"
                         type="text"
                         placeholder="New Volume Name (e.g. redis-data, pg-storage)"
                         value={volName}
                         onChange={e => setVolName(e.target.value)}
                         disabled={creating}
                     />
-                    <button type="submit" className="nl-button" disabled={creating} style={{ whiteSpace: 'nowrap' }}>
+                    <button type="submit" className="dm-btn dm-btn-primary" disabled={creating}>
                         {creating ? '⏳ Creating...' : '➕ Create Volume'}
                     </button>
                 </form>
 
-                <div className="dm-search-input-wrapper">
+                <div className="dm-search-wrapper" style={{ maxWidth: '300px' }}>
                     <span className="dm-search-icon">🔍</span>
                     <input
                         className="dm-input"
@@ -51,7 +51,7 @@ export default function VolumesTab({ volumes, handleCreateVolume, handleRemoveVo
                 </div>
             </div>
 
-            <div className="dm-table-wrapper">
+            <div className="dm-table-container">
                 <table className="dm-table">
                     <thead>
                         <tr>
@@ -63,8 +63,8 @@ export default function VolumesTab({ volumes, handleCreateVolume, handleRemoveVo
                     <tbody>
                         {filteredVolumes.map((vol: any, idx: number) => (
                             <tr key={vol.Name || idx}>
-                                <td><span className="dm-chip dm-chip-primary">{vol.Driver || 'local'}</span></td>
-                                <td className="dm-code"><strong style={{ color: '#fff' }}>{vol.Name}</strong></td>
+                                <td><span className="dm-chip">{vol.Driver || 'local'}</span></td>
+                                <td style={{ fontFamily: 'var(--dm-font-mono)', fontSize: '0.88rem', color: 'var(--dm-text-heading)' }}>{vol.Name}</td>
                                 <td style={{ textAlign: 'right' }}>
                                     <button 
                                         className="dm-action-btn danger" 
@@ -72,14 +72,18 @@ export default function VolumesTab({ volumes, handleCreateVolume, handleRemoveVo
                                         onClick={() => handleRemoveVolume(vol.Name)}
                                         title="Remove Docker Volume"
                                     >
-                                        🗑️ Delete
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        <span>Delete</span>
                                     </button>
                                 </td>
                             </tr>
                         ))}
                         {filteredVolumes.length === 0 && (
                             <tr>
-                                <td colSpan={3} style={{ textAlign: 'center', padding: '40px', color: 'var(--dm-text-muted)' }}>
+                                <td colSpan={3} style={{ textAlign: 'center', padding: '40px', color: 'var(--dm-text-muted)', fontStyle: 'italic' }}>
                                     No Docker volumes found.
                                 </td>
                             </tr>
@@ -90,5 +94,3 @@ export default function VolumesTab({ volumes, handleCreateVolume, handleRemoveVo
         </div>
     );
 }
-
-

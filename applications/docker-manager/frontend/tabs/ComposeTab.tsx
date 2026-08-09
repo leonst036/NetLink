@@ -116,20 +116,22 @@ export default function ComposeTab({ handleDeployCompose, handleDownCompose }: {
     };
 
     return (
-        <div className="dm-compose-tab">
-            <div className="dm-table-wrapper" style={{ padding: '28px' }}>
-                <div className="dm-compose-header">
-                    <h3 style={{ margin: '0 0 6px', fontSize: '1.4rem', color: '#fff' }}>⚡ Docker Compose Stack Launcher</h3>
-                    <p style={{ margin: 0, color: 'var(--dm-text-muted)', fontSize: '0.9rem' }}>
-                        Define multi-container applications using standard <code>docker-compose.yml</code> definitions.
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            <div className="dm-table-container" style={{ padding: '28px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                    <h3 style={{ margin: '0 0 6px', fontSize: '1.3rem', color: 'var(--dm-text-heading)', fontFamily: 'var(--dm-font-heading)' }}>
+                        ⚡ Docker Compose Stack Launcher
+                    </h3>
+                    <p style={{ margin: 0, color: 'var(--dm-text-muted)', fontSize: '0.88rem' }}>
+                        Define multi-container applications using standard <code style={{ fontFamily: 'var(--dm-font-mono)', color: 'var(--dm-cyan)' }}>docker-compose.yml</code> definitions.
                     </p>
                 </div>
 
-                <div className="dm-compose-bar" style={{ marginTop: '20px' }}>
-                    <div className="dm-form-group" style={{ marginBottom: 0, flex: 1 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                    <div className="dm-form-group" style={{ marginBottom: 0 }}>
                         <label>Stack / Project Identifier</label>
                         <input
-                            className="dm-input"
+                            className="dm-input dm-input-bare"
                             type="text"
                             value={stackName}
                             onChange={e => setStackName(e.target.value)}
@@ -137,10 +139,10 @@ export default function ComposeTab({ handleDeployCompose, handleDownCompose }: {
                         />
                     </div>
 
-                    <div className="dm-form-group" style={{ marginBottom: 0, flex: 1 }}>
+                    <div className="dm-form-group" style={{ marginBottom: 0 }}>
                         <label>Preset Stack Templates</label>
                         <select
-                            className="dm-input"
+                            className="dm-select"
                             onChange={e => handleSelectTemplate(e.target.value)}
                             defaultValue="nginx"
                         >
@@ -151,33 +153,36 @@ export default function ComposeTab({ handleDeployCompose, handleDownCompose }: {
                     </div>
                 </div>
 
-                <div className="dm-form-group" style={{ marginTop: '16px' }}>
+                <div className="dm-form-group" style={{ marginBottom: '20px' }}>
                     <label>docker-compose.yml Content</label>
                     <textarea
-                        className="dm-input dm-code-editor"
+                        className="dm-input dm-input-bare"
                         rows={14}
                         value={yaml}
                         onChange={e => setYaml(e.target.value)}
                         placeholder="Paste docker-compose.yml content here..."
+                        style={{ fontFamily: 'var(--dm-font-mono)', fontSize: '0.82rem', lineHeight: '1.6', resize: 'vertical' }}
                     />
                 </div>
 
-                <div className="dm-compose-actions">
-                    <button className="nl-button success" onClick={onDeploy} disabled={deploying}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className="dm-btn dm-btn-primary" onClick={onDeploy} disabled={deploying}>
                         {deploying ? '⏳ Deploying Stack...' : '🚀 Deploy Stack (docker compose up -d)'}
                     </button>
-                    <button className="nl-button danger" onClick={onDown} disabled={deploying}>
+                    <button className="dm-btn dm-btn-danger" onClick={onDown} disabled={deploying}>
                         {deploying ? '⏳ Stopping Stack...' : '🛑 Stop Stack (docker compose down)'}
                     </button>
                 </div>
 
                 {output && (
-                    <div className="dm-compose-output">
-                        <h4 style={{ margin: '0 0 10px', fontSize: '0.92rem', color: 'var(--dm-text-muted)' }}>Execution Output Log:</h4>
-                        <div className="dm-log-terminal">
-                            {output.stdout && <div className="dm-stdout">{output.stdout}</div>}
-                            {output.stderr && <div className="dm-stderr">{output.stderr}</div>}
-                            {!output.stdout && !output.stderr && <div className="dm-terminal-muted">Stack operation completed.</div>}
+                    <div style={{ marginTop: '24px' }}>
+                        <h4 style={{ margin: '0 0 10px', fontSize: '0.85rem', color: 'var(--dm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Execution Output Log:</h4>
+                        <div className="dm-terminal">
+                            <div className="dm-terminal-output">
+                                {output.stdout && <div style={{ color: 'var(--dm-emerald)' }}>{output.stdout}</div>}
+                                {output.stderr && <div style={{ color: 'var(--dm-rose)', marginTop: '8px' }}>{output.stderr}</div>}
+                                {!output.stdout && !output.stderr && <div style={{ color: 'var(--dm-text-muted)', fontStyle: 'italic' }}>Stack operation completed.</div>}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -185,4 +190,3 @@ export default function ComposeTab({ handleDeployCompose, handleDownCompose }: {
         </div>
     );
 }
-

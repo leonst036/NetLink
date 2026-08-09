@@ -26,10 +26,10 @@ export default function NetworksTab({ networks, handleRemoveNetwork, handleCreat
 
     return (
         <div>
-            <div className="dm-action-bar">
-                <form onSubmit={onCreateSubmit} className="dm-form-inline">
+            <div className="dm-filter-bar" style={{ borderRadius: '14px', marginBottom: '20px' }}>
+                <form onSubmit={onCreateSubmit} style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '600px' }}>
                     <input
-                        className="dm-input"
+                        className="dm-input dm-input-bare"
                         type="text"
                         placeholder="Network Name (e.g. backend-net, isolated-network)"
                         value={networkName}
@@ -37,22 +37,22 @@ export default function NetworksTab({ networks, handleRemoveNetwork, handleCreat
                         disabled={creating}
                     />
                     <select
-                        className="dm-input"
+                        className="dm-select"
                         value={driver}
                         onChange={e => setDriver(e.target.value)}
                         disabled={creating}
-                        style={{ width: '130px' }}
+                        style={{ width: '120px' }}
                     >
                         <option value="bridge">bridge</option>
                         <option value="overlay">overlay</option>
                         <option value="macvlan">macvlan</option>
                     </select>
-                    <button type="submit" className="nl-button" disabled={creating} style={{ whiteSpace: 'nowrap' }}>
+                    <button type="submit" className="dm-btn dm-btn-primary" disabled={creating}>
                         {creating ? '⏳ Creating...' : '🌐 Create Network'}
                     </button>
                 </form>
 
-                <div className="dm-search-input-wrapper">
+                <div className="dm-search-wrapper" style={{ maxWidth: '300px' }}>
                     <span className="dm-search-icon">🔍</span>
                     <input
                         className="dm-input"
@@ -64,7 +64,7 @@ export default function NetworksTab({ networks, handleRemoveNetwork, handleCreat
                 </div>
             </div>
 
-            <div className="dm-table-wrapper">
+            <div className="dm-table-container">
                 <table className="dm-table">
                     <thead>
                         <tr>
@@ -80,12 +80,12 @@ export default function NetworksTab({ networks, handleRemoveNetwork, handleCreat
                             const isDefault = ['bridge', 'host', 'none'].includes(net.Name);
                             return (
                                 <tr key={net.ID || idx}>
-                                    <td className="dm-code">{net.ID?.substring(0, 12)}</td>
+                                    <td style={{ fontFamily: 'var(--dm-font-mono)', fontSize: '0.8rem', color: 'var(--dm-cyan)' }}>{net.ID?.substring(0, 12)}</td>
                                     <td>
-                                        <strong style={{ color: '#fff' }}>{net.Name}</strong>{' '}
-                                        {isDefault && <span className="dm-chip" style={{ fontSize: '0.7rem', opacity: 0.8 }}>System</span>}
+                                        <strong style={{ color: 'var(--dm-text-heading)' }}>{net.Name}</strong>{' '}
+                                        {isDefault && <span className="dm-chip" style={{ fontSize: '0.7rem', opacity: 0.7 }}>System</span>}
                                     </td>
-                                    <td><span className="dm-chip dm-chip-primary">{net.Driver || 'bridge'}</span></td>
+                                    <td><span className="dm-chip">{net.Driver || 'bridge'}</span></td>
                                     <td><span className="dm-chip">{net.Scope || 'local'}</span></td>
                                     <td style={{ textAlign: 'right' }}>
                                         {!isDefault ? (
@@ -95,10 +95,14 @@ export default function NetworksTab({ networks, handleRemoveNetwork, handleCreat
                                                 onClick={() => handleRemoveNetwork(net.ID || net.Name)}
                                                 title="Remove Docker Network"
                                             >
-                                                🗑️ Delete
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                </svg>
+                                                <span>Delete</span>
                                             </button>
                                         ) : (
-                                            <span className="dm-terminal-muted" style={{ fontSize: '0.8rem' }}>🔒 Protected</span>
+                                            <span style={{ fontSize: '0.8rem', color: 'var(--dm-text-dim)', fontStyle: 'italic' }}>Protected</span>
                                         )}
                                     </td>
                                 </tr>
@@ -106,7 +110,7 @@ export default function NetworksTab({ networks, handleRemoveNetwork, handleCreat
                         })}
                         {filteredNetworks.length === 0 && (
                             <tr>
-                                <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: 'var(--dm-text-muted)' }}>
+                                <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: 'var(--dm-text-muted)', fontStyle: 'italic' }}>
                                     No Docker networks found matching criteria.
                                 </td>
                             </tr>
@@ -117,4 +121,3 @@ export default function NetworksTab({ networks, handleRemoveNetwork, handleCreat
         </div>
     );
 }
-

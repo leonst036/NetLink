@@ -28,16 +28,22 @@ export default function ExecModal({ container, onExecCommand, onClose }: { conta
     };
 
     return (
-        <div className="dm-modal-backdrop" onClick={onClose}>
+        <div className="dm-modal-overlay" onClick={onClose}>
             <div className="dm-modal dm-modal-lg" onClick={e => e.stopPropagation()}>
                 <div className="dm-modal-header">
                     <div>
-                        <h3>⚡ Container Shell Exec: {container.Names}</h3>
+                        <h3 className="dm-modal-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--dm-cyan)" strokeWidth="2">
+                                <polyline points="4 17 10 11 4 5"></polyline>
+                                <line x1="12" y1="19" x2="20" y2="19"></line>
+                            </svg>
+                            <span>Shell Exec: {container.Names}</span>
+                        </h3>
                         <span className="dm-code-sub">{container.ID?.substring(0, 12)}</span>
                     </div>
-                    <div className="dm-modal-actions">
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         {output && (
-                            <button className="nl-button secondary" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={() => setOutput(null)}>
+                            <button className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => setOutput(null)}>
                                 🧹 Clear Terminal
                             </button>
                         )}
@@ -46,11 +52,10 @@ export default function ExecModal({ container, onExecCommand, onClose }: { conta
                 </div>
 
                 <div className="dm-modal-body">
-                    <div className="dm-exec-bar">
-                        <div className="dm-exec-input-wrapper">
-                            <span className="dm-exec-prompt">$ {container.Names?.replace(/^\//, '')}:~#</span>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                        <div style={{ position: 'relative', flex: 1 }}>
                             <input
-                                className="dm-input dm-exec-input"
+                                className="dm-input dm-input-bare"
                                 type="text"
                                 placeholder="Enter shell command (e.g. ls -la, env, cat /etc/os-release)"
                                 value={command}
@@ -60,45 +65,48 @@ export default function ExecModal({ container, onExecCommand, onClose }: { conta
                                 autoFocus
                             />
                         </div>
-                        <button className="nl-button" onClick={() => handleRun()} disabled={running}>
+                        <button className="dm-btn dm-btn-primary" onClick={() => handleRun()} disabled={running}>
                             {running ? 'Executing...' : '▶ Run'}
                         </button>
                     </div>
 
-                    <div className="dm-presets">
-                        <span className="dm-presets-label">Quick Commands:</span>
-                        <button className="dm-preset-btn" onClick={() => handlePreset('ls -la')}>ls -la</button>
-                        <button className="dm-preset-btn" onClick={() => handlePreset('env')}>env</button>
-                        <button className="dm-preset-btn" onClick={() => handlePreset('df -h')}>df -h</button>
-                        <button className="dm-preset-btn" onClick={() => handlePreset('uname -a')}>uname -a</button>
-                        <button className="dm-preset-btn" onClick={() => handlePreset('cat /etc/os-release')}>OS Info</button>
-                        <button className="dm-preset-btn" onClick={() => handlePreset('ps aux')}>Processes</button>
-                        <button className="dm-preset-btn" onClick={() => handlePreset('top -b -n 1')}>top</button>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--dm-text-muted)', fontWeight: 600 }}>Quick Presets:</span>
+                        <button className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => handlePreset('ls -la')}>ls -la</button>
+                        <button className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => handlePreset('env')}>env</button>
+                        <button className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => handlePreset('df -h')}>df -h</button>
+                        <button className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => handlePreset('uname -a')}>uname -a</button>
+                        <button className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => handlePreset('cat /etc/os-release')}>OS Info</button>
+                        <button className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => handlePreset('ps aux')}>Processes</button>
                     </div>
 
-                    <div className="dm-log-terminal dm-exec-terminal">
-                        {running ? (
-                            <div className="dm-terminal-muted">⏳ Executing command inside container...</div>
-                        ) : output ? (
-                            <>
-                                {output.code !== undefined && (
-                                    <div style={{ marginBottom: '8px', fontSize: '0.75rem', color: output.code === 0 ? '#34d399' : '#f87171' }}>
-                                        Exit Status: {output.code} {output.code === 0 ? '✓ Success' : '❌ Failed'}
-                                    </div>
-                                )}
-                                {output.stdout && <pre className="dm-stdout">{output.stdout}</pre>}
-                                {output.stderr && <pre className="dm-stderr">{output.stderr}</pre>}
-                                {!output.stdout && !output.stderr && (
-                                    <span className="dm-terminal-muted">Command executed cleanly with no output.</span>
-                                )}
-                            </>
-                        ) : (
-                            <span className="dm-terminal-muted">Type a command or choose a quick preset above to execute interactively.</span>
-                        )}
+                    <div className="dm-terminal">
+                        <div className="dm-terminal-toolbar">
+                            <span className="dm-terminal-title">docker exec -it {container.ID?.substring(0, 12)} sh -c "{command}"</span>
+                            {output && output.code !== undefined && (
+                                <span style={{ fontSize: '0.75rem', color: output.code === 0 ? 'var(--dm-emerald)' : 'var(--dm-rose)', fontWeight: 600 }}>
+                                    Exit status: {output.code}
+                                </span>
+                            )}
+                        </div>
+                        <div className="dm-terminal-output">
+                            {running ? (
+                                <div style={{ color: 'var(--dm-text-muted)', fontStyle: 'italic' }}>⏳ Executing command inside container...</div>
+                            ) : output ? (
+                                <>
+                                    {output.stdout && <div style={{ color: '#e2e8f0' }}>{output.stdout}</div>}
+                                    {output.stderr && <div style={{ color: 'var(--dm-rose)', marginTop: '8px' }}>{output.stderr}</div>}
+                                    {!output.stdout && !output.stderr && (
+                                        <span style={{ color: 'var(--dm-text-muted)', fontStyle: 'italic' }}>Command executed cleanly with no output.</span>
+                                    )}
+                                </>
+                            ) : (
+                                <span style={{ color: 'var(--dm-text-muted)', fontStyle: 'italic' }}>Type a command or choose a quick preset above to execute interactively.</span>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     );
 }
-

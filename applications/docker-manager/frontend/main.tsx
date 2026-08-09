@@ -496,23 +496,12 @@ export default function DockerManager() {
                 setActiveTab={setActiveTab}
             />
 
-            <div className="dm-content">
+            <div className="dm-content-scroll">
                 {notification && (
-                    <div style={{
-                        padding: '12px 16px',
-                        marginBottom: '16px',
-                        borderRadius: '10px',
-                        background: notification.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                        border: `1px solid ${notification.type === 'error' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
-                        color: notification.type === 'error' ? '#f87171' : '#34d399',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        fontSize: '0.9rem'
-                    }}>
+                    <div className={`dm-toast ${notification.type}`}>
                         <span>{notification.message}</span>
                         <button 
-                            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.2rem', padding: '0 4px' }} 
+                            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.1rem', padding: '0 4px' }} 
                             onClick={() => setNotification(null)}
                         >
                             ×
@@ -521,32 +510,30 @@ export default function DockerManager() {
                 )}
 
                 {activeTab === 'containers' && (
-                    <div className="dm-containers-view">
-                        <div className="dm-action-bar">
-                            <div className="dm-filter-group">
-                                <div className="dm-pill-switch">
-                                    <button
-                                        className={statusFilter === 'all' ? 'active' : ''}
-                                        onClick={() => setStatusFilter('all')}
-                                    >
-                                        All ({containers.length})
-                                    </button>
-                                    <button
-                                        className={statusFilter === 'running' ? 'active' : ''}
-                                        onClick={() => setStatusFilter('running')}
-                                    >
-                                        Running ({runningCount})
-                                    </button>
-                                    <button
-                                        className={statusFilter === 'stopped' ? 'active' : ''}
-                                        onClick={() => setStatusFilter('stopped')}
-                                    >
-                                        Stopped ({stoppedCount})
-                                    </button>
-                                </div>
+                    <div>
+                        <div className="dm-filter-bar" style={{ borderRadius: '14px', marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', gap: '6px', background: 'rgba(255,255,255,0.05)', padding: '3px', borderRadius: '10px' }}>
+                                <button
+                                    className={`dm-btn dm-btn-sm ${statusFilter === 'all' ? 'dm-btn-primary' : 'dm-btn-secondary'}`}
+                                    onClick={() => setStatusFilter('all')}
+                                >
+                                    All ({containers.length})
+                                </button>
+                                <button
+                                    className={`dm-btn dm-btn-sm ${statusFilter === 'running' ? 'dm-btn-primary' : 'dm-btn-secondary'}`}
+                                    onClick={() => setStatusFilter('running')}
+                                >
+                                    Running ({runningCount})
+                                </button>
+                                <button
+                                    className={`dm-btn dm-btn-sm ${statusFilter === 'stopped' ? 'dm-btn-primary' : 'dm-btn-secondary'}`}
+                                    onClick={() => setStatusFilter('stopped')}
+                                >
+                                    Stopped ({stoppedCount})
+                                </button>
                             </div>
 
-                            <div className="dm-search-input-wrapper">
+                            <div className="dm-search-wrapper">
                                 <span className="dm-search-icon">🔍</span>
                                 <input
                                     className="dm-input"
@@ -558,7 +545,7 @@ export default function DockerManager() {
                             </div>
                         </div>
 
-                        <div className="dm-grid">
+                        <div className="dm-container-grid">
                             {filteredContainers.map(container => (
                                 <ContainerCard
                                     key={container.ID}

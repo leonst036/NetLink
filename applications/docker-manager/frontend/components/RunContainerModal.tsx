@@ -37,20 +37,29 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
     };
 
     return (
-        <div className="dm-modal-backdrop" onClick={onClose}>
-            <div className="dm-modal dm-modal-md" onClick={e => e.stopPropagation()}>
+        <div className="dm-modal-overlay" onClick={onClose}>
+            <div className="dm-modal" onClick={e => e.stopPropagation()}>
                 <div className="dm-modal-header">
-                    <h3>🚀 Deploy New Container</h3>
+                    <h3 className="dm-modal-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--dm-cyan)" strokeWidth="2.5">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <span>Deploy Container</span>
+                    </h3>
                     <button className="dm-modal-close" onClick={onClose}>&times;</button>
                 </div>
 
-                {error && <div className="dm-error">⚠️ {error}</div>}
+                {error && (
+                    <div style={{ margin: '16px 24px 0', padding: '12px 16px', background: 'rgba(244,63,94,0.1)', border: '1px solid var(--dm-rose)', borderRadius: '8px', color: 'var(--dm-rose)', fontSize: '0.85rem' }}>
+                        ⚠️ {error}
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="dm-modal-body">
                     <div className="dm-form-group">
                         <label>Image Name *</label>
                         <input
-                            className="dm-input"
+                            className="dm-input dm-input-bare"
                             type="text"
                             placeholder="e.g. nginx:alpine, redis:alpine, postgres:16-alpine"
                             value={image}
@@ -58,19 +67,19 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                             required
                             autoFocus
                         />
-                        <div className="dm-presets" style={{ marginTop: '6px' }}>
-                            <span className="dm-presets-label">Popular:</span>
-                            <button type="button" className="dm-preset-btn" onClick={() => setImage('nginx:alpine')}>nginx:alpine</button>
-                            <button type="button" className="dm-preset-btn" onClick={() => setImage('redis:alpine')}>redis:alpine</button>
-                            <button type="button" className="dm-preset-btn" onClick={() => setImage('postgres:16-alpine')}>postgres:16</button>
-                            <button type="button" className="dm-preset-btn" onClick={() => setImage('node:20-alpine')}>node:20</button>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--dm-text-muted)', fontWeight: 600 }}>Popular:</span>
+                            <button type="button" className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => setImage('nginx:alpine')}>nginx:alpine</button>
+                            <button type="button" className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => setImage('redis:alpine')}>redis:alpine</button>
+                            <button type="button" className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => setImage('postgres:16-alpine')}>postgres:16</button>
+                            <button type="button" className="dm-btn dm-btn-secondary dm-btn-sm" onClick={() => setImage('node:20-alpine')}>node:20</button>
                         </div>
                     </div>
 
                     <div className="dm-form-group">
                         <label>Container Name (Optional)</label>
                         <input
-                            className="dm-input"
+                            className="dm-input dm-input-bare"
                             type="text"
                             placeholder="e.g. my-web-app"
                             value={name}
@@ -82,7 +91,7 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                         <div className="dm-form-group">
                             <label>Host Port</label>
                             <input
-                                className="dm-input"
+                                className="dm-input dm-input-bare"
                                 type="text"
                                 placeholder="e.g. 8080"
                                 value={hostPort}
@@ -92,7 +101,7 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                         <div className="dm-form-group">
                             <label>Container Port</label>
                             <input
-                                className="dm-input"
+                                className="dm-input dm-input-bare"
                                 type="text"
                                 placeholder="e.g. 80"
                                 value={containerPort}
@@ -104,18 +113,19 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                     <div className="dm-form-group">
                         <label>Environment Variables (KEY=VALUE per line)</label>
                         <textarea
-                            className="dm-input dm-textarea"
+                            className="dm-input dm-input-bare"
                             rows={3}
                             placeholder="POSTGRES_PASSWORD=mysecret&#10;PORT=3000"
                             value={envVars}
                             onChange={e => setEnvVars(e.target.value)}
+                            style={{ fontFamily: 'var(--dm-font-mono)', fontSize: '0.8rem', resize: 'vertical' }}
                         />
                     </div>
 
                     <div className="dm-form-group">
                         <label>Volume Mount (Host Path : Container Path)</label>
                         <input
-                            className="dm-input"
+                            className="dm-input dm-input-bare"
                             type="text"
                             placeholder="e.g. /data/app:/app/data"
                             value={volumeMount}
@@ -126,9 +136,10 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                     <div className="dm-form-group">
                         <label>Restart Policy</label>
                         <select
-                            className="dm-input"
+                            className="dm-select"
                             value={restartPolicy}
                             onChange={e => setRestartPolicy(e.target.value)}
+                            style={{ width: '100%' }}
                         >
                             <option value="unless-stopped">unless-stopped (Recommended)</option>
                             <option value="always">always</option>
@@ -137,11 +148,11 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                         </select>
                     </div>
 
-                    <div className="dm-modal-footer">
-                        <button type="button" className="nl-button secondary" onClick={onClose} disabled={submitting}>
+                    <div className="dm-modal-footer" style={{ padding: '16px 0 0', marginTop: '16px' }}>
+                        <button type="button" className="dm-btn dm-btn-secondary" onClick={onClose} disabled={submitting}>
                             Cancel
                         </button>
-                        <button type="submit" className="nl-button success" disabled={submitting}>
+                        <button type="submit" className="dm-btn dm-btn-primary" disabled={submitting}>
                             {submitting ? '⏳ Deploying...' : '🚀 Deploy Container'}
                         </button>
                     </div>
@@ -150,4 +161,3 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
         </div>
     );
 }
-
