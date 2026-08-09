@@ -16,7 +16,7 @@ export default function ExecModal({ container, onExecCommand, onClose }: { conta
             const res = await onExecCommand(container.ID, targetCmd.trim());
             setOutput(res);
         } catch (err: any) {
-            setOutput({ stdout: '', stderr: err.message || 'Execution error' });
+            setOutput({ stdout: '', stderr: err.message || 'Execution error', code: 1 });
         } finally {
             setRunning(false);
         }
@@ -29,31 +29,39 @@ export default function ExecModal({ container, onExecCommand, onClose }: { conta
 
     return (
         <div className="dm-modal-backdrop" onClick={onClose}>
-            <div className="nl-panel dm-modal dm-modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="dm-modal dm-modal-lg" onClick={e => e.stopPropagation()}>
                 <div className="dm-modal-header">
                     <div>
-                        <h3>⚡ Container Exec: {container.Names}</h3>
+                        <h3>⚡ Container Shell Exec: {container.Names}</h3>
                         <span className="dm-code-sub">{container.ID?.substring(0, 12)}</span>
                     </div>
-                    <button className="dm-modal-close" onClick={onClose}>&times;</button>
+                    <div className="dm-modal-actions">
+                        {output && (
+                            <button className="nl-button secondary" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={() => setOutput(null)}>
+                                🧹 Clear Terminal
+                            </button>
+                        )}
+                        <button className="dm-modal-close" onClick={onClose}>&times;</button>
+                    </div>
                 </div>
 
                 <div className="dm-modal-body">
                     <div className="dm-exec-bar">
                         <div className="dm-exec-input-wrapper">
-                            <span className="dm-exec-prompt">$ docker exec {container.Names}</span>
+                            <span className="dm-exec-prompt">$ {container.Names?.replace(/^\//, '')}:~#</span>
                             <input
                                 className="dm-input dm-exec-input"
                                 type="text"
-                                placeholder="Enter command (e.g. ls -la, env, cat /etc/os-release)"
+                                placeholder="Enter shell command (e.g. ls -la, env, cat /etc/os-release)"
                                 value={command}
                                 onChange={e => setCommand(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && handleRun()}
                                 disabled={running}
+                                autoFocus
                             />
                         </div>
                         <button className="nl-button" onClick={() => handleRun()} disabled={running}>
-                            {running ? 'Running...' : 'Run'}
+                            {running ? 'Executing...' : '▶ Run'}
                         </button>
                     </div>
 
@@ -65,19 +73,27 @@ export default function ExecModal({ container, onExecCommand, onClose }: { conta
                         <button className="dm-preset-btn" onClick={() => handlePreset('uname -a')}>uname -a</button>
                         <button className="dm-preset-btn" onClick={() => handlePreset('cat /etc/os-release')}>OS Info</button>
                         <button className="dm-preset-btn" onClick={() => handlePreset('ps aux')}>Processes</button>
+                        <button className="dm-preset-btn" onClick={() => handlePreset('top -b -n 1')}>top</button>
                     </div>
 
                     <div className="dm-log-terminal dm-exec-terminal">
                         {running ? (
-                            <span className="dm-terminal-muted">Executing command...</span>
+                            <div className="dm-terminal-muted">⏳ Executing command inside container...</div>
                         ) : output ? (
                             <>
+                                {output.code !== undefined && (
+                                    <div style={{ marginBottom: '8px', fontSize: '0.75rem', color: output.code === 0 ? '#34d399' : '#f87171' }}>
+                                        Exit Status: {output.code} {output.code === 0 ? '✓ Success' : '❌ Failed'}
+                                    </div>
+                                )}
                                 {output.stdout && <pre className="dm-stdout">{output.stdout}</pre>}
                                 {output.stderr && <pre className="dm-stderr">{output.stderr}</pre>}
-                                {!output.stdout && !output.stderr && <span className="dm-terminal-muted">Command completed with no output (Exit Code: {output.code ?? 0}).</span>}
+                                {!output.stdout && !output.stderr && (
+                                    <span className="dm-terminal-muted">Command executed cleanly with no output.</span>
+                                )}
                             </>
                         ) : (
-                            <span className="dm-terminal-muted">Type a command or click a quick command above to execute inside the container.</span>
+                            <span className="dm-terminal-muted">Type a command or choose a quick preset above to execute interactively.</span>
                         )}
                     </div>
                 </div>
@@ -85,3 +101,4 @@ export default function ExecModal({ container, onExecCommand, onClose }: { conta
         </div>
     );
 }
+

@@ -30,26 +30,29 @@ export default function ImagesTab({ images, handlePull, handleRemoveImage }: any
                     <input 
                         className="dm-input" 
                         type="text" 
-                        placeholder="Pull Image (e.g. nginx:latest, redis:alpine)" 
+                        placeholder="Pull Docker Image (e.g. nginx:alpine, redis:7, postgres:16)" 
                         value={pullInput}
                         onChange={e => setPullInput(e.target.value)}
                         disabled={pulling}
                     />
                     <button type="submit" className="nl-button" disabled={pulling} style={{ whiteSpace: 'nowrap' }}>
-                        {pulling ? 'Pulling...' : 'Pull Image'}
+                        {pulling ? '⏳ Pulling Image...' : '📥 Pull Image'}
                     </button>
                 </form>
 
-                <input
-                    className="dm-input dm-search-input"
-                    type="text"
-                    placeholder="Search images..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                />
+                <div className="dm-search-input-wrapper">
+                    <span className="dm-search-icon">🔍</span>
+                    <input
+                        className="dm-input"
+                        type="text"
+                        placeholder="Search images..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
             </div>
 
-            <div className="nl-panel dm-table-wrapper">
+            <div className="dm-table-wrapper">
                 <table className="dm-table">
                     <thead>
                         <tr>
@@ -58,28 +61,33 @@ export default function ImagesTab({ images, handlePull, handleRemoveImage }: any
                             <th>Image ID</th>
                             <th>Created</th>
                             <th>Size</th>
-                            <th>Action</th>
+                            <th style={{ textAlign: 'right' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {filteredImages.map((img: any, idx: number) => (
                             <tr key={img.ID || idx}>
-                                <td><strong>{img.Repository}</strong></td>
-                                <td>{img.Tag}</td>
+                                <td><strong style={{ color: '#fff' }}>{img.Repository}</strong></td>
+                                <td><span className="dm-chip dm-chip-primary">{img.Tag || 'latest'}</span></td>
                                 <td className="dm-code">{img.ID?.substring(0, 12)}</td>
-                                <td>{img.CreatedAt || img.CreatedSince}</td>
-                                <td>{img.Size}</td>
-                                <td>
-                                    <button className="nl-button danger" style={{ padding: '4px 10px', fontSize: '0.8rem' }} onClick={() => handleRemoveImage(img.ID)}>
-                                        Delete
+                                <td>{img.CreatedAt || img.CreatedSince || 'N/A'}</td>
+                                <td><span className="dm-chip">{img.Size}</span></td>
+                                <td style={{ textAlign: 'right' }}>
+                                    <button 
+                                        className="dm-action-btn danger" 
+                                        style={{ display: 'inline-flex' }} 
+                                        onClick={() => handleRemoveImage(img.ID)}
+                                        title="Remove Docker Image"
+                                    >
+                                        🗑️ Remove
                                     </button>
                                 </td>
                             </tr>
                         ))}
                         {filteredImages.length === 0 && (
                             <tr>
-                                <td colSpan={6} style={{ textAlign: 'center', padding: '32px' }}>
-                                    No Docker images found.
+                                <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--dm-text-muted)' }}>
+                                    No Docker images found matching criteria.
                                 </td>
                             </tr>
                         )}
@@ -89,4 +97,5 @@ export default function ImagesTab({ images, handlePull, handleRemoveImage }: any
         </div>
     );
 }
+
 

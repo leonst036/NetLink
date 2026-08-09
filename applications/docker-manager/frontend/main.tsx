@@ -460,34 +460,39 @@ export default function DockerManager() {
                 {activeTab === 'containers' && (
                     <div className="dm-containers-view">
                         <div className="dm-action-bar">
-                            <div className="dm-pill-switch">
-                                <button
-                                    className={statusFilter === 'all' ? 'active' : ''}
-                                    onClick={() => setStatusFilter('all')}
-                                >
-                                    All ({containers.length})
-                                </button>
-                                <button
-                                    className={statusFilter === 'running' ? 'active' : ''}
-                                    onClick={() => setStatusFilter('running')}
-                                >
-                                    Running ({runningCount})
-                                </button>
-                                <button
-                                    className={statusFilter === 'stopped' ? 'active' : ''}
-                                    onClick={() => setStatusFilter('stopped')}
-                                >
-                                    Stopped ({stoppedCount})
-                                </button>
+                            <div className="dm-filter-group">
+                                <div className="dm-pill-switch">
+                                    <button
+                                        className={statusFilter === 'all' ? 'active' : ''}
+                                        onClick={() => setStatusFilter('all')}
+                                    >
+                                        All ({containers.length})
+                                    </button>
+                                    <button
+                                        className={statusFilter === 'running' ? 'active' : ''}
+                                        onClick={() => setStatusFilter('running')}
+                                    >
+                                        Running ({runningCount})
+                                    </button>
+                                    <button
+                                        className={statusFilter === 'stopped' ? 'active' : ''}
+                                        onClick={() => setStatusFilter('stopped')}
+                                    >
+                                        Stopped ({stoppedCount})
+                                    </button>
+                                </div>
                             </div>
 
-                            <input
-                                className="dm-input dm-search-input"
-                                type="text"
-                                placeholder="Search containers by name, image, or ID..."
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                            />
+                            <div className="dm-search-input-wrapper">
+                                <span className="dm-search-icon">🔍</span>
+                                <input
+                                    className="dm-input"
+                                    type="text"
+                                    placeholder="Search containers by name, image, or ID..."
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                />
+                            </div>
                         </div>
 
                         <div className="dm-grid">

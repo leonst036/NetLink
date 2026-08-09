@@ -35,7 +35,7 @@ services:
     restart: unless-stopped`
     },
     redis: {
-        name: '⚡ Redis In-Memory Cache',
+        name: '⚡ Redis Cache Server',
         yaml: `version: '3.8'
 services:
   cache:
@@ -47,7 +47,7 @@ services:
     restart: unless-stopped`
     },
     wordpress: {
-        name: '📰 WordPress + MySQL',
+        name: '📰 WordPress + MySQL Stack',
         yaml: `version: '3.8'
 services:
   db:
@@ -116,15 +116,17 @@ export default function ComposeTab({ handleDeployCompose, handleDownCompose }: {
 
     return (
         <div className="dm-compose-tab">
-            <div className="nl-panel dm-compose-panel">
+            <div className="dm-table-wrapper" style={{ padding: '28px' }}>
                 <div className="dm-compose-header">
-                    <h3>Docker Compose Stack Launcher</h3>
-                    <p>Paste a docker-compose.yml configuration or select a template to launch full multi-container applications.</p>
+                    <h3 style={{ margin: '0 0 6px', fontSize: '1.4rem', color: '#fff' }}>⚡ Docker Compose Stack Launcher</h3>
+                    <p style={{ margin: 0, color: 'var(--dm-text-muted)', fontSize: '0.9rem' }}>
+                        Define multi-container applications using standard <code>docker-compose.yml</code> definitions.
+                    </p>
                 </div>
 
-                <div className="dm-compose-bar">
+                <div className="dm-compose-bar" style={{ marginTop: '20px' }}>
                     <div className="dm-form-group" style={{ marginBottom: 0, flex: 1 }}>
-                        <label>Stack / Project Name</label>
+                        <label>Stack / Project Identifier</label>
                         <input
                             className="dm-input"
                             type="text"
@@ -135,7 +137,7 @@ export default function ComposeTab({ handleDeployCompose, handleDownCompose }: {
                     </div>
 
                     <div className="dm-form-group" style={{ marginBottom: 0, flex: 1 }}>
-                        <label>Templates</label>
+                        <label>Preset Stack Templates</label>
                         <select
                             className="dm-input"
                             onChange={e => handleSelectTemplate(e.target.value)}
@@ -148,8 +150,8 @@ export default function ComposeTab({ handleDeployCompose, handleDownCompose }: {
                     </div>
                 </div>
 
-                <div className="dm-form-group">
-                    <label>docker-compose.yml</label>
+                <div className="dm-form-group" style={{ marginTop: '16px' }}>
+                    <label>docker-compose.yml Content</label>
                     <textarea
                         className="dm-input dm-code-editor"
                         rows={14}
@@ -161,23 +163,25 @@ export default function ComposeTab({ handleDeployCompose, handleDownCompose }: {
 
                 <div className="dm-compose-actions">
                     <button className="nl-button success" onClick={onDeploy} disabled={deploying}>
-                        {deploying ? 'Deploying Stack...' : '🚀 Deploy Stack (Up)'}
+                        {deploying ? '⏳ Deploying Stack...' : '🚀 Deploy Stack (docker compose up -d)'}
                     </button>
                     <button className="nl-button danger" onClick={onDown} disabled={deploying}>
-                        {deploying ? 'Stopping Stack...' : '🛑 Stop Stack (Down)'}
+                        {deploying ? '⏳ Stopping Stack...' : '🛑 Stop Stack (docker compose down)'}
                     </button>
                 </div>
 
                 {output && (
                     <div className="dm-compose-output">
-                        <h4>Stack Operation Output:</h4>
-                        <pre className="dm-log-terminal">
+                        <h4 style={{ margin: '0 0 10px', fontSize: '0.92rem', color: 'var(--dm-text-muted)' }}>Execution Output Log:</h4>
+                        <div className="dm-log-terminal">
                             {output.stdout && <div className="dm-stdout">{output.stdout}</div>}
                             {output.stderr && <div className="dm-stderr">{output.stderr}</div>}
-                        </pre>
+                            {!output.stdout && !output.stderr && <div className="dm-terminal-muted">Stack operation completed.</div>}
+                        </div>
                     </div>
                 )}
             </div>
         </div>
     );
 }
+

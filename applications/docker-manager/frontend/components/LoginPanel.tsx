@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function LoginPanel({ credentials, setCredentials, remember, setRemember, connecting, error, handleConnect }: any) {
+    const [showPassword, setShowPassword] = useState(false);
+
     const handleQuickLocalhost = () => {
         setCredentials((prev: any) => ({
             ...prev,
@@ -12,21 +14,25 @@ export default function LoginPanel({ credentials, setCredentials, remember, setR
 
     return (
         <div className="dm-layout">
-            <div className="nl-panel dm-login-card">
+            <div className="dm-login-card">
                 <div className="dm-login-header">
                     <div className="dm-login-icon">
-                        <img src="/apps/docker-manager/frontend/assets/docker.svg" alt="Docker" width="28" height="28" />
+                        <img src="/apps/docker-manager/frontend/assets/docker.svg" alt="Docker" width="34" height="34" />
                     </div>
-                    <h2>Docker Manager</h2>
-                    <p>Connect to Docker Engine via SSH</p>
+                    <h2>Docker Engine Manager</h2>
+                    <p>Secure SSH connection to your Docker daemon</p>
                 </div>
 
-                {error && <div className="dm-error">{error}</div>}
+                {error && (
+                    <div className="dm-error">
+                        <span>⚠️</span> {error}
+                    </div>
+                )}
 
                 <form onSubmit={handleConnect}>
                     <div className="dm-form-row">
                         <div className="dm-form-group">
-                            <label>Host / IP</label>
+                            <label>Host / IP Address</label>
                             <input 
                                 className="dm-input"
                                 type="text" 
@@ -37,7 +43,7 @@ export default function LoginPanel({ credentials, setCredentials, remember, setR
                             />
                         </div>
                         <div className="dm-form-group">
-                            <label>Port</label>
+                            <label>SSH Port</label>
                             <input 
                                 className="dm-input"
                                 type="number" 
@@ -49,11 +55,11 @@ export default function LoginPanel({ credentials, setCredentials, remember, setR
                     </div>
                     
                     <div className="dm-form-group">
-                        <label>Username</label>
+                        <label>SSH Username</label>
                         <input 
                             className="dm-input"
                             type="text" 
-                            placeholder="root"
+                            placeholder="e.g. root or ubuntu"
                             value={credentials.username}
                             onChange={e => setCredentials({ ...credentials, username: e.target.value })}
                             required
@@ -61,10 +67,20 @@ export default function LoginPanel({ credentials, setCredentials, remember, setR
                     </div>
                     
                     <div className="dm-form-group">
-                        <label>Password</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label>SSH Password</label>
+                            <button 
+                                type="button" 
+                                className="dm-text-link"
+                                style={{ fontSize: '0.75rem' }}
+                                onClick={() => setShowPassword(!showPassword)}
+                            >
+                                {showPassword ? 'Hide' : 'Show'}
+                            </button>
+                        </div>
                         <input 
                             className="dm-input"
-                            type="password" 
+                            type={showPassword ? "text" : "password"} 
                             placeholder="••••••••"
                             value={credentials.password}
                             onChange={e => setCredentials({ ...credentials, password: e.target.value })}
@@ -79,19 +95,20 @@ export default function LoginPanel({ credentials, setCredentials, remember, setR
                                 checked={remember}
                                 onChange={e => setRemember(e.target.checked)}
                             />
-                            Remember connection details
+                            Save credentials locally
                         </label>
                         <button type="button" className="dm-text-link" onClick={handleQuickLocalhost}>
-                            Fill Localhost
+                            ⚡ Fill 127.0.0.1
                         </button>
                     </div>
                     
-                    <button type="submit" className="nl-button" disabled={connecting} style={{ width: '100%', marginTop: '12px' }}>
-                        {connecting ? 'Connecting...' : 'Connect via SSH'}
+                    <button type="submit" className="nl-button" disabled={connecting} style={{ width: '100%', marginTop: '14px', height: '44px' }}>
+                        {connecting ? 'Connecting...' : 'Connect to Docker Engine'}
                     </button>
                 </form>
             </div>
         </div>
     );
 }
+
 

@@ -5,10 +5,13 @@ export default function DashboardHeader({ credentials, metrics, refreshData, han
         <>
             <div className="dm-header">
                 <div className="dm-header-info">
-                    <h2>Docker Engine Manager</h2>
+                    <div className="dm-brand">
+                        <img src="/apps/docker-manager/frontend/assets/docker.svg" alt="Docker Logo" className="dm-brand-logo" />
+                        <h2>Docker Engine Manager</h2>
+                    </div>
                     <div className="dm-status-indicator">
                         <span className="dm-dot" />
-                        Connected to {credentials.username}@{credentials.host}:{credentials.port}
+                        Connected to <strong>{credentials.username}@{credentials.host}:{credentials.port}</strong>
                     </div>
                 </div>
 
@@ -33,16 +36,16 @@ export default function DashboardHeader({ credentials, metrics, refreshData, han
                 
                 <div className="dm-actions">
                     <button className="nl-button success" onClick={onOpenRunModal}>
-                        + Deploy Container
+                        🚀 Deploy Container
                     </button>
                     <button className="nl-button danger" onClick={handlePrune} title="Clean unused containers, images & networks">
-                        Prune System
+                        🧹 Prune System
                     </button>
                     <button className="nl-button secondary" onClick={refreshData}>
-                        Refresh
+                        🔄 Refresh
                     </button>
                     <button className="nl-button secondary" onClick={() => setConnected(false)}>
-                        Disconnect
+                        🔌 Disconnect
                     </button>
                 </div>
             </div>
@@ -53,35 +56,40 @@ export default function DashboardHeader({ credentials, metrics, refreshData, han
                         className={`dm-tab-btn ${activeTab === 'containers' ? 'active' : ''}`}
                         onClick={() => setActiveTab('containers')}
                     >
-                        Containers ({metrics.totalContainers || 0})
+                        <span>📦 Containers</span>
+                        <span className="dm-tab-badge">{metrics.totalContainers || 0}</span>
                     </button>
                     <button 
                         className={`dm-tab-btn ${activeTab === 'images' ? 'active' : ''}`}
                         onClick={() => setActiveTab('images')}
                     >
-                        Images ({metrics.imagesCount || 0})
+                        <span>🖼️ Images</span>
+                        <span className="dm-tab-badge">{metrics.imagesCount || 0}</span>
                     </button>
                     <button 
                         className={`dm-tab-btn ${activeTab === 'volumes' ? 'active' : ''}`}
                         onClick={() => setActiveTab('volumes')}
                     >
-                        Volumes ({metrics.volumesCount || 0})
+                        <span>💾 Volumes</span>
+                        <span className="dm-tab-badge">{metrics.volumesCount || 0}</span>
                     </button>
                     <button 
                         className={`dm-tab-btn ${activeTab === 'networks' ? 'active' : ''}`}
                         onClick={() => setActiveTab('networks')}
                     >
-                        Networks ({metrics.networksCount || 0})
+                        <span>🌐 Networks</span>
+                        <span className="dm-tab-badge">{metrics.networksCount || 0}</span>
                     </button>
                     <button 
                         className={`dm-tab-btn ${activeTab === 'compose' ? 'active' : ''}`}
                         onClick={() => setActiveTab('compose')}
                     >
-                        Compose Stacks
+                        <span>⚡ Compose Stacks</span>
                     </button>
                 </div>
             </div>
         </>
     );
 }
+
 

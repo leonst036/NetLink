@@ -38,25 +38,33 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
 
     return (
         <div className="dm-modal-backdrop" onClick={onClose}>
-            <div className="nl-panel dm-modal dm-modal-md" onClick={e => e.stopPropagation()}>
+            <div className="dm-modal dm-modal-md" onClick={e => e.stopPropagation()}>
                 <div className="dm-modal-header">
                     <h3>🚀 Deploy New Container</h3>
                     <button className="dm-modal-close" onClick={onClose}>&times;</button>
                 </div>
 
-                {error && <div className="dm-error">{error}</div>}
+                {error && <div className="dm-error">⚠️ {error}</div>}
 
-                <form onSubmit={handleSubmit} className="dm-form">
+                <form onSubmit={handleSubmit} className="dm-modal-body">
                     <div className="dm-form-group">
                         <label>Image Name *</label>
                         <input
                             className="dm-input"
                             type="text"
-                            placeholder="e.g. nginx:alpine, redis:7, postgres:16"
+                            placeholder="e.g. nginx:alpine, redis:alpine, postgres:16-alpine"
                             value={image}
                             onChange={e => setImage(e.target.value)}
                             required
+                            autoFocus
                         />
+                        <div className="dm-presets" style={{ marginTop: '6px' }}>
+                            <span className="dm-presets-label">Popular:</span>
+                            <button type="button" className="dm-preset-btn" onClick={() => setImage('nginx:alpine')}>nginx:alpine</button>
+                            <button type="button" className="dm-preset-btn" onClick={() => setImage('redis:alpine')}>redis:alpine</button>
+                            <button type="button" className="dm-preset-btn" onClick={() => setImage('postgres:16-alpine')}>postgres:16</button>
+                            <button type="button" className="dm-preset-btn" onClick={() => setImage('node:20-alpine')}>node:20</button>
+                        </div>
                     </div>
 
                     <div className="dm-form-group">
@@ -64,7 +72,7 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                         <input
                             className="dm-input"
                             type="text"
-                            placeholder="e.g. web-server"
+                            placeholder="e.g. my-web-app"
                             value={name}
                             onChange={e => setName(e.target.value)}
                         />
@@ -76,7 +84,7 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                             <input
                                 className="dm-input"
                                 type="text"
-                                placeholder="8080"
+                                placeholder="e.g. 8080"
                                 value={hostPort}
                                 onChange={e => setHostPort(e.target.value)}
                             />
@@ -86,7 +94,7 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                             <input
                                 className="dm-input"
                                 type="text"
-                                placeholder="80"
+                                placeholder="e.g. 80"
                                 value={containerPort}
                                 onChange={e => setContainerPort(e.target.value)}
                             />
@@ -94,7 +102,7 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                     </div>
 
                     <div className="dm-form-group">
-                        <label>Environment Variables (Key=Value per line)</label>
+                        <label>Environment Variables (KEY=VALUE per line)</label>
                         <textarea
                             className="dm-input dm-textarea"
                             rows={3}
@@ -122,7 +130,7 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                             value={restartPolicy}
                             onChange={e => setRestartPolicy(e.target.value)}
                         >
-                            <option value="unless-stopped">unless-stopped</option>
+                            <option value="unless-stopped">unless-stopped (Recommended)</option>
                             <option value="always">always</option>
                             <option value="on-failure">on-failure</option>
                             <option value="no">no</option>
@@ -134,7 +142,7 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
                             Cancel
                         </button>
                         <button type="submit" className="nl-button success" disabled={submitting}>
-                            {submitting ? 'Deploying...' : 'Deploy Container'}
+                            {submitting ? '⏳ Deploying...' : '🚀 Deploy Container'}
                         </button>
                     </div>
                 </form>
@@ -142,3 +150,4 @@ export default function RunContainerModal({ onClose, onRun }: { onClose: () => v
         </div>
     );
 }
+

@@ -29,49 +29,57 @@ export default function VolumesTab({ volumes, handleCreateVolume, handleRemoveVo
                     <input
                         className="dm-input"
                         type="text"
-                        placeholder="Volume Name (e.g. app-data)"
+                        placeholder="New Volume Name (e.g. redis-data, pg-storage)"
                         value={volName}
                         onChange={e => setVolName(e.target.value)}
                         disabled={creating}
                     />
                     <button type="submit" className="nl-button" disabled={creating} style={{ whiteSpace: 'nowrap' }}>
-                        {creating ? 'Creating...' : '+ Create Volume'}
+                        {creating ? '⏳ Creating...' : '➕ Create Volume'}
                     </button>
                 </form>
 
-                <input
-                    className="dm-input dm-search-input"
-                    type="text"
-                    placeholder="Search volumes..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                />
+                <div className="dm-search-input-wrapper">
+                    <span className="dm-search-icon">🔍</span>
+                    <input
+                        className="dm-input"
+                        type="text"
+                        placeholder="Search volumes..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
             </div>
 
-            <div className="nl-panel dm-table-wrapper">
+            <div className="dm-table-wrapper">
                 <table className="dm-table">
                     <thead>
                         <tr>
                             <th>Driver</th>
                             <th>Volume Name</th>
-                            <th>Action</th>
+                            <th style={{ textAlign: 'right' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {filteredVolumes.map((vol: any, idx: number) => (
                             <tr key={vol.Name || idx}>
-                                <td><span className="dm-pill">{vol.Driver || 'local'}</span></td>
-                                <td className="dm-code"><strong>{vol.Name}</strong></td>
-                                <td>
-                                    <button className="nl-button danger" style={{ padding: '4px 10px', fontSize: '0.8rem' }} onClick={() => handleRemoveVolume(vol.Name)}>
-                                        Delete
+                                <td><span className="dm-chip dm-chip-primary">{vol.Driver || 'local'}</span></td>
+                                <td className="dm-code"><strong style={{ color: '#fff' }}>{vol.Name}</strong></td>
+                                <td style={{ textAlign: 'right' }}>
+                                    <button 
+                                        className="dm-action-btn danger" 
+                                        style={{ display: 'inline-flex' }} 
+                                        onClick={() => handleRemoveVolume(vol.Name)}
+                                        title="Remove Docker Volume"
+                                    >
+                                        🗑️ Delete
                                     </button>
                                 </td>
                             </tr>
                         ))}
                         {filteredVolumes.length === 0 && (
                             <tr>
-                                <td colSpan={3} style={{ textAlign: 'center', padding: '32px' }}>
+                                <td colSpan={3} style={{ textAlign: 'center', padding: '40px', color: 'var(--dm-text-muted)' }}>
                                     No Docker volumes found.
                                 </td>
                             </tr>
@@ -82,4 +90,5 @@ export default function VolumesTab({ volumes, handleCreateVolume, handleRemoveVo
         </div>
     );
 }
+
 

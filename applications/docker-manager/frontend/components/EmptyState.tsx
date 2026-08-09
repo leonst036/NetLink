@@ -2,10 +2,11 @@ import React from 'react';
 
 export default function EmptyState() {
     return (
-        <div className="nl-panel dm-empty">
-            <img src="/apps/docker-manager/frontend/assets/empty.svg" alt="Empty" width="48" height="48" />
-            <h3>No Containers Found</h3>
-            <p>No active or stopped Docker containers on this host.</p>
+        <div className="dm-empty-container">
+            <img src="/apps/docker-manager/frontend/assets/empty.svg" alt="Empty" className="dm-empty-icon" />
+            <h3 className="dm-empty-title">No Containers Found</h3>
+            <p className="dm-empty-sub">There are currently no active or stopped Docker containers on this host machine.</p>
         </div>
     );
 }
+
