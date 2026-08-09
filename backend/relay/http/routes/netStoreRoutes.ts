@@ -29,7 +29,7 @@ export function handleInstallApplicationRoute(parsedUrl: URL, req: http.Incoming
     req.on('end', () => {
         try {
             const data = JSON.parse(body);
-            const { appId, target } = data;
+            const { appId, target, branch } = data;
 
             if (!appId || !target) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -47,7 +47,8 @@ export function handleInstallApplicationRoute(parsedUrl: URL, req: http.Incoming
             // Send command to local server
             targetWs.send(JSON.stringify({
                 type: 'install_application',
-                appId: appId
+                appId: appId,
+                branch: branch || 'NetStore'
             }));
 
             res.writeHead(200, { 'Content-Type': 'application/json' });

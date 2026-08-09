@@ -2,6 +2,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import * as esbuild from 'esbuild';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -126,11 +127,71 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
         // Fallback or ignore, handle in fs.readFile
     }
 
+    // Dynamic React Support
+    if (path.basename(filePath) === 'index.html' && !fs.existsSync(filePath)) {
+        const indexJsonPath = path.join(RELAY_APPS_DIR, appId, 'index.json');
+        if (fs.existsSync(indexJsonPath)) {
+            try {
+                const indexData = JSON.parse(fs.readFileSync(indexJsonPath, 'utf-8'));
+                if (indexData.main && (indexData.main.endsWith('.tsx') || indexData.main.endsWith('.jsx'))) {
+                    const shell = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="/netlink.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.2.0",
+      "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+      "react-dom": "https://esm.sh/react-dom@18.2.0"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="bg-glow"></div>
+  <div class="bg-glow-2"></div>
+  <div id="root"></div>
+  <script type="module">
+    import React from 'react';
+    import { createRoot } from 'react-dom/client';
+    import App from '/apps/${appId}/${indexData.main}';
+    
+    const renderApp = (Component) => {
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(Component, { token: localStorage.getItem('netlink_token') }));
+    };
+    
+    if (App instanceof Promise) {
+        App.then(m => renderApp(m.default || m));
+    } else {
+        renderApp(App);
+    }
+  </script>
+</body>
+</html>`;
+                    res.writeHead(200, { 'Content-Type': 'text/html' });
+                    res.end(shell);
+                    return;
+                }
+            } catch (e) {
+                console.error('Failed to parse index.json for dynamic React support', e);
+            }
+        }
+    }
+
     const ext = path.extname(filePath).toLowerCase();
+    const isTypeScript = ext === '.tsx' || ext === '.ts' || ext === '.jsx';
+    
     const mimeTypes: { [key: string]: string } = {
         '.html': 'text/html',
         '.css': 'text/css',
         '.js': 'text/javascript',
+        '.jsx': 'text/javascript',
+        '.ts': 'text/javascript',
+        '.tsx': 'text/javascript',
         '.json': 'application/json',
         '.png': 'image/png',
         '.jpg': 'image/jpeg',
@@ -151,8 +212,26 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
                 res.end(`Server Error: ${error.code}\n`);
             }
         } else {
-            res.writeHead(200, { 'Content-Type': contentType });
-            res.end(content); // Raw content, no utf-8 forced (important for images)
+            if (isTypeScript) {
+                (async () => {
+                    try {
+                        const transpiled = await esbuild.transform(content.toString('utf-8'), {
+                            loader: 'tsx',
+                            target: 'es2022',
+                            format: 'esm'
+                        });
+                        res.writeHead(200, { 'Content-Type': 'text/javascript' });
+                        res.end(transpiled.code, 'utf-8');
+                    } catch (esError) {
+                        console.error('esbuild transpilation error:', esError);
+                        res.writeHead(500, { 'Content-Type': 'text/plain' });
+                        res.end('Transpilation Error\n');
+                    }
+                })();
+            } else {
+                res.writeHead(200, { 'Content-Type': contentType });
+                res.end(content); // Raw content, no utf-8 forced (important for images)
+            }
         }
     });
 }

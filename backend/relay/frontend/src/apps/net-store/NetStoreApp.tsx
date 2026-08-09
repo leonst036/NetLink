@@ -17,7 +17,11 @@ import {
   DialogContent,
   DialogActions,
   LinearProgress,
-  IconButton
+  IconButton,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import {
   Store,
@@ -88,16 +92,57 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   const [selectedApp, setSelectedApp] = useState<AppItem | null>(null);
   const [storeCatalog, setStoreCatalog] = useState<AppItem[]>([]);
 
+  const [selectedBranch, setSelectedBranch] = useState<'NetStore' | 'NetStore-dev'>(() => {
+    try {
+      const saved = localStorage.getItem('netstore_selected_branch');
+      if (saved === 'NetStore' || saved === 'NetStore-dev') return saved;
+    } catch (e) {}
+    return 'NetStore';
+  });
+
   useEffect(() => {
-    const url = props.target ? `/api/applications?target=${encodeURIComponent(props.target)}` : '/api/applications';
-    fetch(url)
-      .then((res) => {
-        if (res.ok) return res.json();
-        throw new Error('Failed to fetch store applications');
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const parsedCatalog: AppItem[] = data.map((item: any) => ({
+    try {
+      localStorage.setItem('netstore_selected_branch', selectedBranch);
+    } catch (e) {}
+  }, [selectedBranch]);
+
+  useEffect(() => {
+    const fetchApps = async () => {
+      try {
+        const url = props.target ? `/api/applications?target=${encodeURIComponent(props.target)}` : '/api/applications';
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch store applications');
+        const localData = await res.json();
+        
+        let githubData = [];
+        try {
+            const ghRes = await fetch(`https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/${selectedBranch}/applications/applications.json`);
+            if (ghRes.ok) {
+              githubData = await ghRes.json();
+            } else {
+              console.warn(`Failed to fetch branch ${selectedBranch}`);
+            }
+        } catch (e) {
+            console.warn('Failed to fetch github branch data', e);
+        }
+        
+        const mergedMap = new Map();
+        for (const app of githubData) {
+            mergedMap.set(app.id, { ...app, installed: false });
+        }
+        
+        const backendInstalledIds: string[] = [];
+        for (const app of (Array.isArray(localData) ? localData : [])) {
+            if (app.installed) backendInstalledIds.push(app.id);
+            const existing = mergedMap.get(app.id) || {};
+            // If it's a local override, we keep it, except we might want the github data to take precedence for store display?
+            // Actually, we want local installed=true to be applied to the github data.
+            mergedMap.set(app.id, { ...existing, ...app, installed: app.installed });
+        }
+        
+        const finalData = Array.from(mergedMap.values());
+
+        const parsedCatalog: AppItem[] = finalData.map((item: any) => ({
             id: item.id || `app-${Math.random()}`,
             name: item.name || 'Unnamed App',
             author: item.author || 'Community',
@@ -113,17 +158,17 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             fullDesc: item.fullDesc || item.fullDescription || '',
             features: item.features || [],
             isFeatured: item.isFeatured
-          }));
-          setStoreCatalog(parsedCatalog);
-          
-          const backendInstalledIds = data.filter((item: any) => item.installed).map((item: any) => item.id);
-          setInstalledAppIds((prev) => Array.from(new Set([...prev, ...backendInstalledIds])));
-        }
-      })
-      .catch((err) => {
+        }));
+        
+        setStoreCatalog(parsedCatalog);
+        setInstalledAppIds((prev) => Array.from(new Set([...prev, ...backendInstalledIds])));
+      } catch (err: any) {
         console.warn('Store fetch error:', err.message);
-      });
-  }, [props.target]);
+      }
+    };
+    
+    fetchApps();
+  }, [props.target, selectedBranch]);
 
   // Installed App State
   const [installedAppIds, setInstalledAppIds] = useState<string[]>([]);
@@ -161,7 +206,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         'Content-Type': 'application/json',
         ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
       },
-      body: JSON.stringify({ appId: app.id, target: targetId })
+      body: JSON.stringify({ appId: app.id, target: targetId, branch: selectedBranch })
     })
     .then(async (res) => {
       if (!res.ok) {
@@ -292,6 +337,23 @@ export default function NetStoreApp(props: NetStoreAppProps) {
               }
             }}
           />
+        </Box>
+
+        {/* Branch Selector */}
+        <Box sx={{ px: 2, pb: 2 }}>
+          <FormControl fullWidth size="small" variant="outlined">
+            <InputLabel id="branch-select-label" sx={{ fontSize: '0.8rem' }}>Store Channel</InputLabel>
+            <Select
+              labelId="branch-select-label"
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value as 'NetStore' | 'NetStore-dev')}
+              label="Store Channel"
+              sx={{ fontSize: '0.85rem' }}
+            >
+              <MenuItem value="NetStore">Stable (NetStore)</MenuItem>
+              <MenuItem value="NetStore-dev">Developer (NetStore-dev)</MenuItem>
+            </Select>
+          </FormControl>
         </Box>
 
         {/* Sidebar Menu List */}

@@ -157,6 +157,12 @@ export function getAppSyncFiles(): any[] {
         const relayFiles = walkSync(path.join(appDirPath, 'relay'));
         const frontendFiles = walkSync(path.join(appDirPath, 'frontend'));
         const allFiles = [...relayFiles, ...frontendFiles];
+        
+        // Also sync index.json to relay
+        const indexJsonPath = path.join(appDirPath, 'index.json');
+        if (fs.existsSync(indexJsonPath)) {
+            allFiles.push(indexJsonPath);
+        }
 
         for (const file of allFiles) {
             const relativePath = path.relative(appDirPath, file).replace(/\\/g, '/');
@@ -221,15 +227,24 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
                     ws.send(JSON.stringify({ type: 'sync-app-backends', backends: appSyncFiles }));
                 }
                 StartLocalApps(); // Attempt to start it locally again
+            } else if (message.type === 'install_application') {
+                try {
+                    installApplication(message.appId, message.branch || 'NetStore').then(() => {
+                        ws.send(JSON.stringify({ type: 'install_success', appId: message.appId }));
+                    });
+                } catch (err: any) {
+                    ws.send(JSON.stringify({ type: 'install_error', appId: message.appId, error: err.message }));
+                }
             }
         } catch (err) {}
     });
 }
 
-export async function installApplication(appId: string): Promise<void> {
-    console.log(`Starting installation of application: ${appId}`);
+export async function installApplication(appId: string, branch: string = 'NetStore') {
     try {
-        const treeUrl = `https://api.github.com/repos/leonst036/NetLink/git/trees/NetStore?recursive=1`;
+        console.log(`Starting installation of application ${appId} from branch ${branch}...`);
+
+        const treeUrl = `https://api.github.com/repos/leonst036/NetLink/git/trees/${branch}?recursive=1`;
         const treeRes = await fetch(treeUrl);
         if (!treeRes.ok) throw new Error(`Failed to fetch GitHub tree: ${treeRes.statusText}`);
         
@@ -252,7 +267,7 @@ export async function installApplication(appId: string): Promise<void> {
 
         // Fetch each file
         for (const fileNode of appFiles) {
-            const rawUrl = `https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/NetStore/${fileNode.path}`;
+            const rawUrl = `https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/${branch}/${fileNode.path}`;
             const relativePath = fileNode.path.substring(appPrefix.length);
             const localPath = path.join(appDir, relativePath);
             

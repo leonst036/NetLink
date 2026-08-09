@@ -33,6 +33,7 @@ export class DenoSandbox {
 
         const args = [
             'run',
+            '--no-config',
             '--allow-net',
             `--allow-read=${appDir}`,
             '--allow-env=PORT',
