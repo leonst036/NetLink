@@ -1,162 +1,68 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import LoginPanel from './components/LoginPanel';
+import DashboardHeader from './components/DashboardHeader';
+import ContainerCard from './components/ContainerCard';
+import EmptyState from './components/EmptyState';
+import LogModal from './components/LogModal';
+import RunContainerModal from './components/RunContainerModal';
+import InspectModal from './components/InspectModal';
+import ExecModal from './components/ExecModal';
+import ImagesTab from './tabs/ImagesTab';
+import VolumesTab from './tabs/VolumesTab';
+import NetworksTab from './tabs/NetworksTab';
+import ComposeTab from './tabs/ComposeTab';
 
-function LoginPanel({ credentials, setCredentials, connecting, error, handleConnect }: any) {
-    return (
-        <div className="dm-layout">
-            <div className="nl-panel dm-login-card">
-                <div className="dm-login-header">
-                    <div className="dm-login-icon">
-                        <img src="/apps/docker-manager/frontend/docker.svg" alt="Docker" width="28" height="28" />
-                    </div>
-                    <h2>Docker Manager</h2>
-                    <p>SSH Server Login</p>
-                </div>
-
-                {error && <div className="dm-error">{error}</div>}
-
-                <form onSubmit={handleConnect}>
-                    <div className="dm-form-row">
-                        <div className="dm-form-group">
-                            <label>Host / IP</label>
-                            <input 
-                                className="dm-input"
-                                type="text" 
-                                placeholder="192.168.1.100"
-                                value={credentials.host}
-                                onChange={e => setCredentials({ ...credentials, host: e.target.value })}
-                                required
-                            />
-                        </div>
-                        <div className="dm-form-group">
-                            <label>Port</label>
-                            <input 
-                                className="dm-input"
-                                type="number" 
-                                value={credentials.port}
-                                onChange={e => setCredentials({ ...credentials, port: e.target.value })}
-                                required
-                            />
-                        </div>
-                    </div>
-                    
-                    <div className="dm-form-group">
-                        <label>Username</label>
-                        <input 
-                            className="dm-input"
-                            type="text" 
-                            placeholder="root"
-                            value={credentials.username}
-                            onChange={e => setCredentials({ ...credentials, username: e.target.value })}
-                            required
-                        />
-                    </div>
-                    
-                    <div className="dm-form-group">
-                        <label>Password</label>
-                        <input 
-                            className="dm-input"
-                            type="password" 
-                            placeholder="••••••••"
-                            value={credentials.password}
-                            onChange={e => setCredentials({ ...credentials, password: e.target.value })}
-                            required
-                        />
-                    </div>
-                    
-                    <button type="submit" className="nl-button" disabled={connecting} style={{ width: '100%', marginTop: '8px' }}>
-                        {connecting ? 'Connecting...' : 'Connect via SSH'}
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-function DashboardHeader({ credentials, refreshContainers, setConnected }: any) {
-    return (
-        <div className="dm-header">
-            <div className="dm-header-info">
-                <h2>Docker Engine</h2>
-                <div className="dm-status-indicator">
-                    <span className="dm-dot" />
-                    {credentials.username}@{credentials.host}
-                </div>
-            </div>
-            
-            <div className="dm-actions">
-                <button className="nl-button secondary" onClick={refreshContainers}>
-                    Refresh
-                </button>
-                <button className="nl-button danger" onClick={() => setConnected(false)}>
-                    Disconnect
-                </button>
-            </div>
-        </div>
-    );
-}
-
-function ContainerCard({ container, handleAction }: any) {
-    const isRunning = container.State === 'running';
-    
-    return (
-        <div className="nl-panel dm-card">
-            <div className="dm-card-header">
-                <h3 className="dm-card-title">{container.Names}</h3>
-                <span className={`dm-badge ${isRunning ? 'running' : 'stopped'}`}>
-                    {container.State}
-                </span>
-            </div>
-            
-            <div className="dm-card-details">
-                <div className="dm-detail-row">
-                    <span className="dm-detail-label">Image</span>
-                    <span className="dm-detail-value">{container.Image}</span>
-                </div>
-                <div className="dm-detail-row">
-                    <span className="dm-detail-label">Status</span>
-                    <span className="dm-detail-value">{container.Status}</span>
-                </div>
-                <div className="dm-detail-row">
-                    <span className="dm-detail-label">Ports</span>
-                    <span className="dm-detail-value">{container.Ports || 'None'}</span>
-                </div>
-            </div>
-            
-            <div className="dm-card-actions">
-                {isRunning ? (
-                    <button className="nl-button danger" onClick={() => handleAction('stop', container.ID)}>
-                        Stop
-                    </button>
-                ) : (
-                    <button className="nl-button success" onClick={() => handleAction('start', container.ID)}>
-                        Start
-                    </button>
-                )}
-                <button className="nl-button secondary" onClick={() => handleAction('restart', container.ID)}>
-                    Restart
-                </button>
-            </div>
-        </div>
-    );
-}
-
-function EmptyState() {
-    return (
-        <div className="nl-panel dm-empty">
-            <img src="/apps/docker-manager/frontend/empty.svg" alt="Empty" width="48" height="48" />
-            <h3>No Containers Found</h3>
-            <p>No active or stopped Docker containers on this host.</p>
-        </div>
-    );
-}
+const LOCAL_STORAGE_KEY = 'netstore_docker_manager_creds';
 
 export default function DockerManager() {
     const [connected, setConnected] = useState(false);
     const [connecting, setConnecting] = useState(false);
+    const [remember, setRemember] = useState(true);
     const [credentials, setCredentials] = useState({ host: '', port: '22', username: '', password: '' });
-    const [containers, setContainers] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<'containers' | 'images' | 'volumes' | 'networks' | 'compose'>('containers');
     const [error, setError] = useState('');
 
+    // Data lists
+    const [containers, setContainers] = useState<any[]>([]);
+    const [images, setImages] = useState<any[]>([]);
+    const [volumes, setVolumes] = useState<any[]>([]);
+    const [networks, setNetworks] = useState<any[]>([]);
+    const [stats, setStats] = useState<Record<string, any>>({});
+
+    // Filtering
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'stopped'>('all');
+
+    // Modals
+    const [runModalOpen, setRunModalOpen] = useState(false);
+
+    const [inspectContainer, setInspectContainer] = useState<any>(null);
+    const [inspectData, setInspectData] = useState<any>(null);
+    const [inspectLoading, setInspectLoading] = useState(false);
+
+    const [execContainer, setExecContainer] = useState<any>(null);
+
+    const [logContainer, setLogContainer] = useState<any>(null);
+    const [logContent, setLogContent] = useState('');
+    const [logLoading, setLogLoading] = useState(false);
+    const [logTail, setLogTail] = useState<number>(100);
+
+    // Load credentials from localStorage if available
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.host) {
+                    setCredentials(parsed);
+                }
+            }
+        } catch (e) {
+            console.warn('Could not load stored SSH credentials', e);
+        }
+    }, []);
+
+    // Load stylesheet dynamically
     useEffect(() => {
         const link = document.createElement("link");
         link.rel = "stylesheet";
@@ -183,9 +89,9 @@ export default function DockerManager() {
         return data;
     };
 
-    const parseContainersOutput = (stdout: string): any[] => {
+    const parseJsonLines = (stdout: string): any[] => {
         if (!stdout || !stdout.trim()) return [];
-        const containers: any[] = [];
+        const result: any[] = [];
         const lines = stdout.split('\n');
         for (let line of lines) {
             line = line.trim();
@@ -196,90 +102,477 @@ export default function DockerManager() {
                 const jsonCandidate = line.substring(firstBrace, lastBrace + 1);
                 try {
                     const parsed = JSON.parse(jsonCandidate);
-                    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                        containers.push(parsed);
+                    if (parsed && typeof parsed === 'object') {
+                        result.push(parsed);
                     }
                 } catch (err) {
-                    console.warn('Failed to parse container JSON line:', line, err);
+                    // Ignore line parse errors
                 }
             }
         }
-        return containers;
+        return result;
     };
+
+    const fetchContainers = useCallback(async () => {
+        try {
+            const result = await executeCommand("docker ps -a --format '{{json .}}'");
+            if (result.code === 0) {
+                const parsed = parseJsonLines(result.stdout || '');
+                setContainers(parsed);
+            }
+        } catch (err) {
+            console.error('Failed to fetch containers:', err);
+        }
+    }, [credentials]);
+
+    const fetchImages = useCallback(async () => {
+        try {
+            const result = await executeCommand("docker images --format '{{json .}}'");
+            if (result.code === 0) {
+                const parsed = parseJsonLines(result.stdout || '');
+                setImages(parsed);
+            }
+        } catch (err) {
+            console.error('Failed to fetch images:', err);
+        }
+    }, [credentials]);
+
+    const fetchVolumes = useCallback(async () => {
+        try {
+            const result = await executeCommand("docker volume ls --format '{{json .}}'");
+            if (result.code === 0) {
+                const parsed = parseJsonLines(result.stdout || '');
+                setVolumes(parsed);
+            }
+        } catch (err) {
+            console.error('Failed to fetch volumes:', err);
+        }
+    }, [credentials]);
+
+    const fetchNetworks = useCallback(async () => {
+        try {
+            const result = await executeCommand("docker network ls --format '{{json .}}'");
+            if (result.code === 0) {
+                const parsed = parseJsonLines(result.stdout || '');
+                setNetworks(parsed);
+            }
+        } catch (err) {
+            console.error('Failed to fetch networks:', err);
+        }
+    }, [credentials]);
+
+    const fetchStats = useCallback(async () => {
+        try {
+            const result = await executeCommand("docker stats --no-stream --format '{{json .}}'");
+            if (result.code === 0) {
+                const parsed = parseJsonLines(result.stdout || '');
+                const statsMap: Record<string, any> = {};
+                for (const item of parsed) {
+                    if (item.ID) statsMap[item.ID] = item;
+                    if (item.Name) statsMap[item.Name] = item;
+                }
+                setStats(statsMap);
+            }
+        } catch (err) {
+            console.warn('Failed to fetch container stats:', err);
+        }
+    }, [credentials]);
+
+    const refreshData = useCallback(async () => {
+        await Promise.all([
+            fetchContainers(),
+            fetchImages(),
+            fetchVolumes(),
+            fetchNetworks(),
+            fetchStats()
+        ]);
+    }, [fetchContainers, fetchImages, fetchVolumes, fetchNetworks, fetchStats]);
+
+    // Periodically refresh container stats when connected
+    useEffect(() => {
+        if (!connected) return;
+        refreshData();
+        const interval = setInterval(() => {
+            fetchContainers();
+            fetchStats();
+        }, 8000);
+        return () => clearInterval(interval);
+    }, [connected, refreshData, fetchContainers, fetchStats]);
 
     const handleConnect = async (e: React.FormEvent) => {
         e.preventDefault();
         setConnecting(true);
         setError('');
-        
+
         try {
             const result = await executeCommand("docker ps -a --format '{{json .}}'");
-            if (result.code !== 0) throw new Error(`Failed code ${result.code}: ${result.stderr}`);
-            
-            const parsedContainers = parseContainersOutput(result.stdout || '');
-                
-            setContainers(parsedContainers);
+            if (result.code !== 0) throw new Error(`Connection failed (code ${result.code}): ${result.stderr}`);
+
+            if (remember) {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(credentials));
+            } else {
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+            }
+
             setConnected(true);
+            refreshData();
         } catch (err: any) {
-            setError(err.message || 'Failed to connect');
+            setError(err.message || 'Failed to connect via SSH to Docker engine');
         } finally {
             setConnecting(false);
         }
     };
 
-    const refreshContainers = async () => {
-        try {
-            const result = await executeCommand("docker ps -a --format '{{json .}}'");
-            if (result.code === 0) {
-                const parsedContainers = parseContainersOutput(result.stdout || '');
-                setContainers(parsedContainers);
-            }
-        } catch (err) {
-            console.error('Failed to refresh containers', err);
-        }
-    };
-
-    const handleAction = async (action: 'start' | 'stop' | 'restart', containerId: string) => {
+    // Container actions
+    const handleAction = async (action: 'start' | 'stop' | 'restart' | 'pause' | 'unpause', containerId: string) => {
         try {
             await executeCommand(`docker ${action} ${containerId}`);
-            await refreshContainers();
+            await fetchContainers();
+            fetchStats();
         } catch (err: any) {
             alert(`Failed to ${action} container: ${err.message}`);
         }
     };
 
+    const handleRemove = async (containerId: string) => {
+        if (!confirm('Are you sure you want to forcibly remove this container?')) return;
+        try {
+            await executeCommand(`docker rm -f ${containerId}`);
+            await fetchContainers();
+        } catch (err: any) {
+            alert(`Failed to remove container: ${err.message}`);
+        }
+    };
+
+    const handleRunContainer = async (config: any) => {
+        let cmd = `docker run -d`;
+        if (config.name) cmd += ` --name ${config.name}`;
+        if (config.hostPort && config.containerPort) cmd += ` -p ${config.hostPort}:${config.containerPort}`;
+        if (config.restartPolicy) cmd += ` --restart ${config.restartPolicy}`;
+        if (config.volumeMount) cmd += ` -v ${config.volumeMount}`;
+
+        if (config.envVars) {
+            const envLines = config.envVars.split('\n');
+            for (const envLine of envLines) {
+                if (envLine.trim()) {
+                    cmd += ` -e "${envLine.trim().replace(/"/g, '\\"')}"`;
+                }
+            }
+        }
+
+        cmd += ` ${config.image}`;
+
+        const res = await executeCommand(cmd);
+        if (res.code !== 0) {
+            throw new Error(res.stderr || `Execution failed with code ${res.code}`);
+        }
+
+        await fetchContainers();
+    };
+
+    // Logs viewer
+    const handleViewLogs = async (container: any, linesCount?: number) => {
+        const count = linesCount || logTail;
+        setLogContainer(container);
+        setLogLoading(true);
+        setLogContent('');
+        try {
+            const res = await executeCommand(`docker logs --tail ${count} ${container.ID}`);
+            const combined = ((res.stdout || '') + '\n' + (res.stderr || '')).trim();
+            setLogContent(combined);
+        } catch (err: any) {
+            setLogContent(`Error fetching logs: ${err.message}`);
+        } finally {
+            setLogLoading(false);
+        }
+    };
+
+    // Inspect viewer
+    const handleInspect = async (container: any) => {
+        setInspectContainer(container);
+        setInspectLoading(true);
+        setInspectData(null);
+        try {
+            const res = await executeCommand(`docker inspect ${container.ID}`);
+            if (res.code === 0 && res.stdout) {
+                const parsed = JSON.parse(res.stdout);
+                setInspectData(parsed);
+            } else {
+                setInspectData({ error: res.stderr || 'Inspect failed' });
+            }
+        } catch (err: any) {
+            setInspectData({ error: err.message });
+        } finally {
+            setInspectLoading(false);
+        }
+    };
+
+    // Exec command runner
+    const handleExec = (container: any) => {
+        setExecContainer(container);
+    };
+
+    const handleExecCommand = async (containerId: string, cmd: string) => {
+        return await executeCommand(`docker exec ${containerId} ${cmd}`);
+    };
+
+    // Image actions
+    const handlePullImage = async (imageName: string) => {
+        const res = await executeCommand(`docker pull ${imageName}`);
+        if (res.code !== 0) {
+            alert(`Failed to pull image: ${res.stderr}`);
+        } else {
+            await fetchImages();
+        }
+    };
+
+    const handleRemoveImage = async (imageId: string) => {
+        if (!confirm('Are you sure you want to remove this image?')) return;
+        try {
+            await executeCommand(`docker rmi -f ${imageId}`);
+            await fetchImages();
+        } catch (err: any) {
+            alert(`Failed to delete image: ${err.message}`);
+        }
+    };
+
+    // Volume actions
+    const handleCreateVolume = async (volName: string) => {
+        const res = await executeCommand(`docker volume create ${volName}`);
+        if (res.code !== 0) {
+            alert(`Failed to create volume: ${res.stderr}`);
+        } else {
+            await fetchVolumes();
+        }
+    };
+
+    const handleRemoveVolume = async (volName: string) => {
+        if (!confirm(`Are you sure you want to delete volume "${volName}"?`)) return;
+        try {
+            await executeCommand(`docker volume rm ${volName}`);
+            await fetchVolumes();
+        } catch (err: any) {
+            alert(`Failed to delete volume: ${err.message}`);
+        }
+    };
+
+    // Network actions
+    const handleCreateNetwork = async (netName: string, driver: string) => {
+        const res = await executeCommand(`docker network create -d ${driver} ${netName}`);
+        if (res.code !== 0) {
+            alert(`Failed to create network: ${res.stderr}`);
+        } else {
+            await fetchNetworks();
+        }
+    };
+
+    const handleRemoveNetwork = async (netId: string) => {
+        if (!confirm('Are you sure you want to remove this network?')) return;
+        try {
+            await executeCommand(`docker network rm ${netId}`);
+            await fetchNetworks();
+        } catch (err: any) {
+            alert(`Failed to delete network: ${err.message}`);
+        }
+    };
+
+    // System Prune
+    const handlePrune = async () => {
+        if (!confirm('Warning: This will remove all stopped containers, unused networks, and dangling images. Proceed?')) return;
+        try {
+            await executeCommand(`docker system prune -f`);
+            await refreshData();
+        } catch (err: any) {
+            alert(`System prune error: ${err.message}`);
+        }
+    };
+
+    // Compose actions
+    const handleDeployCompose = async (stackName: string, yamlContent: string) => {
+        const script = `cat << 'EOF' > /tmp/docker-compose-${stackName}.yml\n${yamlContent}\nEOF\n(docker compose -f /tmp/docker-compose-${stackName}.yml -p ${stackName} up -d || docker-compose -f /tmp/docker-compose-${stackName}.yml -p ${stackName} up -d)`;
+        const res = await executeCommand(script);
+        fetchContainers();
+        return res;
+    };
+
+    const handleDownCompose = async (stackName: string) => {
+        const script = `(docker compose -f /tmp/docker-compose-${stackName}.yml -p ${stackName} down || docker-compose -f /tmp/docker-compose-${stackName}.yml -p ${stackName} down)`;
+        const res = await executeCommand(script);
+        fetchContainers();
+        return res;
+    };
+
+    // Filter containers
+    const filteredContainers = containers.filter(c => {
+        const matchesQuery = (c.Names || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (c.Image || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (c.ID || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+        if (statusFilter === 'running') return matchesQuery && c.State === 'running';
+        if (statusFilter === 'stopped') return matchesQuery && c.State !== 'running';
+        return matchesQuery;
+    });
+
+    const runningCount = containers.filter(c => c.State === 'running').length;
+    const stoppedCount = containers.length - runningCount;
+
     if (!connected) {
         return (
-            <LoginPanel 
-                credentials={credentials} 
-                setCredentials={setCredentials} 
-                connecting={connecting} 
-                error={error} 
-                handleConnect={handleConnect} 
+            <LoginPanel
+                credentials={credentials}
+                setCredentials={setCredentials}
+                remember={remember}
+                setRemember={setRemember}
+                connecting={connecting}
+                error={error}
+                handleConnect={handleConnect}
             />
         );
     }
 
     return (
         <div className="dm-dashboard">
-            <DashboardHeader 
-                credentials={credentials} 
-                refreshContainers={refreshContainers} 
-                setConnected={setConnected} 
+            <DashboardHeader
+                credentials={credentials}
+                metrics={{
+                    runningCount,
+                    stoppedCount,
+                    totalContainers: containers.length,
+                    imagesCount: images.length,
+                    volumesCount: volumes.length,
+                    networksCount: networks.length
+                }}
+                refreshData={refreshData}
+                handlePrune={handlePrune}
+                onOpenRunModal={() => setRunModalOpen(true)}
+                setConnected={setConnected}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
             />
-            
+
             <div className="dm-content">
-                <div className="dm-grid">
-                    {containers.map(container => (
-                        <ContainerCard 
-                            key={container.ID} 
-                            container={container} 
-                            handleAction={handleAction} 
-                        />
-                    ))}
-                    {containers.length === 0 && <EmptyState />}
-                </div>
+                {activeTab === 'containers' && (
+                    <div className="dm-containers-view">
+                        <div className="dm-action-bar">
+                            <div className="dm-pill-switch">
+                                <button
+                                    className={statusFilter === 'all' ? 'active' : ''}
+                                    onClick={() => setStatusFilter('all')}
+                                >
+                                    All ({containers.length})
+                                </button>
+                                <button
+                                    className={statusFilter === 'running' ? 'active' : ''}
+                                    onClick={() => setStatusFilter('running')}
+                                >
+                                    Running ({runningCount})
+                                </button>
+                                <button
+                                    className={statusFilter === 'stopped' ? 'active' : ''}
+                                    onClick={() => setStatusFilter('stopped')}
+                                >
+                                    Stopped ({stoppedCount})
+                                </button>
+                            </div>
+
+                            <input
+                                className="dm-input dm-search-input"
+                                type="text"
+                                placeholder="Search containers by name, image, or ID..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="dm-grid">
+                            {filteredContainers.map(container => (
+                                <ContainerCard
+                                    key={container.ID}
+                                    container={container}
+                                    stats={stats}
+                                    handleAction={handleAction}
+                                    handleViewLogs={handleViewLogs}
+                                    handleInspect={handleInspect}
+                                    handleExec={handleExec}
+                                    handleRemove={handleRemove}
+                                />
+                            ))}
+                            {filteredContainers.length === 0 && <EmptyState />}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'images' && (
+                    <ImagesTab
+                        images={images}
+                        handlePull={handlePullImage}
+                        handleRemoveImage={handleRemoveImage}
+                    />
+                )}
+
+                {activeTab === 'volumes' && (
+                    <VolumesTab
+                        volumes={volumes}
+                        handleCreateVolume={handleCreateVolume}
+                        handleRemoveVolume={handleRemoveVolume}
+                    />
+                )}
+
+                {activeTab === 'networks' && (
+                    <NetworksTab
+                        networks={networks}
+                        handleCreateNetwork={handleCreateNetwork}
+                        handleRemoveNetwork={handleRemoveNetwork}
+                    />
+                )}
+
+                {activeTab === 'compose' && (
+                    <ComposeTab
+                        handleDeployCompose={handleDeployCompose}
+                        handleDownCompose={handleDownCompose}
+                    />
+                )}
             </div>
+
+            {/* Modals */}
+            {runModalOpen && (
+                <RunContainerModal
+                    onClose={() => setRunModalOpen(false)}
+                    onRun={handleRunContainer}
+                />
+            )}
+
+            {logContainer && (
+                <LogModal
+                    container={logContainer}
+                    logs={logContent}
+                    loading={logLoading}
+                    tail={logTail}
+                    setTail={(newTail: number) => {
+                        setLogTail(newTail);
+                        handleViewLogs(logContainer, newTail);
+                    }}
+                    onClose={() => setLogContainer(null)}
+                    onRefresh={(tailCount: number) => handleViewLogs(logContainer, tailCount)}
+                />
+            )}
+
+            {inspectContainer && (
+                <InspectModal
+                    container={inspectContainer}
+                    inspectData={inspectData}
+                    loading={inspectLoading}
+                    onClose={() => setInspectContainer(null)}
+                />
+            )}
+
+            {execContainer && (
+                <ExecModal
+                    container={execContainer}
+                    onExecCommand={handleExecCommand}
+                    onClose={() => setExecContainer(null)}
+                />
+            )}
         </div>
     );
 }

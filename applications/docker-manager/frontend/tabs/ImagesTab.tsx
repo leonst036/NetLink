@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 export default function ImagesTab({ images, handlePull, handleRemoveImage }: any) {
     const [pullInput, setPullInput] = useState('');
     const [pulling, setPulling] = useState(false);
+    const [search, setSearch] = useState('');
 
     const onSubmitPull = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -16,21 +17,37 @@ export default function ImagesTab({ images, handlePull, handleRemoveImage }: any
         }
     };
 
+    const filteredImages = images.filter((img: any) =>
+        (img.Repository || '').toLowerCase().includes(search.toLowerCase()) ||
+        (img.Tag || '').toLowerCase().includes(search.toLowerCase()) ||
+        (img.ID || '').toLowerCase().includes(search.toLowerCase())
+    );
+
     return (
         <div>
-            <form onSubmit={onSubmitPull} className="dm-action-bar">
-                <input 
-                    className="dm-input" 
-                    type="text" 
-                    placeholder="Pull Image (e.g. nginx:latest, redis:alpine)" 
-                    value={pullInput}
-                    onChange={e => setPullInput(e.target.value)}
-                    disabled={pulling}
+            <div className="dm-action-bar">
+                <form onSubmit={onSubmitPull} className="dm-form-inline">
+                    <input 
+                        className="dm-input" 
+                        type="text" 
+                        placeholder="Pull Image (e.g. nginx:latest, redis:alpine)" 
+                        value={pullInput}
+                        onChange={e => setPullInput(e.target.value)}
+                        disabled={pulling}
+                    />
+                    <button type="submit" className="nl-button" disabled={pulling} style={{ whiteSpace: 'nowrap' }}>
+                        {pulling ? 'Pulling...' : 'Pull Image'}
+                    </button>
+                </form>
+
+                <input
+                    className="dm-input dm-search-input"
+                    type="text"
+                    placeholder="Search images..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
                 />
-                <button type="submit" className="nl-button" disabled={pulling} style={{ whiteSpace: 'nowrap' }}>
-                    {pulling ? 'Pulling...' : 'Pull Image'}
-                </button>
-            </form>
+            </div>
 
             <div className="nl-panel dm-table-wrapper">
                 <table className="dm-table">
@@ -45,7 +62,7 @@ export default function ImagesTab({ images, handlePull, handleRemoveImage }: any
                         </tr>
                     </thead>
                     <tbody>
-                        {images.map((img: any, idx: number) => (
+                        {filteredImages.map((img: any, idx: number) => (
                             <tr key={img.ID || idx}>
                                 <td><strong>{img.Repository}</strong></td>
                                 <td>{img.Tag}</td>
@@ -59,10 +76,10 @@ export default function ImagesTab({ images, handlePull, handleRemoveImage }: any
                                 </td>
                             </tr>
                         ))}
-                        {images.length === 0 && (
+                        {filteredImages.length === 0 && (
                             <tr>
                                 <td colSpan={6} style={{ textAlign: 'center', padding: '32px' }}>
-                                    No Docker images found on this server.
+                                    No Docker images found.
                                 </td>
                             </tr>
                         )}
@@ -72,3 +89,4 @@ export default function ImagesTab({ images, handlePull, handleRemoveImage }: any
         </div>
     );
 }
+

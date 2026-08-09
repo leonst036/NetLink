@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function DashboardHeader({ credentials, refreshData, handlePrune, setConnected, activeTab, setActiveTab }: any) {
+export default function DashboardHeader({ credentials, metrics, refreshData, handlePrune, onOpenRunModal, setConnected, activeTab, setActiveTab }: any) {
     return (
         <>
             <div className="dm-header">
@@ -11,8 +11,30 @@ export default function DashboardHeader({ credentials, refreshData, handlePrune,
                         Connected to {credentials.username}@{credentials.host}:{credentials.port}
                     </div>
                 </div>
+
+                <div className="dm-header-stats">
+                    <div className="dm-stat-badge">
+                        <span className="label">Running</span>
+                        <span className="value success">{metrics.runningCount || 0}</span>
+                    </div>
+                    <div className="dm-stat-badge">
+                        <span className="label">Stopped</span>
+                        <span className="value muted">{metrics.stoppedCount || 0}</span>
+                    </div>
+                    <div className="dm-stat-badge">
+                        <span className="label">Images</span>
+                        <span className="value">{metrics.imagesCount || 0}</span>
+                    </div>
+                    <div className="dm-stat-badge">
+                        <span className="label">Volumes</span>
+                        <span className="value">{metrics.volumesCount || 0}</span>
+                    </div>
+                </div>
                 
                 <div className="dm-actions">
+                    <button className="nl-button success" onClick={onOpenRunModal}>
+                        + Deploy Container
+                    </button>
                     <button className="nl-button danger" onClick={handlePrune} title="Clean unused containers, images & networks">
                         Prune System
                     </button>
@@ -31,22 +53,35 @@ export default function DashboardHeader({ credentials, refreshData, handlePrune,
                         className={`dm-tab-btn ${activeTab === 'containers' ? 'active' : ''}`}
                         onClick={() => setActiveTab('containers')}
                     >
-                        Containers
+                        Containers ({metrics.totalContainers || 0})
                     </button>
                     <button 
                         className={`dm-tab-btn ${activeTab === 'images' ? 'active' : ''}`}
                         onClick={() => setActiveTab('images')}
                     >
-                        Images
+                        Images ({metrics.imagesCount || 0})
                     </button>
                     <button 
                         className={`dm-tab-btn ${activeTab === 'volumes' ? 'active' : ''}`}
                         onClick={() => setActiveTab('volumes')}
                     >
-                        Volumes
+                        Volumes ({metrics.volumesCount || 0})
+                    </button>
+                    <button 
+                        className={`dm-tab-btn ${activeTab === 'networks' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('networks')}
+                    >
+                        Networks ({metrics.networksCount || 0})
+                    </button>
+                    <button 
+                        className={`dm-tab-btn ${activeTab === 'compose' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('compose')}
+                    >
+                        Compose Stacks
                     </button>
                 </div>
             </div>
         </>
     );
 }
+

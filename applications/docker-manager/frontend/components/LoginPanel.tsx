@@ -1,6 +1,15 @@
 import React from 'react';
 
-export default function LoginPanel({ credentials, setCredentials, connecting, error, handleConnect }: any) {
+export default function LoginPanel({ credentials, setCredentials, remember, setRemember, connecting, error, handleConnect }: any) {
+    const handleQuickLocalhost = () => {
+        setCredentials((prev: any) => ({
+            ...prev,
+            host: '127.0.0.1',
+            port: '22',
+            username: prev.username || 'root'
+        }));
+    };
+
     return (
         <div className="dm-layout">
             <div className="nl-panel dm-login-card">
@@ -9,7 +18,7 @@ export default function LoginPanel({ credentials, setCredentials, connecting, er
                         <img src="/apps/docker-manager/frontend/assets/docker.svg" alt="Docker" width="28" height="28" />
                     </div>
                     <h2>Docker Manager</h2>
-                    <p>SSH Server Login</p>
+                    <p>Connect to Docker Engine via SSH</p>
                 </div>
 
                 {error && <div className="dm-error">{error}</div>}
@@ -21,7 +30,7 @@ export default function LoginPanel({ credentials, setCredentials, connecting, er
                             <input 
                                 className="dm-input"
                                 type="text" 
-                                placeholder="192.168.1.100"
+                                placeholder="192.168.1.100 or localhost"
                                 value={credentials.host}
                                 onChange={e => setCredentials({ ...credentials, host: e.target.value })}
                                 required
@@ -62,8 +71,22 @@ export default function LoginPanel({ credentials, setCredentials, connecting, er
                             required
                         />
                     </div>
+
+                    <div className="dm-login-options">
+                        <label className="dm-checkbox-label">
+                            <input
+                                type="checkbox"
+                                checked={remember}
+                                onChange={e => setRemember(e.target.checked)}
+                            />
+                            Remember connection details
+                        </label>
+                        <button type="button" className="dm-text-link" onClick={handleQuickLocalhost}>
+                            Fill Localhost
+                        </button>
+                    </div>
                     
-                    <button type="submit" className="nl-button" disabled={connecting} style={{ width: '100%', marginTop: '8px' }}>
+                    <button type="submit" className="nl-button" disabled={connecting} style={{ width: '100%', marginTop: '12px' }}>
                         {connecting ? 'Connecting...' : 'Connect via SSH'}
                     </button>
                 </form>
@@ -71,3 +94,4 @@ export default function LoginPanel({ credentials, setCredentials, connecting, er
         </div>
     );
 }
+
