@@ -183,6 +183,30 @@ export default function DockerManager() {
         return data;
     };
 
+    const parseContainersOutput = (stdout: string): any[] => {
+        if (!stdout || !stdout.trim()) return [];
+        const containers: any[] = [];
+        const lines = stdout.split('\n');
+        for (let line of lines) {
+            line = line.trim();
+            if (!line) continue;
+            const firstBrace = line.indexOf('{');
+            const lastBrace = line.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                const jsonCandidate = line.substring(firstBrace, lastBrace + 1);
+                try {
+                    const parsed = JSON.parse(jsonCandidate);
+                    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                        containers.push(parsed);
+                    }
+                } catch (err) {
+                    console.warn('Failed to parse container JSON line:', line, err);
+                }
+            }
+        }
+        return containers;
+    };
+
     const handleConnect = async (e: React.FormEvent) => {
         e.preventDefault();
         setConnecting(true);
@@ -192,10 +216,7 @@ export default function DockerManager() {
             const result = await executeCommand("docker ps -a --format '{{json .}}'");
             if (result.code !== 0) throw new Error(`Failed code ${result.code}: ${result.stderr}`);
             
-            const parsedContainers = result.stdout
-                .split('\n')
-                .filter((line: string) => line.trim() !== '')
-                .map((line: string) => JSON.parse(line));
+            const parsedContainers = parseContainersOutput(result.stdout || '');
                 
             setContainers(parsedContainers);
             setConnected(true);
@@ -210,10 +231,7 @@ export default function DockerManager() {
         try {
             const result = await executeCommand("docker ps -a --format '{{json .}}'");
             if (result.code === 0) {
-                const parsedContainers = result.stdout
-                    .split('\n')
-                    .filter((line: string) => line.trim() !== '')
-                    .map((line: string) => JSON.parse(line));
+                const parsedContainers = parseContainersOutput(result.stdout || '');
                 setContainers(parsedContainers);
             }
         } catch (err) {
