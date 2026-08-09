@@ -1,84 +1,70 @@
 import React, { useState, useEffect } from 'react';
 
-// --- Sub-Components ---
-
 function LoginPanel({ credentials, setCredentials, connecting, error, handleConnect }: any) {
     return (
-        <div className="dm-wrapper">
-            <div className="bg-glow" style={{ animation: 'float 10s ease-in-out infinite' }} />
-            <div className="bg-glow-2" style={{ animation: 'float 12s ease-in-out infinite reverse' }} />
-
-            <div className="dm-glass-panel dm-login-panel">
+        <div className="dm-layout">
+            <div className="nl-panel dm-login-card">
                 <div className="dm-login-header">
                     <div className="dm-login-icon">
-                        <img src="/apps/docker-manager/frontend/docker.svg" alt="Docker" width="32" height="32" />
+                        <img src="/apps/docker-manager/frontend/docker.svg" alt="Docker" width="28" height="28" />
                     </div>
-                    <h2 className="dm-login-title">Docker Hub</h2>
-                    <p className="dm-login-subtitle">Secure SSH connection to your server</p>
+                    <h2>Docker Manager</h2>
+                    <p>SSH Server Login</p>
                 </div>
 
-                {error && (
-                    <div className="dm-error-message">
-                        {error}
-                    </div>
-                )}
+                {error && <div className="dm-error">{error}</div>}
 
-                <form onSubmit={handleConnect} className="dm-form">
+                <form onSubmit={handleConnect}>
                     <div className="dm-form-row">
-                        <div className="dm-flex-2">
-                            <label className="dm-label">Host / IP</label>
+                        <div className="dm-form-group">
+                            <label>Host / IP</label>
                             <input 
                                 className="dm-input"
                                 type="text" 
                                 placeholder="192.168.1.100"
                                 value={credentials.host}
-                                onChange={e => setCredentials({...credentials, host: e.target.value})}
+                                onChange={e => setCredentials({ ...credentials, host: e.target.value })}
                                 required
                             />
                         </div>
-                        <div className="dm-flex-1">
-                            <label className="dm-label">Port</label>
+                        <div className="dm-form-group">
+                            <label>Port</label>
                             <input 
                                 className="dm-input"
                                 type="number" 
                                 value={credentials.port}
-                                onChange={e => setCredentials({...credentials, port: e.target.value})}
+                                onChange={e => setCredentials({ ...credentials, port: e.target.value })}
                                 required
                             />
                         </div>
                     </div>
                     
-                    <div>
-                        <label className="dm-label">Username</label>
+                    <div className="dm-form-group">
+                        <label>Username</label>
                         <input 
                             className="dm-input"
                             type="text" 
                             placeholder="root"
                             value={credentials.username}
-                            onChange={e => setCredentials({...credentials, username: e.target.value})}
+                            onChange={e => setCredentials({ ...credentials, username: e.target.value })}
                             required
                         />
                     </div>
                     
-                    <div>
-                        <label className="dm-label">Password</label>
+                    <div className="dm-form-group">
+                        <label>Password</label>
                         <input 
                             className="dm-input"
                             type="password" 
                             placeholder="••••••••"
                             value={credentials.password}
-                            onChange={e => setCredentials({...credentials, password: e.target.value})}
+                            onChange={e => setCredentials({ ...credentials, password: e.target.value })}
                             required
                         />
                     </div>
                     
-                    <button type="submit" className="dm-btn dm-btn-primary dm-mt-3 dm-p-large" disabled={connecting}>
-                        {connecting ? (
-                            <>
-                                <img src="/apps/docker-manager/frontend/spinner.svg" alt="Loading" className="dm-spinner" width="20" height="20" />
-                                Establishing Connection...
-                            </>
-                        ) : 'Connect via SSH'}
+                    <button type="submit" className="nl-button" disabled={connecting} style={{ width: '100%', marginTop: '8px' }}>
+                        {connecting ? 'Connecting...' : 'Connect via SSH'}
                     </button>
                 </form>
             </div>
@@ -89,22 +75,19 @@ function LoginPanel({ credentials, setCredentials, connecting, error, handleConn
 function DashboardHeader({ credentials, refreshContainers, setConnected }: any) {
     return (
         <div className="dm-header">
-            <div>
-                <h2 className="dm-header-title">
-                    Docker Engine
-                </h2>
-                <div className="dm-header-status">
-                    <div className="dm-status-dot" />
-                    Connected to <strong>{credentials.username}@{credentials.host}</strong>
+            <div className="dm-header-info">
+                <h2>Docker Engine</h2>
+                <div className="dm-status-indicator">
+                    <span className="dm-dot" />
+                    {credentials.username}@{credentials.host}
                 </div>
             </div>
             
-            <div className="dm-header-actions">
-                <button className="dm-btn dm-btn-secondary" onClick={refreshContainers}>
-                    <img src="/apps/docker-manager/frontend/refresh.svg" alt="Refresh" width="16" height="16" />
+            <div className="dm-actions">
+                <button className="nl-button secondary" onClick={refreshContainers}>
                     Refresh
                 </button>
-                <button className="dm-btn dm-btn-danger" onClick={() => setConnected(false)}>
+                <button className="nl-button danger" onClick={() => setConnected(false)}>
                     Disconnect
                 </button>
             </div>
@@ -112,55 +95,44 @@ function DashboardHeader({ credentials, refreshContainers, setConnected }: any) 
     );
 }
 
-function ContainerCard({ container, handleAction, index }: any) {
+function ContainerCard({ container, handleAction }: any) {
     const isRunning = container.State === 'running';
     
     return (
-        <div className="dm-glass-panel dm-container-card" style={{ animationDelay: \`\${index * 0.05}s\` }}>
-            {/* Card Header */}
+        <div className="nl-panel dm-card">
             <div className="dm-card-header">
-                <h3 className={\`dm-card-title \${isRunning ? 'running' : 'stopped'}\`}>
-                    {container.Names}
-                </h3>
-                <span className={\`dm-status-badge \${isRunning ? 'running' : 'stopped'}\`}>
+                <h3 className="dm-card-title">{container.Names}</h3>
+                <span className={`dm-badge ${isRunning ? 'running' : 'stopped'}`}>
                     {container.State}
                 </span>
             </div>
             
-            {/* Card Body (Details) */}
-            <div className="dm-card-body">
-                <div className="dm-card-row">
-                    <span className="dm-card-label">Image</span>
-                    <span className="dm-card-value">{container.Image}</span>
+            <div className="dm-card-details">
+                <div className="dm-detail-row">
+                    <span className="dm-detail-label">Image</span>
+                    <span className="dm-detail-value">{container.Image}</span>
                 </div>
-                <div className="dm-divider" />
-                <div className="dm-card-row">
-                    <span className="dm-card-label">Status</span>
-                    <span className="dm-card-value muted">{container.Status}</span>
+                <div className="dm-detail-row">
+                    <span className="dm-detail-label">Status</span>
+                    <span className="dm-detail-value">{container.Status}</span>
                 </div>
-                <div className="dm-divider" />
-                <div className="dm-card-row align-top">
-                    <span className="dm-card-label">Ports</span>
-                    <span className="dm-card-value small">{container.Ports || 'None exposed'}</span>
+                <div className="dm-detail-row">
+                    <span className="dm-detail-label">Ports</span>
+                    <span className="dm-detail-value">{container.Ports || 'None'}</span>
                 </div>
             </div>
             
-            {/* Card Footer (Actions) */}
-            <div className="dm-card-footer">
-                {!isRunning && (
-                    <button className="dm-btn dm-btn-success dm-flex-1" onClick={() => handleAction('start', container.ID)}>
-                        <img src="/apps/docker-manager/frontend/start.svg" alt="Start" width="16" height="16" />
+            <div className="dm-card-actions">
+                {isRunning ? (
+                    <button className="nl-button danger" onClick={() => handleAction('stop', container.ID)}>
+                        Stop
+                    </button>
+                ) : (
+                    <button className="nl-button success" onClick={() => handleAction('start', container.ID)}>
                         Start
                     </button>
                 )}
-                {isRunning && (
-                    <button className="dm-btn dm-btn-danger dm-flex-1" onClick={() => handleAction('stop', container.ID)}>
-                        <img src="/apps/docker-manager/frontend/stop.svg" alt="Stop" width="16" height="16" />
-                        Stop
-                    </button>
-                )}
-                <button className="dm-btn dm-btn-secondary dm-flex-1" onClick={() => handleAction('restart', container.ID)}>
-                    <img src="/apps/docker-manager/frontend/restart.svg" alt="Restart" width="16" height="16" />
+                <button className="nl-button secondary" onClick={() => handleAction('restart', container.ID)}>
                     Restart
                 </button>
             </div>
@@ -170,21 +142,13 @@ function ContainerCard({ container, handleAction, index }: any) {
 
 function EmptyState() {
     return (
-        <div className="dm-glass-panel dm-empty-state">
-            <div className="dm-empty-icon">
-                <img src="/apps/docker-manager/frontend/empty.svg" alt="Empty" width="64" height="64" />
-            </div>
-            <div>
-                <h3 className="dm-empty-title">No Containers Found</h3>
-                <p className="dm-empty-subtitle">
-                    There are no Docker containers running on this host.
-                </p>
-            </div>
+        <div className="nl-panel dm-empty">
+            <img src="/apps/docker-manager/frontend/empty.svg" alt="Empty" width="48" height="48" />
+            <h3>No Containers Found</h3>
+            <p>No active or stopped Docker containers on this host.</p>
         </div>
     );
 }
-
-// --- Main Component ---
 
 export default function DockerManager() {
     const [connected, setConnected] = useState(false);
@@ -194,7 +158,6 @@ export default function DockerManager() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        // Inject styles on mount
         const link = document.createElement("link");
         link.rel = "stylesheet";
         link.href = "/apps/docker-manager/frontend/styles.css";
@@ -217,9 +180,6 @@ export default function DockerManager() {
         }
         
         const data = await res.json();
-        if (data.stderr) {
-            console.error('Command stderr:', data.stderr);
-        }
         return data;
     };
 
@@ -229,11 +189,11 @@ export default function DockerManager() {
         setError('');
         
         try {
-            const result = await executeCommand(\`docker ps -a --format '{{json .}}'\`);
-            if (result.code !== 0) throw new Error(\`Failed code \${result.code}: \${result.stderr}\`);
+            const result = await executeCommand("docker ps -a --format '{{json .}}'");
+            if (result.code !== 0) throw new Error(`Failed code ${result.code}: ${result.stderr}`);
             
             const parsedContainers = result.stdout
-                .split('\\n')
+                .split('\n')
                 .filter((line: string) => line.trim() !== '')
                 .map((line: string) => JSON.parse(line));
                 
@@ -248,10 +208,10 @@ export default function DockerManager() {
 
     const refreshContainers = async () => {
         try {
-            const result = await executeCommand(\`docker ps -a --format '{{json .}}'\`);
+            const result = await executeCommand("docker ps -a --format '{{json .}}'");
             if (result.code === 0) {
                 const parsedContainers = result.stdout
-                    .split('\\n')
+                    .split('\n')
                     .filter((line: string) => line.trim() !== '')
                     .map((line: string) => JSON.parse(line));
                 setContainers(parsedContainers);
@@ -263,10 +223,10 @@ export default function DockerManager() {
 
     const handleAction = async (action: 'start' | 'stop' | 'restart', containerId: string) => {
         try {
-            await executeCommand(\`docker \${action} \${containerId}\`);
+            await executeCommand(`docker ${action} ${containerId}`);
             await refreshContainers();
         } catch (err: any) {
-            alert(\`Failed to \${action} container: \${err.message}\`);
+            alert(`Failed to ${action} container: ${err.message}`);
         }
     };
 
@@ -290,17 +250,15 @@ export default function DockerManager() {
                 setConnected={setConnected} 
             />
             
-            <div className="dm-dashboard-content">
-                <div className="dm-grid-container">
-                    {containers.map((container, index) => (
+            <div className="dm-content">
+                <div className="dm-grid">
+                    {containers.map(container => (
                         <ContainerCard 
                             key={container.ID} 
                             container={container} 
                             handleAction={handleAction} 
-                            index={index} 
                         />
                     ))}
-                    
                     {containers.length === 0 && <EmptyState />}
                 </div>
             </div>
