@@ -7,6 +7,7 @@ import LogModal from './components/LogModal';
 import RunContainerModal from './components/RunContainerModal';
 import InspectModal from './components/InspectModal';
 import ExecModal from './components/ExecModal';
+import ConfirmModal from './components/ConfirmModal';
 import ImagesTab from './tabs/ImagesTab';
 import VolumesTab from './tabs/VolumesTab';
 import NetworksTab from './tabs/NetworksTab';
@@ -46,6 +47,16 @@ export default function DockerManager() {
     const [logContent, setLogContent] = useState('');
     const [logLoading, setLogLoading] = useState(false);
     const [logTail, setLogTail] = useState<number>(100);
+
+    const [confirmState, setConfirmState] = useState<{
+        title: string;
+        message: string;
+        confirmText?: string;
+        action: () => Promise<void>;
+        loading?: boolean;
+    } | null>(null);
+
+    const [notification, setNotification] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
 
     // Load credentials from localStorage if available
     useEffect(() => {
@@ -232,22 +243,26 @@ export default function DockerManager() {
     // Container actions
     const handleAction = async (action: 'start' | 'stop' | 'restart' | 'pause' | 'unpause', containerId: string) => {
         try {
-            await executeCommand(`docker ${action} ${containerId}`);
+            const res = await executeCommand(`docker ${action} ${containerId}`);
+            if (res.code !== 0) throw new Error(res.stderr || `Action ${action} failed`);
             await fetchContainers();
             fetchStats();
         } catch (err: any) {
-            alert(`Failed to ${action} container: ${err.message}`);
+            setNotification({ type: 'error', message: `Failed to ${action} container: ${err.message}` });
         }
     };
 
-    const handleRemove = async (containerId: string) => {
-        if (!confirm('Are you sure you want to forcibly remove this container?')) return;
-        try {
-            await executeCommand(`docker rm -f ${containerId}`);
-            await fetchContainers();
-        } catch (err: any) {
-            alert(`Failed to remove container: ${err.message}`);
-        }
+    const handleRemove = (containerId: string) => {
+        setConfirmState({
+            title: 'Delete Container',
+            message: `Are you sure you want to forcibly remove container ${containerId.substring(0, 12)}?`,
+            confirmText: 'Delete Container',
+            action: async () => {
+                const res = await executeCommand(`docker rm -f ${containerId}`);
+                if (res.code !== 0) throw new Error(res.stderr || `Container removal failed`);
+                await fetchContainers();
+            }
+        });
     };
 
     const handleRunContainer = async (config: any) => {
@@ -324,73 +339,98 @@ export default function DockerManager() {
 
     // Image actions
     const handlePullImage = async (imageName: string) => {
-        const res = await executeCommand(`docker pull ${imageName}`);
-        if (res.code !== 0) {
-            alert(`Failed to pull image: ${res.stderr}`);
-        } else {
-            await fetchImages();
+        try {
+            const res = await executeCommand(`docker pull ${imageName}`);
+            if (res.code !== 0) {
+                setNotification({ type: 'error', message: `Failed to pull image: ${res.stderr}` });
+            } else {
+                await fetchImages();
+                setNotification({ type: 'success', message: `Successfully pulled ${imageName}` });
+            }
+        } catch (err: any) {
+            setNotification({ type: 'error', message: `Failed to pull image: ${err.message}` });
         }
     };
 
-    const handleRemoveImage = async (imageId: string) => {
-        if (!confirm('Are you sure you want to remove this image?')) return;
-        try {
-            await executeCommand(`docker rmi -f ${imageId}`);
-            await fetchImages();
-        } catch (err: any) {
-            alert(`Failed to delete image: ${err.message}`);
-        }
+    const handleRemoveImage = (imageId: string) => {
+        setConfirmState({
+            title: 'Remove Image',
+            message: `Are you sure you want to remove Docker image ${imageId.substring(0, 12)}?`,
+            confirmText: 'Remove Image',
+            action: async () => {
+                const res = await executeCommand(`docker rmi -f ${imageId}`);
+                if (res.code !== 0) throw new Error(res.stderr || `Image removal failed`);
+                await fetchImages();
+            }
+        });
     };
 
     // Volume actions
     const handleCreateVolume = async (volName: string) => {
-        const res = await executeCommand(`docker volume create ${volName}`);
-        if (res.code !== 0) {
-            alert(`Failed to create volume: ${res.stderr}`);
-        } else {
-            await fetchVolumes();
+        try {
+            const res = await executeCommand(`docker volume create ${volName}`);
+            if (res.code !== 0) {
+                setNotification({ type: 'error', message: `Failed to create volume: ${res.stderr}` });
+            } else {
+                await fetchVolumes();
+            }
+        } catch (err: any) {
+            setNotification({ type: 'error', message: `Failed to create volume: ${err.message}` });
         }
     };
 
-    const handleRemoveVolume = async (volName: string) => {
-        if (!confirm(`Are you sure you want to delete volume "${volName}"?`)) return;
-        try {
-            await executeCommand(`docker volume rm ${volName}`);
-            await fetchVolumes();
-        } catch (err: any) {
-            alert(`Failed to delete volume: ${err.message}`);
-        }
+    const handleRemoveVolume = (volName: string) => {
+        setConfirmState({
+            title: 'Delete Volume',
+            message: `Are you sure you want to delete volume "${volName}"?`,
+            confirmText: 'Delete Volume',
+            action: async () => {
+                const res = await executeCommand(`docker volume rm ${volName}`);
+                if (res.code !== 0) throw new Error(res.stderr || `Volume deletion failed`);
+                await fetchVolumes();
+            }
+        });
     };
 
     // Network actions
     const handleCreateNetwork = async (netName: string, driver: string) => {
-        const res = await executeCommand(`docker network create -d ${driver} ${netName}`);
-        if (res.code !== 0) {
-            alert(`Failed to create network: ${res.stderr}`);
-        } else {
-            await fetchNetworks();
+        try {
+            const res = await executeCommand(`docker network create -d ${driver} ${netName}`);
+            if (res.code !== 0) {
+                setNotification({ type: 'error', message: `Failed to create network: ${res.stderr}` });
+            } else {
+                await fetchNetworks();
+            }
+        } catch (err: any) {
+            setNotification({ type: 'error', message: `Failed to create network: ${err.message}` });
         }
     };
 
-    const handleRemoveNetwork = async (netId: string) => {
-        if (!confirm('Are you sure you want to remove this network?')) return;
-        try {
-            await executeCommand(`docker network rm ${netId}`);
-            await fetchNetworks();
-        } catch (err: any) {
-            alert(`Failed to delete network: ${err.message}`);
-        }
+    const handleRemoveNetwork = (netId: string) => {
+        setConfirmState({
+            title: 'Remove Network',
+            message: `Are you sure you want to remove network ${netId.substring(0, 12)}?`,
+            confirmText: 'Remove Network',
+            action: async () => {
+                const res = await executeCommand(`docker network rm ${netId}`);
+                if (res.code !== 0) throw new Error(res.stderr || `Network removal failed`);
+                await fetchNetworks();
+            }
+        });
     };
 
     // System Prune
-    const handlePrune = async () => {
-        if (!confirm('Warning: This will remove all stopped containers, unused networks, and dangling images. Proceed?')) return;
-        try {
-            await executeCommand(`docker system prune -f`);
-            await refreshData();
-        } catch (err: any) {
-            alert(`System prune error: ${err.message}`);
-        }
+    const handlePrune = () => {
+        setConfirmState({
+            title: 'System Prune',
+            message: 'Warning: This will remove all stopped containers, unused networks, and dangling images. Proceed?',
+            confirmText: 'Prune System',
+            action: async () => {
+                const res = await executeCommand(`docker system prune -f`);
+                if (res.code !== 0) throw new Error(res.stderr || `System prune failed`);
+                await refreshData();
+            }
+        });
     };
 
     // Compose actions
@@ -457,6 +497,29 @@ export default function DockerManager() {
             />
 
             <div className="dm-content">
+                {notification && (
+                    <div style={{
+                        padding: '12px 16px',
+                        marginBottom: '16px',
+                        borderRadius: '10px',
+                        background: notification.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                        border: `1px solid ${notification.type === 'error' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                        color: notification.type === 'error' ? '#f87171' : '#34d399',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.9rem'
+                    }}>
+                        <span>{notification.message}</span>
+                        <button 
+                            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.2rem', padding: '0 4px' }} 
+                            onClick={() => setNotification(null)}
+                        >
+                            ×
+                        </button>
+                    </div>
+                )}
+
                 {activeTab === 'containers' && (
                     <div className="dm-containers-view">
                         <div className="dm-action-bar">
@@ -582,6 +645,26 @@ export default function DockerManager() {
                     container={execContainer}
                     onExecCommand={handleExecCommand}
                     onClose={() => setExecContainer(null)}
+                />
+            )}
+
+            {confirmState && (
+                <ConfirmModal
+                    title={confirmState.title}
+                    message={confirmState.message}
+                    confirmText={confirmState.confirmText}
+                    loading={confirmState.loading}
+                    onClose={() => setConfirmState(null)}
+                    onConfirm={async () => {
+                        try {
+                            setConfirmState(prev => prev ? { ...prev, loading: true } : null);
+                            await confirmState.action();
+                            setConfirmState(null);
+                        } catch (err: any) {
+                            setConfirmState(null);
+                            setNotification({ type: 'error', message: err.message || 'Operation failed' });
+                        }
+                    }}
                 />
             )}
         </div>
