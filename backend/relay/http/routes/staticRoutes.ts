@@ -51,6 +51,14 @@ export function handleStaticFileRoute(pathname: string, res: http.ServerResponse
     const safeSuffix = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     let filePath = path.join(frontendPath, safeSuffix);
 
+    // In dev mode (frontendPath doesn't end with dist), static files might be in public/
+    if (!filePath.includes('dist') && !fs.existsSync(filePath)) {
+        const publicPath = path.join(frontendPath, 'public', safeSuffix);
+        if (fs.existsSync(publicPath)) {
+            filePath = publicPath;
+        }
+    }
+
     // If filePath is a directory, append index.html
     try {
         const stat = fs.statSync(filePath);
