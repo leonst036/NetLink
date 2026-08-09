@@ -52,10 +52,18 @@ Every application needs an `index.json` file in its root folder. This file provi
     "features": [
       "Feature one",
       "Feature two"
+    ],
+    "requiredExternalFolders": [
+      { "path": "/mnt/storage", "mode": "read" }
     ]
 }
 ```
 *(Make sure the `main` property points to your frontend React component).*
+
+**Optional Manifest Fields:**
+- `requiredExternalFolders`: List of host folder paths required by the backend (`mode`: `"read"` or `"write"`).
+- `nativeKey`: Key for built-in native applications integrated directly into the dashboard.
+- `rating`, `downloads`, `size`, `isFeatured`: Additional metadata fields for store display.
 
 ### 2. The Frontend (`frontend/main.tsx`)
 
@@ -130,18 +138,28 @@ Deno.serve({ port }, (req) => {
 
 When the local server connects to the relay, it will automatically send this file to the cloud, and the relay server will launch it securely.
 
-### 4. Sandbox Permissions
+### 4. Sandbox Permissions & Security
 
-For security, your Deno apps are restricted:
-- No file system access outside your app's directory.
-- No `Deno.run` or `Deno.Command` execution.
-- Network access is permitted to host the server and fetch external APIs.
+For security, your Deno apps run in an isolated Deno sandbox:
+- Default file system access is restricted to the application's own directory (`--allow-read=<appDir>`).
+- Direct command execution (`Deno.run` or `Deno.Command`) is disabled.
+- Network access (`--allow-net`) and environment access for `PORT` (`--allow-env=PORT`) are granted.
+- **External Folder Access**: Apps requiring host directories can declare them via `requiredExternalFolders` in `index.json`. The local server checks `permissions.json` and applies `--allow-read=<path>` and/or `--allow-write=<path>` once approved by an administrator.
+
+---
+
+## Remote Application Store & GitHub Integration
+
+NetLink includes an online catalog and dynamic installation mechanism:
+1. **Catalog Sync**: NetLink queries remote application lists from GitHub (`leonst036/NetLink` branch `NetStore`).
+2. **App Installation**: When installing an app from the catalog, NetLink downloads the tree of app files directly into `backend/local_server/NetStore/Applications/<appId>/`.
+3. **Resynchronization**: Local server automatically updates `index.json`, registers backend relay syncs, and starts local sandboxes.
 
 ---
 
 ## Deployment & Testing
 
-To test your application:
+To test your application locally:
 1. Place your application folder inside `backend/local_server/NetStore/Applications/`.
 2. Start the local server and the relay server (`npm run dev`).
 3. Your local server will detect the new application, sync the `relay/` folder to the cloud, and register your routes automatically.
