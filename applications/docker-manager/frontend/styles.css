@@ -62,7 +62,195 @@ body {
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-/* Glassmorphism utility */
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(3, 10, 20, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 242, 255, 0.4);
+}
+
+/* Login Panel Layout */
+.dm-layout {
+  min-height: 100vh;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 10%, #0d233a 0%, #051424 50%, #030a14 100%);
+  color: var(--dm-on-surface);
+  font-family: var(--dm-font-body);
+}
+
+.dm-login-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 36px;
+  background: rgba(13, 28, 45, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 242, 255, 0.15);
+}
+
+.dm-login-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.dm-login-icon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 242, 255, 0.1);
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+}
+
+/* Forms & Inputs */
+.dm-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.dm-form-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dm-on-surface-variant);
+  font-family: var(--dm-font-heading);
+}
+
+.dm-form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+}
+
+.dm-input, .dm-select {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  color: var(--dm-on-surface);
+  font-family: var(--dm-font-body);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.dm-input:focus, .dm-select:focus {
+  outline: none;
+  border-color: var(--dm-primary-container);
+  box-shadow: 0 0 0 3px rgba(0, 242, 255, 0.25);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.dm-input-bare {
+  padding-left: 14px;
+}
+
+.dm-copy-btn {
+  background: none;
+  border: none;
+  color: var(--dm-primary-container);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  transition: all 0.2s ease;
+}
+
+.dm-copy-btn:hover {
+  background: rgba(0, 242, 255, 0.1);
+  text-decoration: underline;
+}
+
+/* Buttons System */
+.dm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  font-family: var(--dm-font-heading);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.dm-btn:active {
+  transform: scale(0.97);
+}
+
+.dm-btn-primary {
+  background: var(--dm-primary-container);
+  border-color: var(--dm-primary-container);
+  color: #051424;
+  box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
+}
+
+.dm-btn-primary:hover {
+  background: #74f5ff;
+  box-shadow: 0 0 30px rgba(0, 242, 255, 0.5);
+}
+
+.dm-btn-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--dm-on-surface);
+}
+
+.dm-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.dm-btn-danger {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.3);
+  color: var(--dm-rose);
+}
+
+.dm-btn-danger:hover {
+  background: rgba(244, 63, 94, 0.25);
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(244, 63, 94, 0.3);
+}
+
+.dm-btn-sm {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  border-radius: 6px;
+}
+
+/* Glassmorphism Panels & Cards */
 .glass-panel {
   background-color: rgba(5, 20, 36, 0.55);
   backdrop-filter: blur(20px);
@@ -537,4 +725,52 @@ body {
   padding: 24px;
   overflow-y: auto;
   flex: 1;
+}
+
+/* Tables for Images / Volumes / Networks */
+.dm-table-container {
+  background: rgba(13, 28, 45, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.dm-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.88rem;
+}
+
+.dm-table th {
+  padding: 14px 18px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: var(--dm-font-heading);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dm-on-surface-variant);
+}
+
+.dm-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--dm-on-surface);
+}
+
+.dm-table tbody tr:hover {
+  background: rgba(0, 242, 255, 0.04);
+}
+
+.dm-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(0, 242, 255, 0.1);
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  border-radius: 6px;
+  color: var(--dm-primary-container);
+  font-family: var(--dm-font-mono);
+  font-size: 0.75rem;
 }
