@@ -35,27 +35,27 @@ my-cool-app/
 
 ### 1. The Manifest (`index.json`)
 
-Every application needs an `index.json` file in its root folder. This file provides metadata to the NetStore catalog.
+Every application needs an `index.json` file in its root folder. This file defines the technical entry points and required system permissions for the app. 
+
+When you develop a **local application**, you should also include all store metadata (like `name`, `author`, `description`) directly in this file so that the NetStore catalog can display it.
 
 ```json
 {
     "id": "my-cool-app",
+    "version": "1.0.0",
     "main": "frontend/main.tsx",
+    "requiredExternalFolders": [
+      { "path": "/mnt/storage", "mode": "read" }
+    ],
+    
+    // Store metadata (required for local apps to show in the store UI)
     "name": "My Cool App",
     "author": "Your Name",
     "category": "Tools",
-    "version": "1.0.0",
     "color": "#10b981",
     "icon": "icon.png",
     "shortDescription": "A quick summary of what this app does.",
-    "fullDescription": "A longer description explaining the features and why users should install it.",
-    "features": [
-      "Feature one",
-      "Feature two"
-    ],
-    "requiredExternalFolders": [
-      { "path": "/mnt/storage", "mode": "read" }
-    ]
+    "fullDescription": "A longer description explaining the features and why users should install it."
 }
 ```
 *(Make sure the `main` property points to your frontend React component).*
@@ -63,7 +63,8 @@ Every application needs an `index.json` file in its root folder. This file provi
 **Optional Manifest Fields:**
 - `requiredExternalFolders`: List of host folder paths required by the backend (`mode`: `"read"` or `"write"`).
 - `nativeKey`: Key for built-in native applications integrated directly into the dashboard.
-- `rating`, `downloads`, `size`, `isFeatured`: Additional metadata fields for store display.
+
+> **Publishing to NetStore:** If you decide to officially publish your application to the NetLink-NetStore repository on GitHub, the store metadata (everything under the `// Store metadata` section) must be moved out of `index.json` and placed into the central `applications.json` file in the NetStore repository. Your app's `index.json` will then only contain the technical fields (e.g. `id`, `version`, `main`).
 
 ### 2. The Frontend (`frontend/main.tsx`)
 
