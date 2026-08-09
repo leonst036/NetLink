@@ -87,9 +87,14 @@ export function handleLocalServerConnection(
                             continue;
                         }
                         
-                        if (!fs.existsSync(appDir)) {
-                            fs.mkdirSync(appDir, { recursive: true });
+                        // Stop any running Deno sandbox on relay before replacing files
+                        denoSandbox.stopApp(appId);
+
+                        // Clean destination appDir on relay to remove any stale assets
+                        if (fs.existsSync(appDir)) {
+                            fs.rmSync(appDir, { recursive: true, force: true });
                         }
+                        fs.mkdirSync(appDir, { recursive: true });
                         
                         const absoluteAppDir = path.resolve(appDir);
                         for (const fileData of app.files) {

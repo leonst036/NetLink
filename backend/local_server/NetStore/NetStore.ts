@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocket } from 'ws';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
+import { getGitHubHeaders } from './gitHubApplications.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -110,7 +111,8 @@ export function ScanApplications(): any[] {
         if (fs.existsSync(indexPath)) {
             try {
                 const indexData = fs.readFileSync(indexPath, 'utf-8');
-                applicationJson.push(JSON.parse(indexData));
+                const parsed = JSON.parse(indexData);
+                applicationJson.push({ ...parsed, installed: true });
             } catch (err) {
                 console.error(`Failed to parse ${indexPath}:`, err);
             }
@@ -191,8 +193,24 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
     
     try {
         const { getGitHubApplicationsList } = await import('./gitHubApplications.js');
-        const githubApps = await getGitHubApplicationsList();
+        let githubApps = await getGitHubApplicationsList();
         
+        // Merge local dev applications.json if available
+        const localDevCatalog = path.resolve(__dirname, '../../../../../NetLink-NetStore/applications/applications.json');
+        if (fs.existsSync(localDevCatalog)) {
+            try {
+                const localApps = JSON.parse(fs.readFileSync(localDevCatalog, 'utf-8'));
+                const map = new Map();
+                for (const app of githubApps) map.set(app.id, app);
+                for (const app of localApps) {
+                    if (!map.has(app.id)) {
+                        map.set(app.id, app);
+                    }
+                }
+                githubApps = Array.from(map.values());
+            } catch {}
+        }
+
         const appMap = new Map();
         for (const app of githubApps) {
             appMap.set(app.id, { ...app, installed: false });
@@ -215,38 +233,41 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
             ws.send(JSON.stringify({ type: 'sync-app-backends', backends: relayBackends }));
         }
     }
-    
-    // Listen for sync_app requests to trigger a resync for a specific app
-    ws.on('message', (data: any) => {
-        try {
-            const message = JSON.parse(data.toString());
-            if (message.type === 'sync_app' && message.appId) {
-                console.log(`Received request to resync app ${message.appId}`);
-                const appSyncFiles = getAppSyncFiles().filter(b => b.appId === message.appId);
-                if (appSyncFiles.length > 0) {
-                    ws.send(JSON.stringify({ type: 'sync-app-backends', backends: appSyncFiles }));
-                }
-                StartLocalApps(); // Attempt to start it locally again
-            } else if (message.type === 'install_application') {
-                try {
-                    installApplication(message.appId, message.branch || 'NetStore').then(() => {
-                        ws.send(JSON.stringify({ type: 'install_success', appId: message.appId }));
-                    });
-                } catch (err: any) {
-                    ws.send(JSON.stringify({ type: 'install_error', appId: message.appId, error: err.message }));
-                }
-            }
-        } catch (err) {}
-    });
 }
 
-export async function installApplication(appId: string, branch: string = 'NetStore') {
+export async function installApplication(appId: string, branch: string = 'NetStore', githubToken?: string) {
     try {
         console.log(`Starting installation of application ${appId} from branch ${branch}...`);
 
+        // Stop any running sandbox instance for this app
+        denoSandbox.stopApp(appId);
+
+        // Check if application exists in local dev workspace
+        const localDevAppDir = path.resolve(__dirname, '../../../../../NetLink-NetStore/applications', appId);
+        const appDir = path.join(NET_STORE_DIR, appId);
+
+        // Wipe destination appDir if it exists to clean out stale files
+        if (fs.existsSync(appDir)) {
+            fs.rmSync(appDir, { recursive: true, force: true });
+        }
+        fs.mkdirSync(appDir, { recursive: true });
+
+        if (fs.existsSync(localDevAppDir)) {
+            console.log(`Installing ${appId} from local workspace (${localDevAppDir})...`);
+            fs.cpSync(localDevAppDir, appDir, { recursive: true });
+            WriteApplicationJson();
+            await StartLocalApps();
+            console.log(`Successfully installed local application: ${appId}`);
+            return;
+        }
+
+        const headers = getGitHubHeaders(githubToken);
         const treeUrl = `https://api.github.com/repos/leonst036/NetLink/git/trees/${branch}?recursive=1`;
-        const treeRes = await fetch(treeUrl);
-        if (!treeRes.ok) throw new Error(`Failed to fetch GitHub tree: ${treeRes.statusText}`);
+        const treeRes = await fetch(treeUrl, { headers });
+        if (!treeRes.ok) {
+            const errText = await treeRes.text().catch(() => '');
+            throw new Error(`Failed to fetch GitHub tree (${treeRes.status} ${treeRes.statusText}): ${errText.substring(0, 100)}`);
+        }
         
         const treeData = await treeRes.json();
         if (!treeData.tree || !Array.isArray(treeData.tree)) {
@@ -257,12 +278,7 @@ export async function installApplication(appId: string, branch: string = 'NetSto
         const appFiles = treeData.tree.filter((node: any) => node.type === 'blob' && node.path.startsWith(appPrefix));
         
         if (appFiles.length === 0) {
-            throw new Error(`Application ${appId} not found or has no files on GitHub branch`);
-        }
-
-        const appDir = path.join(NET_STORE_DIR, appId);
-        if (!fs.existsSync(appDir)) {
-            fs.mkdirSync(appDir, { recursive: true });
+            throw new Error(`Application ${appId} not found or has no files on GitHub branch ${branch}`);
         }
 
         // Fetch each file
@@ -277,7 +293,7 @@ export async function installApplication(appId: string, branch: string = 'NetSto
             }
 
             console.log(`Downloading ${fileNode.path}...`);
-            const fileRes = await fetch(rawUrl);
+            const fileRes = await fetch(rawUrl, { headers });
             if (!fileRes.ok) throw new Error(`Failed to fetch ${fileNode.path}`);
             
             const buffer = await fileRes.arrayBuffer();
@@ -290,6 +306,26 @@ export async function installApplication(appId: string, branch: string = 'NetSto
         await StartLocalApps();
     } catch (err) {
         console.error(`Error during installation of ${appId}:`, err);
+        throw err;
+    }
+}
+
+export async function uninstallApplication(appId: string) {
+    try {
+        console.log(`Starting uninstallation of application ${appId}...`);
+
+        denoSandbox.stopApp(appId);
+
+        const appDir = path.join(NET_STORE_DIR, appId);
+        if (fs.existsSync(appDir)) {
+            fs.rmSync(appDir, { recursive: true, force: true });
+            console.log(`Removed directory for application ${appId}`);
+        }
+
+        WriteApplicationJson();
+        console.log(`Successfully uninstalled application: ${appId}`);
+    } catch (err) {
+        console.error(`Error during uninstallation of ${appId}:`, err);
         throw err;
     }
 }

@@ -21,7 +21,8 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  Tooltip
 } from '@mui/material';
 import {
   Store,
@@ -39,7 +40,9 @@ import {
   Terminal,
   Monitor,
   Folder,
-  ShieldAlert
+  ShieldAlert,
+  Key,
+  Trash2
 } from 'lucide-react';
 import './NetStoreApp.css';
 import { useWindowStore } from '../../store/useWindowStore';
@@ -106,6 +109,26 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     } catch (e) {}
   }, [selectedBranch]);
 
+  const [githubToken, setGithubToken] = useState<string>(() => {
+    try {
+      return localStorage.getItem('netlink_github_token') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (githubToken) {
+        localStorage.setItem('netlink_github_token', githubToken);
+      } else {
+        localStorage.removeItem('netlink_github_token');
+      }
+    } catch (e) {}
+  }, [githubToken]);
+
+  const [installedVersions, setInstalledVersions] = useState<Record<string, string>>({});
+
   useEffect(() => {
     const fetchApps = async () => {
       try {
@@ -116,7 +139,11 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         
         let githubData = [];
         try {
-            const ghRes = await fetch(`https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/${selectedBranch}/applications/applications.json`);
+            const headers: Record<string, string> = {};
+            if (githubToken) {
+              headers['Authorization'] = `token ${githubToken}`;
+            }
+            const ghRes = await fetch(`https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/${selectedBranch}/applications/applications.json`, { headers });
             if (ghRes.ok) {
               githubData = await ghRes.json();
             } else {
@@ -132,12 +159,15 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         }
         
         const backendInstalledIds: string[] = [];
+        const versionsMap: Record<string, string> = {};
         for (const app of (Array.isArray(localData) ? localData : [])) {
-            if (app.installed) backendInstalledIds.push(app.id);
+            const isInstalled = app.installed !== false;
+            if (isInstalled) {
+                backendInstalledIds.push(app.id);
+                versionsMap[app.id] = app.version || 'v1.0.0';
+            }
             const existing = mergedMap.get(app.id) || {};
-            // If it's a local override, we keep it, except we might want the github data to take precedence for store display?
-            // Actually, we want local installed=true to be applied to the github data.
-            mergedMap.set(app.id, { ...existing, ...app, installed: app.installed });
+            mergedMap.set(app.id, { ...existing, ...app, installed: isInstalled });
         }
         
         const finalData = Array.from(mergedMap.values());
@@ -161,6 +191,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         }));
         
         setStoreCatalog(parsedCatalog);
+        setInstalledVersions(versionsMap);
         setInstalledAppIds((prev) => Array.from(new Set([...prev, ...backendInstalledIds])));
       } catch (err: any) {
         console.warn('Store fetch error:', err.message);
@@ -168,10 +199,17 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     };
     
     fetchApps();
-  }, [props.target, selectedBranch]);
+  }, [props.target, selectedBranch, githubToken]);
 
   // Installed App State
-  const [installedAppIds, setInstalledAppIds] = useState<string[]>([]);
+  const [installedAppIds, setInstalledAppIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('netstore_installed_apps');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [installingMap, setInstallingMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -206,7 +244,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         'Content-Type': 'application/json',
         ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
       },
-      body: JSON.stringify({ appId: app.id, target: targetId, branch: selectedBranch })
+      body: JSON.stringify({ appId: app.id, target: targetId, branch: selectedBranch, githubToken })
     })
     .then(async (res) => {
       if (!res.ok) {
@@ -221,8 +259,10 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         delete copy[app.id];
         return copy;
       });
-      setInstalledAppIds((prev) => [...prev, app.id]);
-      notifyUser(`${app.name} has been installed!`, 'success');
+      setInstalledAppIds((prev) => Array.from(new Set([...prev, app.id])));
+      setInstalledVersions((prev) => ({ ...prev, [app.id]: app.version || 'v1.0.0' }));
+      notifyUser(`${app.name} installed / updated successfully!`, 'success');
+      window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
     })
     .catch((err) => {
       console.error(err);
@@ -241,8 +281,38 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       notifyUser(`System app ${app.name} cannot be uninstalled.`, 'warning');
       return;
     }
-    setInstalledAppIds((prev) => prev.filter((id) => id !== app.id));
-    notifyUser(`${app.name} was uninstalled.`, 'info');
+
+    const targetId = props.target;
+
+    fetch('/api/applications/uninstall', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
+      },
+      body: JSON.stringify({ appId: app.id, target: targetId })
+    })
+    .then(async (res) => {
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to uninstall application');
+      }
+      return res.json();
+    })
+    .then(() => {
+      setInstalledAppIds((prev) => prev.filter((id) => id !== app.id));
+      setInstalledVersions((prev) => {
+        const copy = { ...prev };
+        delete copy[app.id];
+        return copy;
+      });
+      notifyUser(`${app.name} was uninstalled.`, 'info');
+      window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
+    })
+    .catch((err) => {
+      console.error(err);
+      notifyUser(`Failed to uninstall ${app.name}: ${err.message}`, 'warning');
+    });
   };
 
   const handleOpenApp = (app: AppItem, e?: React.MouseEvent) => {
@@ -275,8 +345,11 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   };
 
   const installedCount = storeCatalog.filter(app => installedAppIds.includes(app.id)).length;
-  // TODO: Implement actual version comparison logic for updates
-  const updatesCount = 0;
+  const updatesCount = storeCatalog.filter(app => {
+    if (!installedAppIds.includes(app.id)) return false;
+    const installedVer = installedVersions[app.id];
+    return Boolean(installedVer && app.version && installedVer !== app.version);
+  }).length;
 
   const tabs = [
     { id: 'discover', label: 'Discover', icon: <ShoppingBag size={18} /> },
@@ -289,7 +362,11 @@ export default function NetStoreApp(props: NetStoreAppProps) {
 
   const filteredApps = storeCatalog.filter((app) => {
     if (activeTab === 'installed' && !installedAppIds.includes(app.id)) return false;
-    if (activeTab === 'updates') return false; // No mock updates for now
+    if (activeTab === 'updates') {
+      if (!installedAppIds.includes(app.id)) return false;
+      const installedVer = installedVersions[app.id];
+      if (updatesCount > 0 && installedVer && app.version && installedVer === app.version) return false;
+    }
 
     if (selectedCategory !== 'All' && app.category !== selectedCategory) return false;
 
@@ -340,7 +417,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         </Box>
 
         {/* Branch Selector */}
-        <Box sx={{ px: 2, pb: 2 }}>
+        <Box sx={{ px: 2, pb: 1.5 }}>
           <FormControl fullWidth size="small" variant="outlined">
             <InputLabel id="branch-select-label" sx={{ fontSize: '0.8rem' }}>Store Channel</InputLabel>
             <Select
@@ -354,6 +431,24 @@ export default function NetStoreApp(props: NetStoreAppProps) {
               <MenuItem value="NetStore-dev">Developer (NetStore-dev)</MenuItem>
             </Select>
           </FormControl>
+        </Box>
+
+        {/* GitHub Token Field */}
+        <Box sx={{ px: 2, pb: 2 }}>
+          <TextField
+            size="small"
+            type="password"
+            label="GitHub Token (Optional)"
+            placeholder="ghp_xxxxxxxxxxxx"
+            value={githubToken}
+            onChange={(e) => setGithubToken(e.target.value)}
+            fullWidth
+            slotProps={{
+              input: {
+                startAdornment: <Key size={14} style={{ marginRight: 6, color: '#94a3b8' }} />
+              }
+            }}
+          />
         </Box>
 
         {/* Sidebar Menu List */}
@@ -453,20 +548,30 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <Button
                         variant="contained"
-                        color="primary"
+                        color="success"
                         startIcon={<ExternalLink size={16} />}
                         onClick={(e) => handleOpenApp(featuredApp, e)}
                       >
                         Open Application
                       </Button>
                       {!featuredApp.nativeKey && (
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          onClick={(e) => handleUninstall(featuredApp, e)}
-                        >
-                          Uninstall
-                        </Button>
+                        <>
+                          <Button
+                            variant="outlined"
+                            color="inherit"
+                            startIcon={<RefreshCw size={16} />}
+                            onClick={(e) => handleInstall(featuredApp, e)}
+                          >
+                            Reinstall
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={(e) => handleUninstall(featuredApp, e)}
+                          >
+                            Uninstall
+                          </Button>
+                        </>
                       )}
                     </Box>
                   ) : (
@@ -562,40 +667,51 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                         </Box>
 
                         {progress !== undefined ? (
-                          <Button size="small" variant="outlined" disabled>
+                          <Button size="small" variant="outlined" disabled startIcon={<RefreshCw size={14} className="spin-icon" />}>
                             Installing...
                           </Button>
                         ) : isInstalled ? (
-                          activeTab === 'updates' ? (
+                          app.nativeKey ? (
                             <Button
                               size="small"
-                              variant="contained"
-                              color="info"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                notifyUser(`Updated ${app.name}!`, 'success');
-                              }}
+                              variant="outlined"
+                              color="success"
+                              startIcon={<ExternalLink size={14} />}
+                              onClick={(e) => handleOpenApp(app, e)}
                             >
-                              Update
+                              Open
                             </Button>
                           ) : (
-                            <Box sx={{ display: 'flex', gap: 0.5 }}>
-                              {!app.nativeKey && (
-                                <Button
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Tooltip title="Uninstall App" arrow placement="top">
+                                <IconButton
                                   size="small"
-                                  variant="outlined"
                                   color="error"
                                   onClick={(e) => handleUninstall(app, e)}
+                                  sx={{ padding: '4px' }}
                                 >
-                                  Uninstall
-                                </Button>
-                              )}
+                                  <Trash2 size={15} />
+                                </IconButton>
+                              </Tooltip>
+
+                              <Tooltip title={installedVersions[app.id] && app.version && installedVersions[app.id] !== app.version ? "Update App" : "Reinstall App"} arrow placement="top">
+                                <IconButton
+                                  size="small"
+                                  color={installedVersions[app.id] && app.version && installedVersions[app.id] !== app.version ? "info" : "default"}
+                                  onClick={(e) => handleInstall(app, e)}
+                                  sx={{ padding: '4px' }}
+                                >
+                                  <RefreshCw size={15} />
+                                </IconButton>
+                              </Tooltip>
+
                               <Button
                                 size="small"
-                                variant="outlined"
+                                variant="contained"
                                 color="success"
                                 startIcon={<ExternalLink size={14} />}
                                 onClick={(e) => handleOpenApp(app, e)}
+                                sx={{ ml: 0.5 }}
                               >
                                 Open
                               </Button>
@@ -701,15 +817,27 @@ export default function NetStoreApp(props: NetStoreAppProps) {
 
           <DialogActions sx={{ px: 3, py: 2 }}>
             {installedAppIds.includes(selectedApp.id) && !selectedApp.nativeKey && (
-              <Button
-                color="error"
-                onClick={(e) => {
-                  handleUninstall(selectedApp, e);
-                  setSelectedApp(null);
-                }}
-              >
-                Uninstall
-              </Button>
+              <>
+                <Button
+                  color="error"
+                  onClick={(e) => {
+                    handleUninstall(selectedApp, e);
+                    setSelectedApp(null);
+                  }}
+                >
+                  Uninstall
+                </Button>
+                <Button
+                  color="info"
+                  variant="outlined"
+                  startIcon={<RefreshCw size={16} />}
+                  onClick={(e) => {
+                    handleInstall(selectedApp, e);
+                  }}
+                >
+                  {installedVersions[selectedApp.id] && selectedApp.version && installedVersions[selectedApp.id] !== selectedApp.version ? 'Update App' : 'Reinstall App'}
+                </Button>
+              </>
             )}
             <Box sx={{ marginLeft: 'auto', display: 'flex', gap: 1 }}>
               <Button onClick={() => setSelectedApp(null)} color="inherit">

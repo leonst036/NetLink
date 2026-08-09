@@ -118,6 +118,18 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     const safeSuffix = path.normalize(subPath).replace(/^(\.\.[\/\\])+/, '');
     let filePath = path.join(RELAY_APPS_DIR, appId, 'frontend', safeSuffix);
 
+    if (!fs.existsSync(filePath)) {
+        if (fs.existsSync(filePath + '.tsx')) {
+            filePath += '.tsx';
+        } else if (fs.existsSync(filePath + '.ts')) {
+            filePath += '.ts';
+        } else if (fs.existsSync(filePath + '.jsx')) {
+            filePath += '.jsx';
+        } else if (fs.existsSync(filePath + '.js')) {
+            filePath += '.js';
+        }
+    }
+
     try {
         const stat = fs.statSync(filePath);
         if (stat.isDirectory()) {
@@ -172,7 +184,12 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
   </script>
 </body>
 </html>`;
-                    res.writeHead(200, { 'Content-Type': 'text/html' });
+                    const noCacheHeaders = {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    };
+                    res.writeHead(200, { 'Content-Type': 'text/html', ...noCacheHeaders });
                     res.end(shell);
                     return;
                 }
@@ -201,6 +218,11 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     };
 
     const contentType = mimeTypes[ext] || 'application/octet-stream';
+    const noCacheHeaders = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    };
 
     fs.readFile(filePath, (error, content) => {
         if (error) {
@@ -220,7 +242,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
                             target: 'es2022',
                             format: 'esm'
                         });
-                        res.writeHead(200, { 'Content-Type': 'text/javascript' });
+                        res.writeHead(200, { 'Content-Type': 'text/javascript', ...noCacheHeaders });
                         res.end(transpiled.code, 'utf-8');
                     } catch (esError) {
                         console.error('esbuild transpilation error:', esError);
@@ -229,7 +251,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
                     }
                 })();
             } else {
-                res.writeHead(200, { 'Content-Type': contentType });
+                res.writeHead(200, { 'Content-Type': contentType, ...noCacheHeaders });
                 res.end(content); // Raw content, no utf-8 forced (important for images)
             }
         }

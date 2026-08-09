@@ -53,6 +53,19 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         theme: localStorage.getItem('netlink_theme') || 'Dark',
     });
 
+    const [appReloadKeys, setAppReloadKeys] = useState<Record<string, number>>({});
+
+    useEffect(() => {
+        const handleAppsUpdated = (e: any) => {
+            const appId = e.detail?.appId;
+            if (appId) {
+                setAppReloadKeys(prev => ({ ...prev, [appId]: (prev[appId] || 0) + 1 }));
+            }
+        };
+        window.addEventListener('netlink_apps_updated', handleAppsUpdated);
+        return () => window.removeEventListener('netlink_apps_updated', handleAppsUpdated);
+    }, []);
+
     useEffect(() => {
         const handleSettingsChange = () => {
             try {
@@ -322,6 +335,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     const protocol = isSecure ? 'https:' : 'http:';
                     let host = window.location.host;
                     if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535';
+                    const reloadKey = appReloadKeys[dyn.appId] || 0;
                     
                     return (
                     <Window
@@ -339,10 +353,10 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     >
                         <Box sx={{ width: '100%', height: '100%', background: '#fff' }}>
                             <iframe 
-                                src={`${protocol}//${host}/apps/${dyn.appId}/frontend/index.html`}
+                                src={`${protocol}//${host}/apps/${dyn.appId}/frontend/index.html?t=${reloadKey}`}
                                 style={{ width: '100%', height: '100%', border: 'none' }}
                                 title={dyn.title}
-                                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
                             />
                         </Box>
                     </Window>

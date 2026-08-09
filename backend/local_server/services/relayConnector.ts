@@ -94,7 +94,7 @@ export function handleRelayConnection(token: string): void {
                 console.log(`Relay requested installation of app: ${message.appId}`);
                 import('../NetStore/NetStore.js').then((ns) => {
                     if (ns.installApplication) {
-                        ns.installApplication(message.appId).then(() => {
+                        ns.installApplication(message.appId, message.branch || 'NetStore', message.githubToken).then(() => {
                             console.log(`Successfully installed ${message.appId}. Syncing with relay...`);
                             ns.sendApplicationJson(controlWs);
                         }).catch((err: any) => {
@@ -104,7 +104,22 @@ export function handleRelayConnection(token: string): void {
                 }).catch(err => {
                     console.error('Failed to import NetStore.js:', err);
                 });
+            } else if (message.type === 'uninstall_application' && message.appId) {
+                console.log(`Relay requested uninstallation of app: ${message.appId}`);
+                import('../NetStore/NetStore.js').then((ns) => {
+                    if (ns.uninstallApplication) {
+                        ns.uninstallApplication(message.appId).then(() => {
+                            console.log(`Successfully uninstalled ${message.appId}. Syncing with relay...`);
+                            ns.sendApplicationJson(controlWs);
+                        }).catch((err: any) => {
+                            console.error(`Failed to uninstall app ${message.appId}:`, err);
+                        });
+                    }
+                }).catch(err => {
+                    console.error('Failed to import NetStore.js:', err);
+                });
             }
+
         } catch (err) {
             console.error('Error handling relay control message:', err);
         }

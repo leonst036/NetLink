@@ -35,8 +35,11 @@ export class DenoSandbox {
             'run',
             '--no-config',
             '--allow-net',
-            `--allow-read=${appDir}`,
-            '--allow-env=PORT',
+            '--allow-run',
+            '--allow-sys',
+            '--allow-read',
+            '--allow-write',
+            '--allow-env',
             ...extraFlags,
             entryFile
         ];

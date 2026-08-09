@@ -37,9 +37,12 @@ export class DenoSandbox {
         const args = [
             'run',
             '--no-config',
-            '--allow-net', // Need net to run web server
-            `--allow-read=${appDir}`, // Only read own app dir
-            '--allow-env=PORT', // Allow reading PORT
+            '--allow-net',
+            '--allow-run',
+            '--allow-sys',
+            '--allow-read',
+            '--allow-write',
+            '--allow-env',
             ...extraFlags,
             entryFile
         ];
