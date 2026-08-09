@@ -3,31 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <title>Test Application</title>
+    <!-- Include the NetLink global design elements -->
+    <link rel="stylesheet" href="/netlink.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        .app-wrapper {
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background-color: #1e293b;
-            color: #f8fafc;
-            margin: 0;
-        }
-        .container {
-            text-align: center;
-            background: #334155;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         h1 { color: #eab308; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Hello from Test Application!</h1>
-        <p>If you are seeing this, the GitHub download mechanism worked perfectly.</p>
+    <div class="bg-glow"></div>
+    <div class="bg-glow-2"></div>
+    
+    <div class="app-wrapper">
+        <div class="nl-panel">
+            <h1>Hello from Test Application!</h1>
+            <p>If you are seeing this, the GitHub download mechanism worked perfectly.</p>
+            <button class="nl-button" onclick="alert('Clicked!')">Test NetLink Button</button>
+        </div>
     </div>
 </body>
 </html>
