@@ -121,6 +121,13 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         const ws = new WebSocket(socketUrl);
         setWsConnection(ws);
 
+        ws.onclose = (event) => {
+            if (event.code === 1008 || event.reason?.includes('Authentication Failed') || event.reason?.includes('jwt expired')) {
+                console.warn('Desktop WebSocket authentication failed:', event.reason);
+                window.dispatchEvent(new CustomEvent('netlink_auth_expired'));
+            }
+        };
+
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);

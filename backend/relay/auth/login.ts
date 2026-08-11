@@ -144,7 +144,10 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
             userTargets = Array.from(controlConnections.keys());
         }
 
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Set-Cookie': `netlink_token=${token}; Path=/; SameSite=Lax; Max-Age=86400`
+        });
         res.end(JSON.stringify({ token, targets: userTargets }));
     } catch (err: any) {
         console.error('Login error:', err);

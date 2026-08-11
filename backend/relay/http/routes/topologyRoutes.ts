@@ -1,11 +1,10 @@
 import http from 'http';
 import { URL } from 'url';
 import { getMongoClient, GetTopology, SaveTopology } from '../../database/MongoManager.js';
-import { authenticateToken } from '../../auth/authenticator.js';
+import { authenticateToken, extractTokenFromRequest } from '../../auth/authenticator.js';
 
 export async function handleTopologyRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.split(' ')[1] || parsedUrl.searchParams.get('token');
+    const token = extractTokenFromRequest(req, parsedUrl);
     const target = parsedUrl.searchParams.get('target');
 
     if (!target) {

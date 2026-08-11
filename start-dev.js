@@ -34,7 +34,7 @@ function startRelayProcess() {
         USE_SSL: 'false'
     };
 
-    relayProcess = spawn('node', ['dist/main.js'], {
+    relayProcess = spawn('node', ['--no-deprecation', 'dist/main.js'], {
         cwd: path.join(__dirname, 'backend/relay'),
         env: relayEnv,
         stdio: ['ignore', 'pipe', 'pipe']
@@ -88,7 +88,7 @@ function startLocalProcess() {
         USE_SCAN_CACHE: 'true'
     };
 
-    localProcess = spawn('node', ['dist/main.js'], {
+    localProcess = spawn('node', ['--no-deprecation', 'dist/main.js'], {
         cwd: path.join(__dirname, 'backend/local_server'),
         env: localEnv,
         stdio: ['ignore', 'pipe', 'pipe']

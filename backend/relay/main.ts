@@ -4,7 +4,7 @@ import { URL } from 'url';
 import dotenv from 'dotenv';
 import * as mongoDB from 'mongodb';
 import { initializeDatabase } from './database/MongoManager.js';
-import { authenticateToken } from './auth/authenticator.js';
+import { authenticateToken, extractTokenFromRequest } from './auth/authenticator.js';
 import { handleLocalServerConnection, handleClientConnection, handleDesktopConnection } from './websocket/connectionHandlers.js';
 import { createServer } from './websocket/httpsHelper.js';
 import { handleRequest, appRouter } from './http/requestHandler.js';
@@ -36,7 +36,7 @@ wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
     try {
         const reqUrl = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
         const pathname = reqUrl.pathname;
-        const token = reqUrl.searchParams.get('token');
+        const token = extractTokenFromRequest(req, reqUrl);
         const sessionId = reqUrl.searchParams.get('sessionId');
         const target = reqUrl.searchParams.get('target');
 
