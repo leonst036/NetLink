@@ -7,11 +7,12 @@ interface TrafficChartProps {
   showRelay?: boolean;
 }
 
-// Utility to format bytes per second to human readable format
-export function formatSpeed(bytesPerSec: number): string {
-  if (bytesPerSec < 1024) return `${bytesPerSec} B/s`;
-  if (bytesPerSec < 1024 * 1024) return `${(bytesPerSec / 1024).toFixed(1)} KB/s`;
-  return `${(bytesPerSec / (1024 * 1024)).toFixed(2)} MB/s`;
+// Utility to format bytes per second to human readable format safely
+export function formatSpeed(bytesPerSec?: number): string {
+  const num = typeof bytesPerSec === 'number' && !isNaN(bytesPerSec) ? bytesPerSec : 0;
+  if (num < 1024) return `${num} B/s`;
+  if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)} KB/s`;
+  return `${(num / (1024 * 1024)).toFixed(2)} MB/s`;
 }
 
 // SVG traffic chart showing live bandwidth rate history

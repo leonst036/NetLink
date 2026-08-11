@@ -6,81 +6,13 @@ import InterfaceTable from './components/InterfaceTable';
 import ControlBar from './components/ControlBar';
 import { LocalTrafficStats, RelayTrafficStats, TrafficHistoryPoint, ActiveTab } from './types';
 
-// Embedded CSS styles to prevent browser ESM CSS import MIME errors
-const customStyles = `
-.traffic-monitor-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  background-color: #020617;
-  color: #f8fafc;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  overflow-y: auto;
-  padding: 1.5rem;
-  box-sizing: border-box;
-}
-
-.glass-panel {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 1.25rem;
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.glass-panel:hover {
-  border-color: rgba(6, 182, 212, 0.3);
-}
-
-.traffic-monitor-container::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.traffic-monitor-container::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
-}
-.traffic-monitor-container::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
-  border-radius: 3px;
-}
-.traffic-monitor-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.4);
-}
-
-.pulse-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #10b981;
-  box-shadow: 0 0 8px #10b981;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-  }
-}
-`;
-
-// Format total byte volume
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+// Format total byte volume safely
+function formatBytes(bytes?: number): string {
+  const num = typeof bytes === 'number' && !isNaN(bytes) ? bytes : 0;
+  if (num < 1024) return `${num} B`;
+  if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)} KB`;
+  if (num < 1024 * 1024 * 1024) return `${(num / (1024 * 1024)).toFixed(2)} MB`;
+  return `${(num / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 // Main Traffic Monitor App Component
@@ -192,8 +124,6 @@ export default function App() {
 
   return (
     <div className="traffic-monitor-container">
-      <style>{customStyles}</style>
-
       <Header activeTab={activeTab} setActiveTab={setActiveTab} isLive={isLive} />
 
       <ControlBar
@@ -210,23 +140,23 @@ export default function App() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Local Download Rate"
-          value={localStats ? formatSpeed(localStats.rxSpeed) : '0 B/s'}
-          subtitle={`Total: ${localStats ? formatBytes(localStats.totalRxBytes) : '0 B'}`}
+          value={formatSpeed(localStats?.rxSpeed)}
+          subtitle={`Total: ${formatBytes(localStats?.totalRxBytes)}`}
           iconName="arrow_downward"
           colorTheme="emerald"
         />
 
         <MetricCard
           title="Local Upload Rate"
-          value={localStats ? formatSpeed(localStats.txSpeed) : '0 B/s'}
-          subtitle={`Total: ${localStats ? formatBytes(localStats.totalTxBytes) : '0 B'}`}
+          value={formatSpeed(localStats?.txSpeed)}
+          subtitle={`Total: ${formatBytes(localStats?.totalTxBytes)}`}
           iconName="arrow_upward"
           colorTheme="cyan"
         />
 
         <MetricCard
           title="Relay Cloud Bandwidth"
-          value={relayStats ? formatSpeed(relayStats.rxSpeed + relayStats.txSpeed) : '0 B/s'}
+          value={formatSpeed((relayStats?.rxSpeed || 0) + (relayStats?.txSpeed || 0))}
           subtitle={`Sockets: ${relayStats?.activeSockets || 0} active`}
           iconName="public"
           colorTheme="indigo"
@@ -234,8 +164,8 @@ export default function App() {
 
         <MetricCard
           title="Local Edge Latency"
-          value={localStats ? `${localStats.latencyMs} ms` : '0 ms'}
-          subtitle={`Relay: ${relayStats ? `${relayStats.latencyMs} ms` : '0 ms'}`}
+          value={`${localStats?.latencyMs ?? 0} ms`}
+          subtitle={`Relay: ${relayStats?.latencyMs ?? 0} ms`}
           iconName="bolt"
           colorTheme="amber"
         />
@@ -245,7 +175,7 @@ export default function App() {
       {activeTab === 'overview' && (
         <div className="flex flex-col gap-6">
           <TrafficChart history={history} showLocal={true} showRelay={true} />
-          {localStats && <InterfaceTable interfaces={localStats.interfaces} />}
+          <InterfaceTable interfaces={localStats?.interfaces} />
         </div>
       )}
 
@@ -261,21 +191,21 @@ export default function App() {
             />
             <MetricCard
               title="Total Data In"
-              value={localStats ? formatBytes(localStats.totalRxBytes) : '0 B'}
+              value={formatBytes(localStats?.totalRxBytes)}
               subtitle="Local Interface RX counter"
               iconName="hard_drive"
               colorTheme="emerald"
             />
             <MetricCard
               title="Total Data Out"
-              value={localStats ? formatBytes(localStats.totalTxBytes) : '0 B'}
+              value={formatBytes(localStats?.totalTxBytes)}
               subtitle="Local Interface TX counter"
               iconName="dns"
               colorTheme="indigo"
             />
           </div>
           <TrafficChart history={history} showLocal={true} showRelay={false} />
-          {localStats && <InterfaceTable interfaces={localStats.interfaces} />}
+          <InterfaceTable interfaces={localStats?.interfaces} />
         </div>
       )}
 
@@ -284,14 +214,14 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
             <MetricCard
               title="Relay RX Volume"
-              value={relayStats ? formatBytes(relayStats.relayRxBytes) : '0 B'}
+              value={formatBytes(relayStats?.relayRxBytes)}
               subtitle="Cloud relay data received"
               iconName="public"
               colorTheme="indigo"
             />
             <MetricCard
               title="Relay TX Volume"
-              value={relayStats ? formatBytes(relayStats.relayTxBytes) : '0 B'}
+              value={formatBytes(relayStats?.relayTxBytes)}
               subtitle="Cloud relay data sent"
               iconName="arrow_upward"
               colorTheme="amber"
@@ -310,7 +240,7 @@ export default function App() {
 
       {activeTab === 'interfaces' && (
         <div className="flex flex-col gap-6">
-          {localStats && <InterfaceTable interfaces={localStats.interfaces} />}
+          <InterfaceTable interfaces={localStats?.interfaces} />
         </div>
       )}
     </div>

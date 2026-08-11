@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traffic Monitor</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap">
+  <link rel="stylesheet" href="/netlink.css">
+  <link rel="stylesheet" href="/apps/traffic-monitor/frontend/styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.2.0",
+      "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+      "react-dom": "https://esm.sh/react-dom@18.2.0"
+    }
+  }
+  </script>
+</head>
+<body style="margin: 0; padding: 0; background-color: #020617; color: #f8fafc; font-family: 'Inter', sans-serif;">
+  <div id="root"></div>
+  <script type="module">
+    import React from 'react';
+    import { createRoot } from 'react-dom/client';
+    import App from '/apps/traffic-monitor/frontend/main.tsx';
+    
+    const renderApp = (Component) => {
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(Component, { token: localStorage.getItem('netlink_token') }));
+    };
+    
+    if (App instanceof Promise) {
+        App.then(m => renderApp(m.default || m));
+    } else {
+        renderApp(App);
+    }
+  </script>
+</body>
+</html>
