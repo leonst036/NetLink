@@ -40,3 +40,11 @@ export interface ServerDevice {
     lastSeen: string;
     isOnline: boolean;
 }
+
+export interface PinnedApp {
+    appId: string;
+    title: string;
+    icon?: string;
+    color?: string;
+}
+

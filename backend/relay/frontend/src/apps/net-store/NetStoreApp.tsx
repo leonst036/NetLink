@@ -42,7 +42,9 @@ import {
   Folder,
   ShieldAlert,
   Key,
-  Trash2
+  Trash2,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import './NetStoreApp.css';
 import { useWindowStore } from '../../store/useWindowStore';
@@ -670,6 +672,20 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                             </Button>
                           ) : (
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Tooltip title={windowStore.isPinned(app.id) ? "Unpin from Dock" : "Pin to Dock"} arrow placement="top">
+                                <IconButton
+                                  size="small"
+                                  color={windowStore.isPinned(app.id) ? "secondary" : "default"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    windowStore.togglePinApp({ appId: app.id, title: app.name, color: app.color });
+                                  }}
+                                  sx={{ padding: '4px' }}
+                                >
+                                  {windowStore.isPinned(app.id) ? <PinOff size={15} /> : <Pin size={15} />}
+                                </IconButton>
+                              </Tooltip>
+
                               <Tooltip title="Uninstall App" arrow placement="top">
                                 <IconButton
                                   size="small"
@@ -806,6 +822,17 @@ export default function NetStoreApp(props: NetStoreAppProps) {
           </DialogContent>
 
           <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button
+              color={windowStore.isPinned(selectedApp.id) ? "secondary" : "inherit"}
+              variant="outlined"
+              startIcon={windowStore.isPinned(selectedApp.id) ? <PinOff size={16} /> : <Pin size={16} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                windowStore.togglePinApp({ appId: selectedApp.id, title: selectedApp.name, color: selectedApp.color });
+              }}
+            >
+              {windowStore.isPinned(selectedApp.id) ? 'Unpin from Dock' : 'Pin to Dock'}
+            </Button>
             {installedAppIds.includes(selectedApp.id) && !selectedApp.nativeKey && (
               <>
                 <Button

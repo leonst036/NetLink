@@ -168,3 +168,15 @@ export async function SaveServerLogin(client: mongoDB.MongoClient, username: str
 export async function DeleteServerLogin(client: mongoDB.MongoClient, username: string, id: string) {
     return client.db("NetLink").collection("server_logins").deleteOne({ username, id });
 }
+
+export async function GetDockConfig(client: mongoDB.MongoClient, username: string) {
+    return client.db("NetLink").collection("dock_config").findOne({ username });
+}
+
+export async function SaveDockConfig(client: mongoDB.MongoClient, username: string, pinnedApps: any[]) {
+    return client.db("NetLink").collection("dock_config").updateOne(
+        { username },
+        { $set: { pinnedApps, updatedAt: new Date() } },
+        { upsert: true }
+    );
+}

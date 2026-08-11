@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, MouseEvent } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type { MouseEvent } from 'react';
 import { LogOut, Bell, Trash2, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import { AppBar, Toolbar, Typography, Box, Select, MenuItem, Button, IconButton, Badge, Popover, List, ListItem, ListItemIcon, ListItemText, Tooltip, Divider } from '@mui/material';
 import { useNotificationStore } from '../store/useNotificationStore';
@@ -21,10 +22,10 @@ function Clock() {
     return <Typography variant="caption">{time.toLocaleTimeString()}</Typography>;
 }
 
-export default function TopBar({ target, setTarget, allowedTargets, username, onLogout }: TopBarProps) {
+export default function TopBar({ target, setTarget, allowedTargets, username: _username, onLogout }: TopBarProps) {
     const { notifications, history, clearHistory } = useNotificationStore();
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleMouseEnter = (event: MouseEvent<HTMLElement>) => {
         if (closeTimeoutRef.current) {
@@ -37,7 +38,7 @@ export default function TopBar({ target, setTarget, allowedTargets, username, on
     const handleMouseLeave = () => {
         closeTimeoutRef.current = setTimeout(() => {
             setAnchorEl(null);
-        }, 200);
+        }, 300);
     };
 
     const handlePopoverMouseEnter = () => {
@@ -47,79 +48,76 @@ export default function TopBar({ target, setTarget, allowedTargets, username, on
         }
     };
 
-    const handleClick = (event: MouseEvent<HTMLElement>) => {
-        if (anchorEl) {
-            setAnchorEl(null);
-        } else {
-            setAnchorEl(event.currentTarget);
-        }
-    };
-
-    const open = Boolean(anchorEl);
-
     const getNotificationIcon = (type: 'info' | 'success' | 'error') => {
         switch (type) {
             case 'success':
-                return <CheckCircle2 size={14} color="#4caf50" />;
+                return <CheckCircle2 size={14} color="#4ade80" />;
             case 'error':
-                return <AlertTriangle size={14} color="#f44336" />;
+                return <AlertTriangle size={14} color="#f87171" />;
             default:
-                return <Info size={14} color="#29b6f6" />;
+                return <Info size={14} color="#60a5fa" />;
         }
     };
 
+    const unreadCount = notifications.length;
+
     return (
-        <AppBar position="static" color="transparent" elevation={0} className="topbar-appbar">
-            <Toolbar variant="dense" className="topbar-toolbar">
-                <Box className="topbar-left-section">
-                    <Typography variant="subtitle2" className="topbar-brand-text">NetLink OS</Typography>
-                    <Box className="topbar-target-wrapper">
-                        <Typography variant="caption" color="text.secondary">Target:</Typography>
-                        {allowedTargets && allowedTargets.length > 0 ? (
+        <AppBar position="static" className="topbar-appbar">
+            <Toolbar className="topbar-toolbar" variant="dense">
+                <Box className="topbar-left">
+                    <Box className="topbar-logo-badge">
+                        <Typography variant="subtitle2" className="topbar-title">
+                            NetLink OS
+                        </Typography>
+                    </Box>
+
+                    {allowedTargets.length > 0 && (
+                        <Box className="topbar-target-selector">
+                            <Typography variant="caption" className="topbar-target-label">
+                                Target:
+                            </Typography>
                             <Select
                                 size="small"
-                                className="topbar-target-select"
                                 value={target}
                                 onChange={(e) => {
                                     setTarget(e.target.value as string);
                                     localStorage.setItem('netlink_target', e.target.value as string);
                                 }}
+                                className="topbar-target-select"
+                                variant="standard"
+                                disableUnderline
                             >
                                 {allowedTargets.map(t => (
-                                    <MenuItem key={t} value={t}>{t}</MenuItem>
+                                    <MenuItem key={t} value={t} sx={{ fontSize: '0.8rem' }}>
+                                        {t}
+                                    </MenuItem>
                                 ))}
                             </Select>
-                        ) : (
-                            <Typography variant="caption">{target}</Typography>
-                        )}
-                    </Box>
-                    <Typography variant="caption" color="primary.light">{username}</Typography>
+                        </Box>
+                    )}
                 </Box>
-                <Box className="topbar-right-section">
-                    <Box
-                        onMouseEnter={handleMouseEnter}
-                        onMouseLeave={handleMouseLeave}
-                        onClick={handleClick}
-                        sx={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}
-                    >
-                        <Tooltip title="Notifications">
-                            <IconButton size="small" className="topbar-icon-button" color="inherit">
-                                <Badge badgeContent={notifications.length > 0 ? notifications.length : history.length} color={notifications.length > 0 ? "error" : "default"} max={99}>
-                                    <Bell size={16} />
-                                </Badge>
-                            </IconButton>
-                        </Tooltip>
+
+                <Box className="topbar-right">
+                    <Box onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+                        <IconButton size="small" sx={{ color: 'rgba(255,255,255,0.7)', p: 0.75 }}>
+                            <Badge badgeContent={unreadCount} color="error" max={99}>
+                                <Bell size={16} />
+                            </Badge>
+                        </IconButton>
                     </Box>
+
                     <Popover
-                        open={open}
+                        open={Boolean(anchorEl)}
                         anchorEl={anchorEl}
                         onClose={() => setAnchorEl(null)}
                         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                        PaperProps={{
-                            className: 'topbar-notifications-popover',
-                            onMouseEnter: handlePopoverMouseEnter,
-                            onMouseLeave: handleMouseLeave
+                        slotProps={{
+                            paper: {
+                                className: 'topbar-notifications-popover',
+                                onMouseEnter: handlePopoverMouseEnter,
+                                onMouseLeave: handleMouseLeave
+                            }
                         }}
                         sx={{ pointerEvents: 'auto' }}
                     >
@@ -162,8 +160,10 @@ export default function TopBar({ target, setTarget, allowedTargets, username, on
                                             <ListItemText
                                                 primary={n.message}
                                                 secondary={n.timestamp}
-                                                primaryTypographyProps={{ variant: 'caption', color: 'text.primary', sx: { lineHeight: 1.3 } }}
-                                                secondaryTypographyProps={{ variant: 'caption', color: 'text.secondary', sx: { fontSize: '0.7rem' } }}
+                                                slotProps={{
+                                                    primary: { variant: 'caption', color: 'text.primary', sx: { lineHeight: 1.3 } },
+                                                    secondary: { variant: 'caption', color: 'text.secondary', sx: { fontSize: '0.7rem' } }
+                                                }}
                                             />
                                         </ListItem>
                                     ))}

@@ -9,6 +9,7 @@ import { handleGetServersRoute, handleServerLoginsRoute } from './routes/serverR
 import { handleInstallScriptRoute, handleDemoScriptRoute, handleDemoSetupRoute } from './routes/scriptRoutes.js';
 import { handleFaviconRoute, handleStaticFileRoute, handleAppFrontendRoute } from './routes/staticRoutes.js';
 import { handleNetStoreApplicationsRoute, handleInstallApplicationRoute, handleUninstallApplicationRoute } from './routes/netStoreRoutes.js';
+import { handleDockRoute } from './routes/dockRoutes.js';
 import { Router } from './Router.js';
 import httpProxy from 'http-proxy';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
@@ -68,6 +69,10 @@ appRouter.get('/api/netstore', (req, res, parsedUrl) => handleNetStoreApplicatio
 appRouter.post('/api/applications/install', (req, res, parsedUrl) => handleInstallApplicationRoute(parsedUrl, req, res));
 appRouter.post('/api/applications/uninstall', (req, res, parsedUrl) => handleUninstallApplicationRoute(parsedUrl, req, res));
 
+// Dock configuration routes
+appRouter.get('/api/dock', (req, res, parsedUrl) => handleDockRoute(parsedUrl, req, res));
+appRouter.post('/api/dock', (req, res, parsedUrl) => handleDockRoute(parsedUrl, req, res));
+
 
 /**
  * Main HTTP Request Handler - routes incoming HTTP requests to dedicated route controllers.
@@ -80,7 +85,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     if (match) {
         const appId = match[1] as string;
         // Exclude system api routes like login, register, servers etc.
-        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'topology', 'users', 'applications', 'netstore'];
+        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'topology', 'users', 'applications', 'netstore', 'dock'];
         if (!systemRoutes.includes(appId)) {
             let userId = 'unknown';
             try {

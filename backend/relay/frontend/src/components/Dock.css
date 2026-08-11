@@ -47,3 +47,12 @@
     border-radius: 50%;
     background-color: #f8fafc;
 }
+
+.dock-pinned-icon {
+    border-color: rgba(236, 72, 153, 0.25);
+}
+
+.dock-pinned-icon:hover {
+    border-color: rgba(236, 72, 153, 0.5);
+}
+

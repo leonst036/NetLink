@@ -94,9 +94,11 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     };
 
     // Window states
-    const { activeWindow, graphWindow, settingsWindow, storeWindow, terminals, vncWindows, sftpWindows, dynamicWindows, setGraphWindow, setSettingsWindow, setStoreWindow, openTerminal, openVnc, openSftp, bringToFront, closeTerminal, closeVnc, closeSftp, minimizeTerminal, minimizeVnc, minimizeSftp, closeDynamicApp, minimizeDynamicApp } = useWindowStore();
+    const { activeWindow, graphWindow, settingsWindow, storeWindow, terminals, vncWindows, sftpWindows, dynamicWindows, setGraphWindow, setSettingsWindow, setStoreWindow, openTerminal, openVnc, openSftp, bringToFront, closeTerminal, closeVnc, closeSftp, minimizeTerminal, minimizeVnc, minimizeSftp, closeDynamicApp, minimizeDynamicApp, fetchDockConfig } = useWindowStore();
 
-
+    useEffect(() => {
+        fetchDockConfig();
+    }, [fetchDockConfig]);
 
     const fetchServers = async () => {
         setIsScanning(true);

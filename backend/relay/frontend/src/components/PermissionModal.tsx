@@ -46,7 +46,7 @@ export default function PermissionModal({ open, appId, appName, folders = [], re
     const hasFolders = folders.length > 0;
 
     return (
-        <Dialog open={open} maxWidth="sm" fullWidth PaperProps={{ style: { backgroundColor: '#1e293b', color: '#fff' } }}>
+        <Dialog open={open} maxWidth="sm" fullWidth slotProps={{ paper: { style: { backgroundColor: '#1e293b', color: '#fff' } } }}>
             <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                 <ShieldAlert size={24} color="#ef4444" />
                 Permission Request: {appName}
