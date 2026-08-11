@@ -108,5 +108,20 @@
     "shortDesc": "Manage Docker containers in your network.",
     "fullDesc": "Manage Docker containers in your network.",
     "isFeatured": true
+  },
+  {
+    "id": "traffic-monitor",
+    "name": "Traffic Monitor",
+    "author": "Leon",
+    "category": "Monitoring",
+    "rating": 5,
+    "downloads": "New",
+    "size": "Unknown",
+    "version": "v1.0.0",
+    "icon": "Activity",
+    "color": "#06b6d4",
+    "shortDesc": "Real-time network traffic monitor for local server and relay.",
+    "fullDesc": "Monitor incoming and outgoing bandwidth, packet rates, active connections, latency, and traffic distribution between the local server and cloud relay in real-time.",
+    "isFeatured": true
   }
 ]

@@ -1,0 +1,11 @@
+{
+  "id": "traffic-monitor",
+  "version": "1.0.0",
+  "main": "frontend/main.tsx",
+  "requestedPermissions": {
+    "allowRun": true,
+    "allowRunCommands": ["sh", "cat", "netstat", "ip", "ss"],
+    "allowEnv": ["PORT"],
+    "allowNet": true
+  }
+}
