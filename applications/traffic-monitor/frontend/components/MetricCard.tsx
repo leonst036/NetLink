@@ -20,32 +20,23 @@ export default function MetricCard({
   colorTheme = 'cyan',
   trend
 }: MetricCardProps) {
-  const themeClasses = {
-    cyan: 'border-cyan-500/20 text-cyan-400 bg-cyan-500/10',
-    indigo: 'border-indigo-500/20 text-indigo-400 bg-indigo-500/10',
-    emerald: 'border-emerald-500/20 text-emerald-400 bg-emerald-500/10',
-    amber: 'border-amber-500/20 text-amber-400 bg-amber-500/10',
-    rose: 'border-rose-500/20 text-rose-400 bg-rose-500/10'
-  };
-
   return (
-    <div className="glass-panel flex flex-col justify-between">
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{title}</span>
-        <div className={`p-2 rounded-lg border flex items-center justify-center ${themeClasses[colorTheme]}`}>
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{iconName}</span>
+    <div className="tm-glass-card tm-metric-card">
+      <div className="tm-metric-header">
+        <span className="tm-metric-title">{title}</span>
+        <div className={`tm-metric-icon ${colorTheme}`}>
+          <span className="material-symbols-outlined">{iconName}</span>
         </div>
       </div>
 
       <div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-extrabold text-slate-100 font-mono tracking-tight">{value}</span>
-          {unit && <span className="text-xs font-medium text-slate-400">{unit}</span>}
+        <div className="tm-metric-val">
+          {value} {unit && <span style={{ fontSize: '0.8rem', color: 'var(--tm-text-muted)', fontWeight: 500 }}>{unit}</span>}
         </div>
         
-        <div className="flex items-center justify-between mt-1 text-xs">
-          {subtitle && <span className="text-slate-400">{subtitle}</span>}
-          {trend && <span className="text-emerald-400 font-medium ml-auto">{trend}</span>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+          {subtitle && <span className="tm-metric-sub">{subtitle}</span>}
+          {trend && <span className="tm-metric-sub" style={{ color: 'var(--tm-emerald)' }}>{trend}</span>}
         </div>
       </div>
     </div>

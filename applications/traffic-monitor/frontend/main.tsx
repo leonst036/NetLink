@@ -123,7 +123,7 @@ export default function App() {
   };
 
   return (
-    <div className="traffic-monitor-container">
+    <div className="tm-container">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} isLive={isLive} />
 
       <ControlBar
@@ -137,7 +137,7 @@ export default function App() {
       />
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="tm-grid">
         <MetricCard
           title="Local Download Rate"
           value={formatSpeed(localStats?.rxSpeed)}
@@ -173,15 +173,15 @@ export default function App() {
 
       {/* Main Tab Content Views */}
       {activeTab === 'overview' && (
-        <div className="flex flex-col gap-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <TrafficChart history={history} showLocal={true} showRelay={true} />
           <InterfaceTable interfaces={localStats?.interfaces} />
         </div>
       )}
 
       {activeTab === 'local' && (
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="tm-grid">
             <MetricCard
               title="Active TCP Sockets"
               value={`${localStats?.activeConnections || 0}`}
@@ -210,8 +210,8 @@ export default function App() {
       )}
 
       {activeTab === 'relay' && (
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="tm-grid">
             <MetricCard
               title="Relay RX Volume"
               value={formatBytes(relayStats?.relayRxBytes)}
@@ -239,7 +239,7 @@ export default function App() {
       )}
 
       {activeTab === 'interfaces' && (
-        <div className="flex flex-col gap-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <InterfaceTable interfaces={localStats?.interfaces} />
         </div>
       )}

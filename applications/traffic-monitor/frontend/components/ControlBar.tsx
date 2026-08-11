@@ -21,41 +21,30 @@ export default function ControlBar({
   onExport
 }: ControlBarProps) {
   return (
-    <div className="glass-panel flex flex-wrap items-center justify-between gap-4 mb-6">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="tm-glass-card tm-toolbar">
+      <div className="tm-toolbar-left">
         <button
           onClick={() => setIsLive(!isLive)}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-            isLive
-              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
-              : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
-          }`}
+          className={`tm-btn ${isLive ? '' : 'tm-btn-primary'}`}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+          <span className="material-symbols-outlined">
             {isLive ? 'pause' : 'play_arrow'}
           </span>
           {isLive ? 'Pause Stream' : 'Resume Live'}
         </button>
 
-        <button
-          onClick={onRefresh}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-slate-100 transition-colors"
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>refresh</span>
+        <button onClick={onRefresh} className="tm-btn">
+          <span className="material-symbols-outlined">refresh</span>
           Refresh Now
         </button>
 
-        <div className="flex items-center gap-2 text-xs text-slate-400 pl-2 border-l border-slate-800">
+        <div className="tm-interval-group">
           <span>Interval:</span>
           {[1, 2, 5].map((sec) => (
             <button
               key={sec}
               onClick={() => setRefreshRate(sec)}
-              className={`px-2 py-0.5 rounded text-xs transition-colors ${
-                refreshRate === sec
-                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 font-semibold'
-                  : 'hover:text-slate-200'
-              }`}
+              className={`tm-pill-btn ${refreshRate === sec ? 'active' : ''}`}
             >
               {sec}s
             </button>
@@ -63,20 +52,14 @@ export default function ControlBar({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onExport}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800/80 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>download</span>
+      <div className="tm-toolbar-right">
+        <button onClick={onExport} className="tm-btn">
+          <span className="material-symbols-outlined">download</span>
           Export Log
         </button>
 
-        <button
-          onClick={onClearHistory}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-colors"
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
+        <button onClick={onClearHistory} className="tm-btn tm-btn-danger">
+          <span className="material-symbols-outlined">delete</span>
           Clear Graph
         </button>
       </div>
