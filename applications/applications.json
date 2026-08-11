@@ -107,6 +107,6 @@
     "color": "#2496ed",
     "shortDesc": "Manage Docker containers in your network.",
     "fullDesc": "Manage Docker containers in your network.",
-    "isFeatured": false
+    "isFeatured": true
   }
 ]
