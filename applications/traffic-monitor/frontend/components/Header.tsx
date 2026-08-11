@@ -1,4 +1,4 @@
-import { Activity, Server, Globe, Cpu, Layers } from 'lucide-react';
+import React from 'react';
 import { ActiveTab } from '../types';
 
 interface HeaderProps {
@@ -12,8 +12,8 @@ export default function Header({ activeTab, setActiveTab, isLive }: HeaderProps)
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
       <div className="flex items-center gap-3">
-        <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400">
-          <Activity className="w-6 h-6" />
+        <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 flex items-center justify-center">
+          <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>monitoring</span>
         </div>
         <div>
           <div className="flex items-center gap-2">
@@ -36,7 +36,7 @@ export default function Header({ activeTab, setActiveTab, isLive }: HeaderProps)
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
           }`}
         >
-          <Layers className="w-3.5 h-3.5" />
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>layers</span>
           Overview
         </button>
 
@@ -48,7 +48,7 @@ export default function Header({ activeTab, setActiveTab, isLive }: HeaderProps)
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
           }`}
         >
-          <Server className="w-3.5 h-3.5" />
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>dns</span>
           Local Server
         </button>
 
@@ -60,7 +60,7 @@ export default function Header({ activeTab, setActiveTab, isLive }: HeaderProps)
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
           }`}
         >
-          <Globe className="w-3.5 h-3.5" />
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>public</span>
           Relay Cloud
         </button>
 
@@ -72,7 +72,7 @@ export default function Header({ activeTab, setActiveTab, isLive }: HeaderProps)
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
           }`}
         >
-          <Cpu className="w-3.5 h-3.5" />
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>memory</span>
           Interfaces
         </button>
       </div>

@@ -1,11 +1,11 @@
-import { LucideIcon } from 'lucide-react';
+import React from 'react';
 
 interface MetricCardProps {
   title: string;
   value: string;
   unit?: string;
   subtitle?: string;
-  icon: LucideIcon;
+  iconName: string;
   colorTheme?: 'cyan' | 'indigo' | 'emerald' | 'amber' | 'rose';
   trend?: string;
 }
@@ -16,7 +16,7 @@ export default function MetricCard({
   value,
   unit,
   subtitle,
-  icon: Icon,
+  iconName,
   colorTheme = 'cyan',
   trend
 }: MetricCardProps) {
@@ -32,8 +32,8 @@ export default function MetricCard({
     <div className="glass-panel flex flex-col justify-between">
       <div className="flex items-center justify-between gap-2 mb-3">
         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{title}</span>
-        <div className={`p-2 rounded-lg border ${themeClasses[colorTheme]}`}>
-          <Icon className="w-4 h-4" />
+        <div className={`p-2 rounded-lg border flex items-center justify-center ${themeClasses[colorTheme]}`}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{iconName}</span>
         </div>
       </div>
 

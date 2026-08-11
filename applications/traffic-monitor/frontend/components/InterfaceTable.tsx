@@ -1,6 +1,6 @@
+import React from 'react';
 import { NetworkInterfaceStats } from '../types';
 import { formatSpeed } from './TrafficChart';
-import { ArrowDown, ArrowUp, Cpu } from 'lucide-react';
 
 interface InterfaceTableProps {
   interfaces: NetworkInterfaceStats[];
@@ -19,7 +19,7 @@ export default function InterfaceTable({ interfaces }: InterfaceTableProps) {
   return (
     <div className="glass-panel">
       <div className="flex items-center gap-2 mb-4">
-        <Cpu className="w-4 h-4 text-cyan-400" />
+        <span className="material-symbols-outlined text-cyan-400" style={{ fontSize: '20px' }}>memory</span>
         <h3 className="text-sm font-semibold text-slate-200">Network Interfaces Breakdown</h3>
       </div>
 
@@ -45,14 +45,14 @@ export default function InterfaceTable({ interfaces }: InterfaceTableProps) {
 
                 <td className="py-3 px-3 font-mono text-emerald-400 font-semibold">
                   <div className="flex items-center gap-1">
-                    <ArrowDown className="w-3 h-3 text-emerald-400" />
+                    <span className="material-symbols-outlined text-emerald-400" style={{ fontSize: '14px' }}>arrow_downward</span>
                     {formatSpeed(iface.rxSpeed)}
                   </div>
                 </td>
 
                 <td className="py-3 px-3 font-mono text-cyan-400 font-semibold">
                   <div className="flex items-center gap-1">
-                    <ArrowUp className="w-3 h-3 text-cyan-400" />
+                    <span className="material-symbols-outlined text-cyan-400" style={{ fontSize: '14px' }}>arrow_upward</span>
                     {formatSpeed(iface.txSpeed)}
                   </div>
                 </td>

@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import MetricCard from './components/MetricCard';
 import TrafficChart, { formatSpeed } from './components/TrafficChart';
 import InterfaceTable from './components/InterfaceTable';
 import ControlBar from './components/ControlBar';
 import { LocalTrafficStats, RelayTrafficStats, TrafficHistoryPoint, ActiveTab } from './types';
-import { ArrowDown, ArrowUp, HardDrive, Wifi, Server, Globe, Zap } from 'lucide-react';
 import './styles.css';
 
 // Format total byte volume
@@ -92,7 +91,7 @@ export default function App() {
 
     setHistory((prev) => {
       const updated = [...prev, newPoint];
-      return updated.slice(-30); // Keep last 30 data points
+      return updated.slice(-30);
     });
   }, [localStats, relayStats]);
 
@@ -143,7 +142,7 @@ export default function App() {
           title="Local Download Rate"
           value={localStats ? formatSpeed(localStats.rxSpeed) : '0 B/s'}
           subtitle={`Total: ${localStats ? formatBytes(localStats.totalRxBytes) : '0 B'}`}
-          icon={ArrowDown}
+          iconName="arrow_downward"
           colorTheme="emerald"
         />
 
@@ -151,7 +150,7 @@ export default function App() {
           title="Local Upload Rate"
           value={localStats ? formatSpeed(localStats.txSpeed) : '0 B/s'}
           subtitle={`Total: ${localStats ? formatBytes(localStats.totalTxBytes) : '0 B'}`}
-          icon={ArrowUp}
+          iconName="arrow_upward"
           colorTheme="cyan"
         />
 
@@ -159,7 +158,7 @@ export default function App() {
           title="Relay Cloud Bandwidth"
           value={relayStats ? formatSpeed(relayStats.rxSpeed + relayStats.txSpeed) : '0 B/s'}
           subtitle={`Sockets: ${relayStats?.activeSockets || 0} active`}
-          icon={Globe}
+          iconName="public"
           colorTheme="indigo"
         />
 
@@ -167,7 +166,7 @@ export default function App() {
           title="Local Edge Latency"
           value={localStats ? `${localStats.latencyMs} ms` : '0 ms'}
           subtitle={`Relay: ${relayStats ? `${relayStats.latencyMs} ms` : '0 ms'}`}
-          icon={Zap}
+          iconName="bolt"
           colorTheme="amber"
         />
       </div>
@@ -187,21 +186,21 @@ export default function App() {
               title="Active TCP Sockets"
               value={`${localStats?.activeConnections || 0}`}
               subtitle="Local server open sockets"
-              icon={Wifi}
+              iconName="wifi"
               colorTheme="cyan"
             />
             <MetricCard
               title="Total Data In"
               value={localStats ? formatBytes(localStats.totalRxBytes) : '0 B'}
               subtitle="Local Interface RX counter"
-              icon={HardDrive}
+              iconName="hard_drive"
               colorTheme="emerald"
             />
             <MetricCard
               title="Total Data Out"
               value={localStats ? formatBytes(localStats.totalTxBytes) : '0 B'}
               subtitle="Local Interface TX counter"
-              icon={Server}
+              iconName="dns"
               colorTheme="indigo"
             />
           </div>
@@ -217,21 +216,21 @@ export default function App() {
               title="Relay RX Volume"
               value={relayStats ? formatBytes(relayStats.relayRxBytes) : '0 B'}
               subtitle="Cloud relay data received"
-              icon={Globe}
+              iconName="public"
               colorTheme="indigo"
             />
             <MetricCard
               title="Relay TX Volume"
               value={relayStats ? formatBytes(relayStats.relayTxBytes) : '0 B'}
               subtitle="Cloud relay data sent"
-              icon={ArrowUp}
+              iconName="arrow_upward"
               colorTheme="amber"
             />
             <MetricCard
               title="Relay Tunnels"
               value={`${relayStats?.activeTunnels || 0}`}
               subtitle="Active encrypted WebSocket tunnels"
-              icon={Zap}
+              iconName="bolt"
               colorTheme="emerald"
             />
           </div>

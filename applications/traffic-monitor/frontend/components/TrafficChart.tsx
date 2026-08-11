@@ -1,3 +1,4 @@
+import React from 'react';
 import { TrafficHistoryPoint } from '../types';
 
 interface TrafficChartProps {
@@ -24,7 +25,7 @@ export default function TrafficChart({ history, showLocal = true, showRelay = tr
   }
 
   // Calculate maximum value for chart scaling
-  let maxSpeed = 1000; // minimum baseline 1KB/s scale
+  let maxSpeed = 1000;
   for (const p of history) {
     if (showLocal) {
       maxSpeed = Math.max(maxSpeed, p.localRxSpeed, p.localTxSpeed);

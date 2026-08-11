@@ -1,9 +1,9 @@
-import { Play, Pause, RefreshCw, Trash2, Download } from 'lucide-react';
+import React from 'react';
 
 interface ControlBarProps {
   isLive: boolean;
   setIsLive: (live: boolean) => void;
-  refreshRate: number; // in seconds
+  refreshRate: number;
   setRefreshRate: (rate: number) => void;
   onRefresh: () => void;
   onClearHistory: () => void;
@@ -31,7 +31,9 @@ export default function ControlBar({
               : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
           }`}
         >
-          {isLive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+            {isLive ? 'pause' : 'play_arrow'}
+          </span>
           {isLive ? 'Pause Stream' : 'Resume Live'}
         </button>
 
@@ -39,7 +41,7 @@ export default function ControlBar({
           onClick={onRefresh}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-slate-100 transition-colors"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>refresh</span>
           Refresh Now
         </button>
 
@@ -66,7 +68,7 @@ export default function ControlBar({
           onClick={onExport}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800/80 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
         >
-          <Download className="w-3.5 h-3.5" />
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>download</span>
           Export Log
         </button>
 
@@ -74,7 +76,7 @@ export default function ControlBar({
           onClick={onClearHistory}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-colors"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
           Clear Graph
         </button>
       </div>
