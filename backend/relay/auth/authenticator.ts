@@ -1,40 +1,6 @@
 import * as mongoDB from 'mongodb';
-import http from 'http';
-import { URL } from 'url';
 import { VerifyToken } from './tokenManager.js';
 import { CheckToken } from '../database/MongoManager.js';
-
-export function parseCookies(cookieHeader?: string): Record<string, string> {
-    const list: Record<string, string> = {};
-    if (!cookieHeader) return list;
-
-    cookieHeader.split(';').forEach(cookie => {
-        const parts = cookie.split('=');
-        if (parts.length >= 2 && parts[0]) {
-            const name = parts[0].trim();
-            const val = parts.slice(1).join('=').trim();
-            list[name] = decodeURIComponent(val);
-        }
-    });
-
-    return list;
-}
-
-export function extractTokenFromRequest(req: http.IncomingMessage, parsedUrl?: URL): string | null {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        return authHeader.split(' ')[1] || null;
-    }
-    if (parsedUrl) {
-        const urlToken = parsedUrl.searchParams.get('token');
-        if (urlToken) return urlToken;
-    }
-    const cookies = parseCookies(req.headers.cookie);
-    if (cookies.netlink_token) {
-        return cookies.netlink_token;
-    }
-    return null;
-}
 
 /**
  * Authenticates a token via JWT verify and optionally MongoDB.
@@ -61,4 +27,3 @@ export async function authenticateToken(
     }
     return decoded;
 }
-

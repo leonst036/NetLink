@@ -24,16 +24,6 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false, // Ignore self-signed certificates
         },
-        '/apps': {
-          target: targetUrl,
-          changeOrigin: true,
-          secure: false,
-        },
-        '/netlink.css': {
-          target: targetUrl,
-          changeOrigin: true,
-          secure: false,
-        },
         '/health': {
           target: targetUrl,
           changeOrigin: true,

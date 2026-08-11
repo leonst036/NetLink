@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -11,7 +11,6 @@ import {
 import Desktop from './Desktop';
 import GeminiLoader from './components/GeminiLoader';
 import { getAppTheme } from './theme';
-import { getCookie, setCookie, deleteCookie, isJwtExpired, parseJwt } from './utils/cookieUtils';
 import './App.css';
 
 function App() {
@@ -19,25 +18,11 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
     if (urlToken) {
-      setCookie('netlink_token', urlToken, 1);
       localStorage.setItem('netlink_token', urlToken);
       window.history.replaceState({}, document.title, window.location.pathname);
-      if (!isJwtExpired(urlToken)) return urlToken;
+      return urlToken;
     }
-
-    const cookieToken = getCookie('netlink_token');
-    if (cookieToken && !isJwtExpired(cookieToken)) {
-      localStorage.setItem('netlink_token', cookieToken);
-      return cookieToken;
-    }
-
-    const localToken = localStorage.getItem('netlink_token');
-    if (localToken && !isJwtExpired(localToken)) {
-      setCookie('netlink_token', localToken, 1);
-      return localToken;
-    }
-
-    return null;
+    return localStorage.getItem('netlink_token');
   });
 
   const [username, setUsername] = useState('');
@@ -59,65 +44,6 @@ function App() {
       return [];
     }
   });
-
-  const handleLogout = useCallback(() => {
-    deleteCookie('netlink_token');
-    localStorage.removeItem('netlink_token');
-    localStorage.removeItem('netlink_target');
-    localStorage.removeItem('netlink_allowed_targets');
-    setToken(null);
-    setUsername('');
-    setPassword('');
-    setAllowedTargets([]);
-  }, []);
-
-  // Set timer to automatically log out when JWT token expires
-  useEffect(() => {
-    if (!token) return;
-
-    if (isJwtExpired(token)) {
-      console.warn('JWT token is expired. Triggering logout.');
-      handleLogout();
-      return;
-    }
-
-    const payload = parseJwt(token);
-    if (payload && payload.exp) {
-      const timeUntilExpiry = (payload.exp * 1000) - Date.now();
-      if (timeUntilExpiry > 0) {
-        const timer = setTimeout(() => {
-          console.warn('JWT token timer expired. Logging out.');
-          handleLogout();
-        }, timeUntilExpiry);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [token, handleLogout]);
-
-  // Intercept global 401 Unauthorized responses & authentication failure events
-  useEffect(() => {
-    const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      const response = await originalFetch(...args);
-      if (response.status === 401) {
-        console.warn('HTTP 401 Unauthorized detected. Dispatching auth expired event.');
-        window.dispatchEvent(new CustomEvent('netlink_auth_expired'));
-      }
-      return response;
-    };
-
-    const handleAuthExpired = () => {
-      console.warn('Session expired or authentication failed. Logging out...');
-      handleLogout();
-    };
-
-    window.addEventListener('netlink_auth_expired', handleAuthExpired);
-
-    return () => {
-      window.fetch = originalFetch;
-      window.removeEventListener('netlink_auth_expired', handleAuthExpired);
-    };
-  }, [handleLogout]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +69,6 @@ function App() {
         setTarget(activeTarget);
       }
 
-      setCookie('netlink_token', data.token, 1);
       localStorage.setItem('netlink_token', data.token);
       localStorage.setItem('netlink_target', activeTarget);
       localStorage.setItem('netlink_allowed_targets', JSON.stringify(data.targets || []));
@@ -154,6 +79,45 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /*
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username || !email || !password) return;
+
+    setLoading(true);
+    setLoginError('');
+    setRegisterSuccess('');
+
+    try {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Registration failed');
+
+      setRegisterSuccess('Registration successful! You can now log in.');
+      setIsRegistering(false);
+    } catch (err: any) {
+      setLoginError(err.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+  */
+
+  const handleLogout = () => {
+    localStorage.removeItem('netlink_token');
+    localStorage.removeItem('netlink_target');
+    localStorage.removeItem('netlink_allowed_targets');
+    setToken(null);
+    setUsername('');
+    setPassword('');
+    setAllowedTargets([]);
   };
 
   return (

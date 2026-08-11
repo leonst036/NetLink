@@ -2,11 +2,6 @@ import * as os from 'os';
 import ipLib from 'ip';
 import { exec } from 'child_process';
 import * as dns from 'dns';
-import * as fs from 'fs';
-import * as path from 'path';
-
-const CACHE_FILE = path.join(os.tmpdir(), 'netlink_scan_cache.json');
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 export interface Device {
     ip: string;
@@ -85,21 +80,6 @@ async function scanDevice(ip: string): Promise<Device | null> {
  * Main function that coordinates the automatic subnet detection and the network scan.
  */
 export async function runNetworkScan(): Promise<Device[]> {
-    if (process.env.USE_SCAN_CACHE === 'true') {
-        try {
-            if (fs.existsSync(CACHE_FILE)) {
-                const stat = fs.statSync(CACHE_FILE);
-                if (Date.now() - stat.mtimeMs < CACHE_TTL_MS) {
-                    console.log('Using cached network scan results (from previous scan)...');
-                    const data = fs.readFileSync(CACHE_FILE, 'utf-8');
-                    return JSON.parse(data);
-                }
-            }
-        } catch (e) {
-            console.error('Error reading scan cache:', e);
-        }
-    }
-
     let subnet;
 
     if (process.env.SCAN_CIDR) {
@@ -163,15 +143,6 @@ export async function runNetworkScan(): Promise<Device[]> {
     foundDevices.sort((a, b) => {
         return ipLib.toLong(a.ip) - ipLib.toLong(b.ip);
     });
-
-    if (process.env.USE_SCAN_CACHE === 'true') {
-        try {
-            fs.writeFileSync(CACHE_FILE, JSON.stringify(foundDevices));
-            console.log('\nSaved network scan results to cache.');
-        } catch (e) {
-            console.error('\nError writing scan cache:', e);
-        }
-    }
 
     console.log('\nNetwork scan completed successfully.');
     return foundDevices;

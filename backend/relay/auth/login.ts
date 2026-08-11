@@ -75,10 +75,6 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
         isAuthenticated = true;
         userRole = 'admin';
         userPermissions = ['manage_users', 'manage_logins', 'access_terminal', 'access_vnc', 'access_sftp', 'scan_network'];
-    } else if (username === 'testuser2' && password === 'password123') {
-        isAuthenticated = true;
-        userRole = 'user';
-        userPermissions = [];
     } else {
         const client = getMongoClient();
         if (client) {
@@ -148,10 +144,7 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
             userTargets = Array.from(controlConnections.keys());
         }
 
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-            'Set-Cookie': `netlink_token=${token}; Path=/; SameSite=Lax; Max-Age=86400`
-        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ token, targets: userTargets }));
     } catch (err: any) {
         console.error('Login error:', err);

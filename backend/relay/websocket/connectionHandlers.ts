@@ -146,8 +146,7 @@ export function handleClientConnection(
         
         controlWs.send(JSON.stringify({
             type: 'init_session',
-            sessionId: activeSessionId,
-            userId: identifier
+            sessionId: activeSessionId
         }));
 
         // Timeout after 10 seconds if server doesn't establish the connection
@@ -185,35 +184,6 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
     if (devices) {
         ws.send(JSON.stringify({ type: 'server_list', devices }));
     }
-    
-    ws.on('message', async (data: any) => {
-        try {
-            const message = JSON.parse(data.toString());
-            if (message.type === 'permission_response' && message.appId) {
-                if (message.granted) {
-                    console.log(`Permission granted for app ${message.appId}`);
-                    const perms = getGrantedPermissions();
-                    perms[message.appId] = message.permissions || {
-                        folders: (message.folders || []).map((f: any) => typeof f === 'string' ? f : f.path),
-                        allowRun: Boolean(message.allowRun),
-                        allowEnv: message.allowEnv || [],
-                        allowNet: Boolean(message.allowNet)
-                    };
-                    saveGrantedPermissions(perms);
-                    
-                    // Request the local server to resync the app which will trigger start
-                    const controlWs = controlConnections.get(targetId);
-                    if (controlWs && controlWs.readyState === WebSocket.OPEN) {
-                        controlWs.send(JSON.stringify({ type: 'sync_app', appId: message.appId }));
-                    }
-                } else {
-                    console.log(`Permission denied for app ${message.appId}`);
-                }
-            }
-        } catch (err) {
-            console.error('Failed to parse desktop message:', err);
-        }
-    });
 
     ws.on('close', () => {
         clients!.delete(ws);

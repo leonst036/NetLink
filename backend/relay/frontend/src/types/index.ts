@@ -2,9 +2,7 @@ export interface AppNotification {
     id: string;
     message: string;
     type: 'info' | 'success' | 'error';
-    timestamp?: string;
 }
-
 
 export interface TerminalInstance {
     id: string;

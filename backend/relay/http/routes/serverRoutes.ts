@@ -2,7 +2,7 @@ import http from 'http';
 import { URL } from 'url';
 import { serverDevices } from '../../websocket/connectionManager.js';
 import { getMongoClient, GetServerLogins, SaveServerLogin, DeleteServerLogin } from '../../database/MongoManager.js';
-import { authenticateToken, extractTokenFromRequest } from '../../auth/authenticator.js';
+import { authenticateToken } from '../../auth/authenticator.js';
 
 export function handleGetServersRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): void {
     const target = parsedUrl.searchParams.get('target');
@@ -17,7 +17,8 @@ export function handleGetServersRoute(parsedUrl: URL, req: http.IncomingMessage,
 }
 
 export async function handleServerLoginsRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    const token = extractTokenFromRequest(req, parsedUrl);
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1] || parsedUrl.searchParams.get('token');
 
     const mongoClient = getMongoClient();
     if (!mongoClient) {
