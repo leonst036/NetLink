@@ -12,10 +12,39 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { appRouter } from '../http/requestHandler.js';
+import { denoSandbox } from '../sandbox/DenoSandbox.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const RELAY_APPS_DIR = path.join(__dirname, '..', 'NetStore', 'Applications');
+const PERMISSIONS_FILE = path.join(RELAY_APPS_DIR, 'permissions.json');
+
+function getGrantedPermissions(): Record<string, any> {
+    if (!fs.existsSync(PERMISSIONS_FILE)) return {};
+    try {
+        return JSON.parse(fs.readFileSync(PERMISSIONS_FILE, 'utf-8'));
+    } catch {
+        return {};
+    }
+}
+
+function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
+    const raw = grantedRecord[appId];
+    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false };
+    if (Array.isArray(raw)) {
+        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false };
+    }
+    return {
+        folders: Array.isArray(raw.folders) ? raw.folders : [],
+        allowRun: Boolean(raw.allowRun),
+        allowEnv: Array.isArray(raw.allowEnv) ? raw.allowEnv : [],
+        allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet)
+    };
+}
+
+function saveGrantedPermissions(perms: Record<string, any>) {
+    fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
+}
 
 /**
  * Handles incoming local server registration and session requests.
@@ -63,14 +92,39 @@ export function handleLocalServerConnection(
                     console.log(`Syncing ${message.backends.length} applications from local server: ${identifier}`);
                     for (const app of message.backends) {
                         const appId = app.appId;
-                        const appDir = path.join(RELAY_APPS_DIR, appId);
+                        const userId = app.userId;
+                        if (!userId) continue;
+
+                        const absoluteRelayAppsDir = path.resolve(RELAY_APPS_DIR);
+                        const appDir = path.resolve(RELAY_APPS_DIR, userId, appId);
                         
-                        if (!fs.existsSync(appDir)) {
-                            fs.mkdirSync(appDir, { recursive: true });
+                        // Security check: Ensure appDir is strictly within RELAY_APPS_DIR
+                        if (!appDir.startsWith(absoluteRelayAppsDir + path.sep)) {
+                            console.warn(`Security risk: Path traversal attempt with appId: ${appId} or userId: ${userId}`);
+                            continue;
                         }
                         
+                        const sandboxAppId = `${userId}_${appId}`;
+                        
+                        // Stop any running Deno sandbox on relay before replacing files
+                        denoSandbox.stopApp(sandboxAppId);
+
+                        // Clean destination appDir on relay to remove any stale assets
+                        if (fs.existsSync(appDir)) {
+                            fs.rmSync(appDir, { recursive: true, force: true });
+                        }
+                        fs.mkdirSync(appDir, { recursive: true });
+                        
+                        const absoluteAppDir = path.resolve(appDir);
                         for (const fileData of app.files) {
-                            const filePath = path.join(appDir, fileData.path);
+                            const filePath = path.resolve(appDir, fileData.path);
+                            
+                            // Security check: Ensure filePath is strictly within appDir
+                            if (!filePath.startsWith(absoluteAppDir + path.sep)) {
+                                console.warn(`Security risk: Path traversal attempt for path: ${fileData.path}`);
+                                continue;
+                            }
+
                             const fileDir = path.dirname(filePath);
                             if (!fs.existsSync(fileDir)) {
                                 fs.mkdirSync(fileDir, { recursive: true });
@@ -85,17 +139,88 @@ export function handleLocalServerConnection(
                         const entryFile = fs.existsSync(entryTs) ? entryTs : (fs.existsSync(entryJs) ? entryJs : null);
 
                         if (entryFile) {
-                            try {
-                                const moduleUrl = `file://${entryFile}?update=${Date.now()}`;
-                                const appModule = await import(moduleUrl);
-                                if (typeof appModule.registerRoutes === 'function') {
-                                    appModule.registerRoutes(appRouter);
-                                    console.log(`Registered backend routes for app: ${appId}`);
-                                } else {
-                                    console.warn(`App ${appId} does not export registerRoutes(appRouter) in relay/index.ts`);
+                            const indexJsonPath = path.join(appDir, 'index.json');
+                            let requestedFolders: any[] = [];
+                            let requestedPerms: any = {};
+                            let appName = appId;
+                            
+                            if (fs.existsSync(indexJsonPath)) {
+                                try {
+                                    const indexData = JSON.parse(fs.readFileSync(indexJsonPath, 'utf-8'));
+                                    appName = indexData.name || appId;
+                                    if (Array.isArray(indexData.requiredExternalFolders)) {
+                                        requestedFolders = indexData.requiredExternalFolders;
+                                    }
+                                    if (indexData.requestedPermissions) {
+                                        requestedPerms = indexData.requestedPermissions;
+                                    }
+                                } catch {}
+                            }
+                            
+                            const grantedAll = getGrantedPermissions();
+                            const appGranted = getAppGranted(grantedAll, appId);
+                            
+                            const foldersGranted = requestedFolders.every(f => appGranted.folders.includes(f.path));
+                            const runGranted = !requestedPerms.allowRun || appGranted.allowRun;
+                            const envGranted = !requestedPerms.allowEnv || (
+                                Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.every((v: string) => appGranted.allowEnv.includes(v))
+                            );
+
+                            if (!foldersGranted || !runGranted || !envGranted) {
+                                console.log(`App ${appId} requires permissions. Requesting from frontend...`);
+                                const clients = frontendClients.get(identifier);
+                                if (clients) {
+                                    clients.forEach(client => {
+                                        if (client.readyState === WebSocket.OPEN) {
+                                            client.send(JSON.stringify({
+                                                type: 'permission_request',
+                                                appId,
+                                                appName,
+                                                folders: requestedFolders,
+                                                requestedPermissions: requestedPerms
+                                            }));
+                                        }
+                                    });
                                 }
+                                continue; // Wait for approval before starting
+                            }
+                            
+                            const extraFlags: string[] = [];
+                            if (appGranted.folders.length > 0 && requestedFolders.length > 0) {
+                                requestedFolders.forEach(f => {
+                                    if (appGranted.folders.includes(f.path)) {
+                                        if (f.mode === 'write') extraFlags.push(`--allow-write=${f.path}`);
+                                        extraFlags.push(`--allow-read=${f.path}`);
+                                    }
+                                });
+                            }
+
+                            if (requestedPerms.allowRun && appGranted.allowRun) {
+                                if (Array.isArray(requestedPerms.allowRunCommands) && requestedPerms.allowRunCommands.length > 0) {
+                                    extraFlags.push(`--allow-run=${requestedPerms.allowRunCommands.join(',')}`);
+                                } else {
+                                    extraFlags.push('--allow-run');
+                                }
+                            }
+
+                            if (Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.length > 0 && appGranted.allowEnv) {
+                                const allowedEnvVars = requestedPerms.allowEnv.filter((v: string) => appGranted.allowEnv.includes(v));
+                                if (allowedEnvVars.length > 0) {
+                                    extraFlags.push(`--allow-env=PORT,${allowedEnvVars.join(',')}`);
+                                }
+                            }
+
+                            if (requestedPerms.allowNet && appGranted.allowNet) {
+                                if (Array.isArray(requestedPerms.allowNet) && requestedPerms.allowNet.length > 0) {
+                                    extraFlags.push(`--allow-net=${requestedPerms.allowNet.join(',')}`);
+                                }
+                            }
+                            
+                            try {
+                                await denoSandbox.startApp(sandboxAppId, entryFile, appDir, extraFlags);
+                                console.log(`Started relay Deno sandbox for app: ${sandboxAppId}`);
                             } catch (err) {
-                                console.error(`Failed to load backend for app ${appId}:`, err);
+                                console.error(`Failed to start relay Deno sandbox for app ${sandboxAppId}:`, err);
                             }
                         }
                     }
@@ -146,7 +271,8 @@ export function handleClientConnection(
         
         controlWs.send(JSON.stringify({
             type: 'init_session',
-            sessionId: activeSessionId
+            sessionId: activeSessionId,
+            userId: identifier
         }));
 
         // Timeout after 10 seconds if server doesn't establish the connection
@@ -184,6 +310,35 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
     if (devices) {
         ws.send(JSON.stringify({ type: 'server_list', devices }));
     }
+    
+    ws.on('message', async (data: any) => {
+        try {
+            const message = JSON.parse(data.toString());
+            if (message.type === 'permission_response' && message.appId) {
+                if (message.granted) {
+                    console.log(`Permission granted for app ${message.appId}`);
+                    const perms = getGrantedPermissions();
+                    perms[message.appId] = message.permissions || {
+                        folders: (message.folders || []).map((f: any) => typeof f === 'string' ? f : f.path),
+                        allowRun: Boolean(message.allowRun),
+                        allowEnv: message.allowEnv || [],
+                        allowNet: Boolean(message.allowNet)
+                    };
+                    saveGrantedPermissions(perms);
+                    
+                    // Request the local server to resync the app which will trigger start
+                    const controlWs = controlConnections.get(targetId);
+                    if (controlWs && controlWs.readyState === WebSocket.OPEN) {
+                        controlWs.send(JSON.stringify({ type: 'sync_app', appId: message.appId }));
+                    }
+                } else {
+                    console.log(`Permission denied for app ${message.appId}`);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to parse desktop message:', err);
+        }
+    });
 
     ws.on('close', () => {
         clients!.delete(ws);

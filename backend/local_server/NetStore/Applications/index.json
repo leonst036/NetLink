@@ -1,0 +1,38 @@
+[
+  {
+    "id": "docker-manager",
+    "version": "1.0.0",
+    "main": "frontend/main.tsx",
+    "installed": true
+  },
+  {
+    "id": "net-graph",
+    "version": "v1.0.0",
+    "nativeKey": "graph",
+    "installed": true
+  },
+  {
+    "id": "net-terminal",
+    "version": "v1.0.0",
+    "nativeKey": "terminal",
+    "installed": true
+  },
+  {
+    "id": "sftp-client",
+    "version": "v1.0.0",
+    "nativeKey": "sftp",
+    "installed": true
+  },
+  {
+    "id": "sys-settings",
+    "version": "v1.0.0",
+    "nativeKey": "settings",
+    "installed": true
+  },
+  {
+    "id": "vnc-viewer",
+    "version": "v1.0.0",
+    "nativeKey": "vnc",
+    "installed": true
+  }
+]

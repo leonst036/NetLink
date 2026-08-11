@@ -1,16 +1,5 @@
 {
   "id": "net-graph",
-  "name": "Network Graph",
-  "author": "NetLink Native",
-  "category": "Monitoring",
-  "rating": 5.0,
-  "downloads": "Built-in",
-  "size": "System",
   "version": "v1.0.0",
-  "nativeKey": "graph",
-  "icon": "Network",
-  "color": "#10b981",
-  "shortDesc": "Real-time network topology visualization.",
-  "fullDesc": "View and manage all connected devices in your subnet using an interactive node graph.",
-  "isFeatured": true
+  "nativeKey": "graph"
 }

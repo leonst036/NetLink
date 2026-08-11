@@ -16,6 +16,7 @@ COPY httpServer.ts ./
 COPY protocols/ ./protocols/
 COPY services/ ./services/
 COPY NetStore/ ./NetStore/
+COPY sandbox/ ./sandbox/
 
 
 # Compile TS code to the "dist" directory
@@ -30,6 +31,9 @@ ENV NODE_ENV=production
 
 # Install openssl in the production container for certificate auto-generation
 RUN apk add --no-cache openssl
+
+# Install deno
+COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
 
 # Copy package manifests to install production dependencies
 COPY package*.json ./
