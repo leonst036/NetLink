@@ -7,7 +7,7 @@ export default function DashboardHeader({ credentials, metrics, refreshData, han
         <header className="stitch-header">
             <div className="stitch-brand">
                 <span className="material-symbols-outlined text-primary-container" style={{ fontSize: '24px', color: 'var(--dm-primary-container)' }}>dns</span>
-                <span className="stitch-logo">DOCKER_ENGINE_V2</span>
+                <span className="stitch-logo">Docker Manager</span>
             </div>
 
             <div className="stitch-header-right">
