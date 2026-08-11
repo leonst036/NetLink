@@ -16,18 +16,24 @@ Think of it as your personal, self-hosted remote access gateway. It has a centra
 
 ## 🛠️ How to set this thing up
 
-### 🚀 Quick Start with Docker Compose (Recommended)
+### 🚀 Quick Start with Installer Script (Recommended)
 
-Run the full stack (MongoDB, Relay Server, and Local Server) with a single command:
+Run the interactive setup script directly via `curl`:
 
 ```bash
-docker compose up -d --build
-# or with docker-compose:
-docker-compose up -d --build
+curl -sSL https://raw.githubusercontent.com/leonst036/NetLink/main/install.sh -o install.sh && chmod +x install.sh && ./install.sh
 ```
 
-- **Web UI**: Access at [http://localhost:4535](http://localhost:4535) (Default login: `admin` / `admin`).
-- **MongoDB**: Automatically initialized with pre-configured token for the local server container.
+Or if you have cloned the repository locally:
+
+```bash
+./install.sh
+```
+
+The interactive installer will guide you through setting up admin credentials, custom ports, secret keys, and deployment modes (Full Stack, Relay Gateway only, or Local Daemon only).
+
+- **Web UI**: Default access at [http://localhost:4535](http://localhost:4535) (Login configured during setup).
+- **MongoDB**: Automatically initialized with necessary tokens and collections.
 
 ---
 
