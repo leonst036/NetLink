@@ -186,6 +186,47 @@ NetLink includes an online catalog and dynamic installation mechanism:
 
 ---
 
+## Design Guidelines & UI/UX Standards
+
+To ensure all NetStore applications feel cohesive, modern, and integrated seamlessly within the NetLink ecosystem, developers must adhere to the following design standards and guidelines:
+
+### 1. Visual Aesthetics & Theme Integration
+- **Dark Mode & Color Palette**: NetLink uses a modern dark theme with deep slate backgrounds (`slate-950` / `#020617` base). Avoid using plain light backgrounds or harsh high-contrast white boxes.
+- **Glassmorphism**: Utilize semi-transparent dark containers (`bg-slate-900/60` or `bg-slate-800/40`), subtle background blurs (`backdrop-blur-md`), and thin translucent borders (`border border-white/10` or `border-slate-700/50`).
+- **Curated Accent Colors**: Use specific color accents for visual hierarchy and action semantics:
+  - **Primary Actions / Highlights**: Indigo (`#6366f1` / `indigo-500`)
+  - **Success / Online Status**: Emerald (`#10b981` / `emerald-500`)
+  - **Warnings / Caution**: Amber (`#f59e0b` / `amber-500`)
+  - **Destructive Actions / Errors**: Rose (`#f43f5e` / `rose-500`)
+  - **Utilities / System**: Blue (`#2496ed`) or Cyan (`#06b6d4`)
+  - *Avoid unstyled, raw primary colors (e.g. pure `#ff0000` or `#0000ff`).*
+
+### 2. Typography & Hierarchy
+- **Font Selection**: Use sans-serif fonts matching NetLink's UI (`Outfit`, `Inter`, or system sans-serif) for titles and body text. Use monospaced fonts (`Fira Code`, `JetBrains Mono`) for logs, code snippets, IP addresses, and terminal output.
+- **Contrast & Text Muting**: Ensure high contrast for readability against dark backgrounds:
+  - Primary Titles & Headers: `text-slate-100` / `#f8fafc`
+  - Body Text: `text-slate-300` / `#cbd5e1`
+  - Secondary Metadata / Captions: `text-slate-400` or `text-slate-500`
+
+### 3. Iconography & Badges
+- **Lucide Icons**: Use line icons from [Lucide React](https://lucide.dev/) (`lucide-react`) with a consistent stroke width (`1.5px` – `2px`).
+- **Store Metadata Icons**: In `index.json` or `applications.json`, assign a recognized Lucide icon name (e.g., `"icon": "Container"`, `"icon": "Terminal"`, `"icon": "Network"`) and matching HEX color (`"color": "#2496ed"`).
+
+### 4. Layout, Sizing & Responsiveness
+- **Window & Container Fit**: Apps render inside NetLink dynamic windows, modals, or dashboard views. Root containers must use flexible height/width layout classes (e.g. `w-full h-full flex flex-col overflow-hidden` or `overflow-y-auto`) to scale properly across different window sizes.
+- **Spacing**: Maintain consistent padding (`p-4` to `p-6`) and component gaps (`gap-3` to `gap-6`) to ensure layouts feel clean and uncluttered.
+- **Custom Scrollbars**: Style scrollbars to match NetLink's subtle dark scrollbars (`::-webkit-scrollbar` with translucent white thumbs).
+
+### 5. Interaction & Feedback
+- **Hover & Active States**: Provide instant interactive feedback using subtle hover transitions (`transition-all duration-200 ease-in-out`, hover background shifts, or subtle scale/glow effects).
+- **Loading & State Communication**: Display clear visual indicators (spinners, skeleton loaders, progress indicators, or toast notifications) during background API calls, asynchronous file transfers, or backend sync operations. Never leave the user on a blank or un-responsive screen.
+
+### 6. Permissions & Security Clarity
+- **Principle of Least Privilege**: Only request the specific host permissions (`allowRunCommands`, `allowEnv`, `requiredExternalFolders`) strictly needed for the app to function.
+- **Clear Guidance**: If a feature requires administrative privileges or specific external folder access, display helpful inline explanations or tooltips guiding the user.
+
+---
+
 ## Deployment & Testing
 
 To test your application locally:
