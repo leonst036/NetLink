@@ -1,7 +1,7 @@
 {
   "id": "traffic-monitor",
   "version": "1.0.0",
-  "main": "frontend/main.tsx",
+  "main": "main.tsx",
   "requestedPermissions": {
     "allowRun": true,
     "allowRunCommands": ["sh", "cat", "ip", "ss"]
