@@ -1,5 +1,16 @@
 {
   "id": "net-terminal",
+  "name": "Remote Terminal",
+  "author": "NetLink Native",
+  "category": "Remote Access",
+  "rating": 5.0,
+  "downloads": "Built-in",
+  "size": "System",
   "version": "v1.0.0",
-  "nativeKey": "terminal"
+  "nativeKey": "terminal",
+  "icon": "Terminal",
+  "color": "#f59e0b",
+  "shortDesc": "SSH terminal access to your devices.",
+  "fullDesc": "Securely connect and control your network devices with full terminal emulation directly in the browser.",
+  "isFeatured": false
 }

@@ -345,15 +345,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     const protocol = isSecure ? 'https:' : 'http:';
                     let host = window.location.host;
                     if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535';
-                    const reloadKey = appReloadKeys[dyn.appId] || 0;
-                    
-                    let userId = 'unknown';
-                    try {
-                        if (token) {
-                            const payload = parseJwt(token);
-                            userId = payload?.userId || 'unknown';
-                        }
-                    } catch(e) {}
                     
                     return (
                     <Window
@@ -371,10 +362,10 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     >
                         <Box sx={{ width: '100%', height: '100%', background: '#fff' }}>
                             <iframe 
-                                src={`${protocol}//${host}/apps/${userId}/${dyn.appId}/frontend/index.html?t=${reloadKey}`}
+                                src={`${protocol}//${host}/apps/${dyn.appId}/frontend/index.html`}
                                 style={{ width: '100%', height: '100%', border: 'none' }}
                                 title={dyn.title}
-                                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                             />
                         </Box>
                     </Window>

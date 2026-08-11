@@ -16,7 +16,6 @@ COPY httpServer.ts ./
 COPY protocols/ ./protocols/
 COPY services/ ./services/
 COPY NetStore/ ./NetStore/
-COPY sandbox/ ./sandbox/
 
 
 # Compile TS code to the "dist" directory

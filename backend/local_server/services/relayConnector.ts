@@ -65,7 +65,7 @@ export function handleRelayConnection(token: string): void {
 
         // Send applications JSON from NetStore
         try {
-            await sendApplicationJson(controlWs);
+            sendApplicationJson(controlWs);
         } catch (err) {
             console.error('Error sending applications JSON:', err);
         }

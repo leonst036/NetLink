@@ -17,12 +17,7 @@ import {
   DialogContent,
   DialogActions,
   LinearProgress,
-  IconButton,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Tooltip
+  IconButton
 } from '@mui/material';
 import {
   Store,
@@ -40,9 +35,7 @@ import {
   Terminal,
   Monitor,
   Folder,
-  ShieldAlert,
-  Key,
-  Trash2
+  ShieldAlert
 } from 'lucide-react';
 import './NetStoreApp.css';
 import { useWindowStore } from '../../store/useWindowStore';
@@ -95,84 +88,16 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   const [selectedApp, setSelectedApp] = useState<AppItem | null>(null);
   const [storeCatalog, setStoreCatalog] = useState<AppItem[]>([]);
 
-  const [selectedBranch, setSelectedBranch] = useState<'NetStore' | 'NetStore-dev'>(() => {
-    try {
-      const saved = localStorage.getItem('netstore_selected_branch');
-      if (saved === 'NetStore' || saved === 'NetStore-dev') return saved;
-    } catch (e) {}
-    return 'NetStore';
-  });
-
   useEffect(() => {
-    try {
-      localStorage.setItem('netstore_selected_branch', selectedBranch);
-    } catch (e) {}
-  }, [selectedBranch]);
-
-  const [githubToken, setGithubToken] = useState<string>(() => {
-    try {
-      return localStorage.getItem('netlink_github_token') || '';
-    } catch {
-      return '';
-    }
-  });
-
-  useEffect(() => {
-    try {
-      if (githubToken) {
-        localStorage.setItem('netlink_github_token', githubToken);
-      } else {
-        localStorage.removeItem('netlink_github_token');
-      }
-    } catch (e) {}
-  }, [githubToken]);
-
-  const [installedVersions, setInstalledVersions] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const fetchApps = async () => {
-      try {
-        const url = props.target ? `/api/applications?target=${encodeURIComponent(props.target)}` : '/api/applications';
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Failed to fetch store applications');
-        const localData = await res.json();
-        
-        let githubData = [];
-        try {
-            const headers: Record<string, string> = {};
-            if (githubToken) {
-              headers['Authorization'] = `token ${githubToken}`;
-            }
-            const ghRes = await fetch(`https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/${selectedBranch}/applications/applications.json`, { headers });
-            if (ghRes.ok) {
-              githubData = await ghRes.json();
-            } else {
-              console.warn(`Failed to fetch branch ${selectedBranch}`);
-            }
-        } catch (e) {
-            console.warn('Failed to fetch github branch data', e);
-        }
-        
-        const mergedMap = new Map();
-        for (const app of githubData) {
-            mergedMap.set(app.id, { ...app, installed: false });
-        }
-        
-        const backendInstalledIds: string[] = [];
-        const versionsMap: Record<string, string> = {};
-        for (const app of (Array.isArray(localData) ? localData : [])) {
-            const isInstalled = app.installed !== false;
-            if (isInstalled) {
-                backendInstalledIds.push(app.id);
-                versionsMap[app.id] = app.version || 'v1.0.0';
-            }
-            const existing = mergedMap.get(app.id) || {};
-            mergedMap.set(app.id, { ...existing, ...app, installed: isInstalled });
-        }
-        
-        const finalData = Array.from(mergedMap.values());
-
-        const parsedCatalog: AppItem[] = finalData.map((item: any) => ({
+    const url = props.target ? `/api/applications?target=${encodeURIComponent(props.target)}` : '/api/applications';
+    fetch(url)
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error('Failed to fetch store applications');
+      })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const parsedCatalog: AppItem[] = data.map((item: any) => ({
             id: item.id || `app-${Math.random()}`,
             name: item.name || 'Unnamed App',
             author: item.author || 'Community',
@@ -188,22 +113,35 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             fullDesc: item.fullDesc || item.fullDescription || '',
             features: item.features || [],
             isFeatured: item.isFeatured
-        }));
-        
-        setStoreCatalog(parsedCatalog);
-        setInstalledVersions(versionsMap);
-        setInstalledAppIds(backendInstalledIds);
-      } catch (err: any) {
+          }));
+          setStoreCatalog(parsedCatalog);
+        }
+      })
+      .catch((err) => {
         console.warn('Store fetch error:', err.message);
-      }
-    };
-    
-    fetchApps();
-  }, [props.target, selectedBranch, githubToken]);
+      });
+  }, []);
 
-  // Installed App State
-  const [installedAppIds, setInstalledAppIds] = useState<string[]>([]);
+  // Installed App State with localStorage persistence
+  const [installedAppIds, setInstalledAppIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('netstore_installed_apps');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Failed to load installed apps', e);
+    }
+    return ['net-graph', 'net-terminal', 'vnc-viewer', 'sftp-client', 'sys-settings'];
+  });
+
   const [installingMap, setInstallingMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('netstore_installed_apps', JSON.stringify(installedAppIds));
+    } catch (e) {
+      console.error('Failed to save installed apps', e);
+    }
+  }, [installedAppIds]);
 
   const windowStore = useWindowStore();
 
@@ -215,51 +153,28 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     );
   };
 
-  const [runInBackground, setRunInBackground] = useState<boolean>(false);
-
-  const handleInstall = (app: AppItem, e?: React.MouseEvent, runInBg: boolean = false) => {
+  const handleInstall = (app: AppItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (installingMap[app.id]) return;
 
     setInstallingMap((prev) => ({ ...prev, [app.id]: 15 }));
 
-    const targetId = props.target;
-    
-    fetch('/api/applications/install', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
-      },
-      body: JSON.stringify({ appId: app.id, target: targetId, branch: selectedBranch, githubToken, runInBackground: runInBg })
-    })
-    .then(async (res) => {
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to install application');
+    let progress = 15;
+    const interval = setInterval(() => {
+      progress += 35;
+      if (progress >= 100) {
+        clearInterval(interval);
+        setInstallingMap((prev) => {
+          const copy = { ...prev };
+          delete copy[app.id];
+          return copy;
+        });
+        setInstalledAppIds((prev) => [...prev, app.id]);
+        notifyUser(`${app.name} has been installed!`, 'success');
+      } else {
+        setInstallingMap((prev) => ({ ...prev, [app.id]: progress }));
       }
-      return res.json();
-    })
-    .then(() => {
-      setInstallingMap((prev) => {
-        const copy = { ...prev };
-        delete copy[app.id];
-        return copy;
-      });
-      setInstalledAppIds((prev) => Array.from(new Set([...prev, app.id])));
-      setInstalledVersions((prev) => ({ ...prev, [app.id]: app.version || 'v1.0.0' }));
-      notifyUser(`${app.name} installed / updated successfully!`, 'success');
-      window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
-    })
-    .catch((err) => {
-      console.error(err);
-      notifyUser(`Failed to install ${app.name}: ${err.message}`, 'warning');
-      setInstallingMap((prev) => {
-        const copy = { ...prev };
-        delete copy[app.id];
-        return copy;
-      });
-    });
+    }, 350);
   };
 
   const handleUninstall = (app: AppItem, e?: React.MouseEvent) => {
@@ -268,38 +183,8 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       notifyUser(`System app ${app.name} cannot be uninstalled.`, 'warning');
       return;
     }
-
-    const targetId = props.target;
-
-    fetch('/api/applications/uninstall', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
-      },
-      body: JSON.stringify({ appId: app.id, target: targetId })
-    })
-    .then(async (res) => {
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to uninstall application');
-      }
-      return res.json();
-    })
-    .then(() => {
-      setInstalledAppIds((prev) => prev.filter((id) => id !== app.id));
-      setInstalledVersions((prev) => {
-        const copy = { ...prev };
-        delete copy[app.id];
-        return copy;
-      });
-      notifyUser(`${app.name} was uninstalled.`, 'info');
-      window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
-    })
-    .catch((err) => {
-      console.error(err);
-      notifyUser(`Failed to uninstall ${app.name}: ${err.message}`, 'warning');
-    });
+    setInstalledAppIds((prev) => prev.filter((id) => id !== app.id));
+    notifyUser(`${app.name} was uninstalled.`, 'info');
   };
 
   const handleOpenApp = (app: AppItem, e?: React.MouseEvent) => {
@@ -325,18 +210,16 @@ export default function NetStoreApp(props: NetStoreAppProps) {
           windowStore.bringToFront('settings');
           break;
       }
+      notifyUser(`Opening ${app.name}...`, 'info');
     } else {
-      notifyUser(`Opening ${app.name}...`, 'success');
       windowStore.openDynamicApp(app.id, app.name);
+      notifyUser(`Opening ${app.name}...`, 'success');
     }
   };
 
   const installedCount = storeCatalog.filter(app => installedAppIds.includes(app.id)).length;
-  const updatesCount = storeCatalog.filter(app => {
-    if (!installedAppIds.includes(app.id)) return false;
-    const installedVer = installedVersions[app.id];
-    return Boolean(installedVer && app.version && installedVer !== app.version);
-  }).length;
+  // TODO: Implement actual version comparison logic for updates
+  const updatesCount = 0;
 
   const tabs = [
     { id: 'discover', label: 'Discover', icon: <ShoppingBag size={18} /> },
@@ -349,11 +232,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
 
   const filteredApps = storeCatalog.filter((app) => {
     if (activeTab === 'installed' && !installedAppIds.includes(app.id)) return false;
-    if (activeTab === 'updates') {
-      if (!installedAppIds.includes(app.id)) return false;
-      const installedVer = installedVersions[app.id];
-      if (updatesCount > 0 && installedVer && app.version && installedVer === app.version) return false;
-    }
+    if (activeTab === 'updates') return false; // No mock updates for now
 
     if (selectedCategory !== 'All' && app.category !== selectedCategory) return false;
 
@@ -398,41 +277,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             slotProps={{
               input: {
                 startAdornment: <Search size={16} style={{ marginRight: 8, color: '#94a3b8' }} />
-              }
-            }}
-          />
-        </Box>
-
-        {/* Branch Selector */}
-        <Box sx={{ px: 2, pb: 1.5 }}>
-          <FormControl fullWidth size="small" variant="outlined">
-            <InputLabel id="branch-select-label" sx={{ fontSize: '0.8rem' }}>Store Channel</InputLabel>
-            <Select
-              labelId="branch-select-label"
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value as 'NetStore' | 'NetStore-dev')}
-              label="Store Channel"
-              sx={{ fontSize: '0.85rem' }}
-            >
-              <MenuItem value="NetStore">Stable (NetStore)</MenuItem>
-              <MenuItem value="NetStore-dev">Developer (NetStore-dev)</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-
-        {/* GitHub Token Field */}
-        <Box sx={{ px: 2, pb: 2 }}>
-          <TextField
-            size="small"
-            type="password"
-            label="GitHub Token (Optional)"
-            placeholder="ghp_xxxxxxxxxxxx"
-            value={githubToken}
-            onChange={(e) => setGithubToken(e.target.value)}
-            fullWidth
-            slotProps={{
-              input: {
-                startAdornment: <Key size={14} style={{ marginRight: 6, color: '#94a3b8' }} />
               }
             }}
           />
@@ -532,35 +376,14 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1.5 }}>
                   {installedAppIds.includes(featuredApp.id) ? (
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
-                        variant="contained"
-                        color="success"
-                        startIcon={<ExternalLink size={16} />}
-                        onClick={(e) => handleOpenApp(featuredApp, e)}
-                      >
-                        Open Application
-                      </Button>
-                      {!featuredApp.nativeKey && (
-                        <>
-                          <Button
-                            variant="outlined"
-                            color="inherit"
-                            startIcon={<RefreshCw size={16} />}
-                            onClick={(e) => handleInstall(featuredApp, e)}
-                          >
-                            Reinstall
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            onClick={(e) => handleUninstall(featuredApp, e)}
-                          >
-                            Uninstall
-                          </Button>
-                        </>
-                      )}
-                    </Box>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      startIcon={<ExternalLink size={16} />}
+                      onClick={(e) => handleOpenApp(featuredApp, e)}
+                    >
+                      Open Application
+                    </Button>
                   ) : (
                     <Button
                       variant="contained"
@@ -654,11 +477,23 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                         </Box>
 
                         {progress !== undefined ? (
-                          <Button size="small" variant="outlined" disabled startIcon={<RefreshCw size={14} className="spin-icon" />}>
+                          <Button size="small" variant="outlined" disabled>
                             Installing...
                           </Button>
                         ) : isInstalled ? (
-                          app.nativeKey ? (
+                          activeTab === 'updates' ? (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="info"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                notifyUser(`Updated ${app.name}!`, 'success');
+                              }}
+                            >
+                              Update
+                            </Button>
+                          ) : (
                             <Button
                               size="small"
                               variant="outlined"
@@ -668,41 +503,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                             >
                               Open
                             </Button>
-                          ) : (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <Tooltip title="Uninstall App" arrow placement="top">
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={(e) => handleUninstall(app, e)}
-                                  sx={{ padding: '4px' }}
-                                >
-                                  <Trash2 size={15} />
-                                </IconButton>
-                              </Tooltip>
-
-                              <Tooltip title={installedVersions[app.id] && app.version && installedVersions[app.id] !== app.version ? "Update App" : "Reinstall App"} arrow placement="top">
-                                <IconButton
-                                  size="small"
-                                  color={installedVersions[app.id] && app.version && installedVersions[app.id] !== app.version ? "info" : "default"}
-                                  onClick={(e) => handleInstall(app, e)}
-                                  sx={{ padding: '4px' }}
-                                >
-                                  <RefreshCw size={15} />
-                                </IconButton>
-                              </Tooltip>
-
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="success"
-                                startIcon={<ExternalLink size={14} />}
-                                onClick={(e) => handleOpenApp(app, e)}
-                                sx={{ ml: 0.5 }}
-                              >
-                                Open
-                              </Button>
-                            </Box>
                           )
                         ) : (
                           <Button
@@ -737,10 +537,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       {selectedApp && (
         <Dialog
           open={Boolean(selectedApp)}
-          onClose={() => {
-              setSelectedApp(null);
-              setRunInBackground(false);
-          }}
+          onClose={() => setSelectedApp(null)}
           maxWidth="sm"
           fullWidth
         >
@@ -807,49 +604,20 @@ export default function NetStoreApp(props: NetStoreAppProps) {
 
           <DialogActions sx={{ px: 3, py: 2 }}>
             {installedAppIds.includes(selectedApp.id) && !selectedApp.nativeKey && (
-              <>
-                <Button
-                  color="error"
-                  onClick={(e) => {
-                    handleUninstall(selectedApp, e);
-                    setSelectedApp(null);
-                  }}
-                >
-                  Uninstall
-                </Button>
-                <Button
-                  color="info"
-                  variant="outlined"
-                  startIcon={<RefreshCw size={16} />}
-                  onClick={(e) => {
-                    handleInstall(selectedApp, e);
-                  }}
-                >
-                  {installedVersions[selectedApp.id] && selectedApp.version && installedVersions[selectedApp.id] !== selectedApp.version ? 'Update App' : 'Reinstall App'}
-                </Button>
-              </>
+              <Button
+                color="error"
+                onClick={(e) => {
+                  handleUninstall(selectedApp, e);
+                  setSelectedApp(null);
+                }}
+              >
+                Uninstall
+              </Button>
             )}
-              {!installedAppIds.includes(selectedApp.id) && (
-                <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto', mr: 2 }}>
-                  <input
-                    type="checkbox"
-                    id="runInBackground"
-                    checked={runInBackground}
-                    onChange={(e) => setRunInBackground(e.target.checked)}
-                    style={{ marginRight: '8px' }}
-                  />
-                  <label htmlFor="runInBackground" style={{ fontSize: '0.85rem', color: '#a78bfa', cursor: 'pointer' }}>
-                    Run in background
-                  </label>
-                </Box>
-              )}
-              <Box sx={{ marginLeft: 'auto', display: 'flex', gap: 1 }}>
-                <Button onClick={() => {
-                    setSelectedApp(null);
-                    setRunInBackground(false);
-                }} color="inherit">
-                  Close
-                </Button>
+            <Box sx={{ marginLeft: 'auto', display: 'flex', gap: 1 }}>
+              <Button onClick={() => setSelectedApp(null)} color="inherit">
+                Close
+              </Button>
               {installedAppIds.includes(selectedApp.id) ? (
                 <Button
                   variant="contained"
@@ -858,7 +626,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                   onClick={(e) => {
                     handleOpenApp(selectedApp, e);
                     setSelectedApp(null);
-                    setRunInBackground(false);
                   }}
                 >
                   Open App
@@ -869,7 +636,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                   color="secondary"
                   startIcon={<Download size={16} />}
                   onClick={(e) => {
-                    handleInstall(selectedApp, e, runInBackground);
+                    handleInstall(selectedApp, e);
                   }}
                 >
                   Install

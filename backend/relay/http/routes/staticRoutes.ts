@@ -102,34 +102,21 @@ export function handleStaticFileRoute(pathname: string, res: http.ServerResponse
 }
 
 export function handleAppFrontendRoute(pathname: string, res: http.ServerResponse): void {
-    // pathname like /apps/{userId}/{appId}/frontend/...
+    // pathname like /apps/{appId}/frontend/...
     const parts = pathname.split('/');
-    if (parts.length < 5 || parts[1] !== 'apps' || parts[4] !== 'frontend') {
+    if (parts.length < 4 || parts[1] !== 'apps' || parts[3] !== 'frontend') {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not Found');
         return;
     }
     
-    const userId = parts[2] as string;
-    const appId = parts[3] as string;
-    const subPath = parts.slice(5).join('/');
+    const appId = parts[2] as string;
+    const subPath = parts.slice(4).join('/');
     
-    // Relay apps directory is at ../../NetStore/Applications relative to the src/dist/http/routes root
-    const RELAY_APPS_DIR = path.join(__dirname, '..', '..', 'NetStore', 'Applications');
+    // Relay apps directory is at ../NetStore/Applications relative to the src/dist root
+    const RELAY_APPS_DIR = path.join(__dirname, '..', 'NetStore', 'Applications');
     const safeSuffix = path.normalize(subPath).replace(/^(\.\.[\/\\])+/, '');
-    let filePath = path.join(RELAY_APPS_DIR, userId, appId, 'frontend', safeSuffix);
-
-    if (!fs.existsSync(filePath)) {
-        if (fs.existsSync(filePath + '.tsx')) {
-            filePath += '.tsx';
-        } else if (fs.existsSync(filePath + '.ts')) {
-            filePath += '.ts';
-        } else if (fs.existsSync(filePath + '.jsx')) {
-            filePath += '.jsx';
-        } else if (fs.existsSync(filePath + '.js')) {
-            filePath += '.js';
-        }
-    }
+    let filePath = path.join(RELAY_APPS_DIR, appId, 'frontend', safeSuffix);
 
     try {
         const stat = fs.statSync(filePath);
@@ -140,76 +127,11 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
         // Fallback or ignore, handle in fs.readFile
     }
 
-    // Dynamic React Support
-    if (path.basename(filePath) === 'index.html' && !fs.existsSync(filePath)) {
-        const indexJsonPath = path.join(RELAY_APPS_DIR, userId, appId, 'index.json');
-        if (fs.existsSync(indexJsonPath)) {
-            try {
-                const indexData = JSON.parse(fs.readFileSync(indexJsonPath, 'utf-8'));
-                if (indexData.main && (indexData.main.endsWith('.tsx') || indexData.main.endsWith('.jsx'))) {
-                    const shell = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <link rel="stylesheet" href="/netlink.css">
-  <script type="importmap">
-  {
-    "imports": {
-      "react": "https://esm.sh/react@18.2.0",
-      "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
-      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-      "react-dom": "https://esm.sh/react-dom@18.2.0"
-    }
-  }
-  </script>
-</head>
-<body>
-  <div class="bg-glow"></div>
-  <div class="bg-glow-2"></div>
-  <div id="root"></div>
-  <script type="module">
-    import React from 'react';
-    import { createRoot } from 'react-dom/client';
-    import App from '/apps/${userId}/${appId}/frontend/${indexData.main}';
-    
-    const renderApp = (Component) => {
-        const root = createRoot(document.getElementById('root'));
-        root.render(React.createElement(Component, { token: localStorage.getItem('netlink_token') }));
-    };
-    
-    if (App instanceof Promise) {
-        App.then(m => renderApp(m.default || m));
-    } else {
-        renderApp(App);
-    }
-  </script>
-</body>
-</html>`;
-                    const noCacheHeaders = {
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache',
-                        'Expires': '0'
-                    };
-                    res.writeHead(200, { 'Content-Type': 'text/html', ...noCacheHeaders });
-                    res.end(shell);
-                    return;
-                }
-            } catch (e) {
-                console.error('Failed to parse index.json for dynamic React support', e);
-            }
-        }
-    }
-
     const ext = path.extname(filePath).toLowerCase();
-    const isTypeScript = ext === '.tsx' || ext === '.ts' || ext === '.jsx';
-    
     const mimeTypes: { [key: string]: string } = {
         '.html': 'text/html',
         '.css': 'text/css',
         '.js': 'text/javascript',
-        '.jsx': 'text/javascript',
-        '.ts': 'text/javascript',
-        '.tsx': 'text/javascript',
         '.json': 'application/json',
         '.png': 'image/png',
         '.jpg': 'image/jpeg',
@@ -219,11 +141,6 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     };
 
     const contentType = mimeTypes[ext] || 'application/octet-stream';
-    const noCacheHeaders = {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-    };
 
     fs.readFile(filePath, (error, content) => {
         if (error) {
@@ -235,35 +152,8 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
                 res.end(`Server Error: ${error.code}\n`);
             }
         } else {
-            if (isTypeScript) {
-                (async () => {
-                    try {
-                        const transpiled = await esbuild.transform(content.toString('utf-8'), {
-                            loader: 'tsx',
-                            target: 'es2022',
-                            format: 'esm'
-                        });
-                        let transpiledCode = transpiled.code;
-                        // Backwards compatibility for old absolute paths in apps
-                        transpiledCode = transpiledCode.replace(new RegExp(`/apps/${appId}/`, 'g'), `/apps/${userId}/${appId}/`);
-                        res.writeHead(200, { 'Content-Type': 'text/javascript', ...noCacheHeaders });
-                        res.end(transpiledCode, 'utf-8');
-                    } catch (esError) {
-                        console.error('esbuild transpilation error:', esError);
-                        res.writeHead(500, { 'Content-Type': 'text/plain' });
-                        res.end('Transpilation Error\n');
-                    }
-                })();
-            } else if (['.html', '.css', '.js', '.json', '.svg'].includes(ext)) {
-                let fileContent = content.toString('utf-8');
-                // Backwards compatibility for old absolute paths in apps
-                fileContent = fileContent.replace(new RegExp(`/apps/${appId}/`, 'g'), `/apps/${userId}/${appId}/`);
-                res.writeHead(200, { 'Content-Type': contentType, ...noCacheHeaders });
-                res.end(fileContent, 'utf-8');
-            } else {
-                res.writeHead(200, { 'Content-Type': contentType, ...noCacheHeaders });
-                res.end(content); // Raw content, no utf-8 forced (important for images)
-            }
+            res.writeHead(200, { 'Content-Type': contentType });
+            res.end(content); // Raw content, no utf-8 forced (important for images)
         }
     });
 }

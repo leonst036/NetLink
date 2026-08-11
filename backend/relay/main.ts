@@ -8,8 +8,6 @@ import { authenticateToken, extractTokenFromRequest } from './auth/authenticator
 import { handleLocalServerConnection, handleClientConnection, handleDesktopConnection } from './websocket/connectionHandlers.js';
 import { createServer } from './websocket/httpsHelper.js';
 import { handleRequest, appRouter } from './http/requestHandler.js';
-import { denoSandbox } from './sandbox/DenoSandbox.js';
-import { WebSocket as WsClient } from 'ws';
 
 dotenv.config();
 
