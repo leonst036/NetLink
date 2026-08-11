@@ -18,7 +18,7 @@ When you install an application into the `Applications` folder on your local ser
 
 ## Getting Started
 
-To create an app, make a new folder inside `backend/local_server/NetStore/Applications/` with your app's ID (e.g., `my-cool-app`).
+To create an app for local testing during development, make a new folder inside `backend/local_server/NetStore/Applications/<userId>/` (where `<userId>` is usually `admin`) with your app's ID (e.g., `my-cool-app`).
 
 Here is the standard folder structure you should use:
 
@@ -163,6 +163,17 @@ For security, your Deno apps run in an isolated and hardened Deno sandbox:
   - If an app requires elevated capabilities (host folders, command execution, custom environment variables, network endpoints), it must declare them in `index.json` under `requiredExternalFolders` or `requestedPermissions`.
   - When the app is initialized or installed, NetLink checks `permissions.json`. If ungranted permissions are requested, startup is paused and an interactive **Permission Request Modal** is presented to the administrator.
   - Once approved by the administrator, the permissions are saved in `permissions.json` and NetLink passes the corresponding flags (`--allow-run`, `--allow-read=<path>`, `--allow-write=<path>`, `--allow-env=PORT,<var>`) to the Deno sandbox upon startup.
+
+### 5. Multi-User Isolation & Routing (Backwards Compatibility)
+
+NetLink supports true multi-user isolation. Apps are installed in isolated directories on a per-user basis (`Applications/<userId>/<appId>`), and each user runs their own isolated Deno sandbox backend (`<userId>_<appId>`).
+
+**As an app developer, you do NOT need to write your app differently.** The NetLink relay server automatically handles all user-specific routing seamlessly:
+
+1. **Frontend Assets:** If you hardcode absolute paths in your `index.html` (e.g., `<link href="/apps/my-cool-app/frontend/styles.css">`), the backend will dynamically rewrite these paths on-the-fly to `/apps/<userId>/my-cool-app/...` before serving the files to the user's browser.
+2. **API Requests:** When your app fetches `/api/my-cool-app/execute`, the relay server automatically inspects the user's authentication cookie, identifies the active user, and transparently proxies the request to the correct user-specific Deno sandbox.
+   
+*(Best Practice: While the system is fully backwards-compatible, it is recommended to use relative paths for new frontend applications (e.g., `./styles.css` and base paths of `./` in Vite) to keep your code clean.)*
 
 ---
 

@@ -102,21 +102,22 @@ export function handleStaticFileRoute(pathname: string, res: http.ServerResponse
 }
 
 export function handleAppFrontendRoute(pathname: string, res: http.ServerResponse): void {
-    // pathname like /apps/{appId}/frontend/...
+    // pathname like /apps/{userId}/{appId}/frontend/...
     const parts = pathname.split('/');
-    if (parts.length < 4 || parts[1] !== 'apps' || parts[3] !== 'frontend') {
+    if (parts.length < 5 || parts[1] !== 'apps' || parts[4] !== 'frontend') {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not Found');
         return;
     }
     
-    const appId = parts[2] as string;
-    const subPath = parts.slice(4).join('/');
+    const userId = parts[2] as string;
+    const appId = parts[3] as string;
+    const subPath = parts.slice(5).join('/');
     
     // Relay apps directory is at ../../NetStore/Applications relative to the src/dist/http/routes root
     const RELAY_APPS_DIR = path.join(__dirname, '..', '..', 'NetStore', 'Applications');
     const safeSuffix = path.normalize(subPath).replace(/^(\.\.[\/\\])+/, '');
-    let filePath = path.join(RELAY_APPS_DIR, appId, 'frontend', safeSuffix);
+    let filePath = path.join(RELAY_APPS_DIR, userId, appId, 'frontend', safeSuffix);
 
     if (!fs.existsSync(filePath)) {
         if (fs.existsSync(filePath + '.tsx')) {
@@ -141,7 +142,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
 
     // Dynamic React Support
     if (path.basename(filePath) === 'index.html' && !fs.existsSync(filePath)) {
-        const indexJsonPath = path.join(RELAY_APPS_DIR, appId, 'index.json');
+        const indexJsonPath = path.join(RELAY_APPS_DIR, userId, appId, 'index.json');
         if (fs.existsSync(indexJsonPath)) {
             try {
                 const indexData = JSON.parse(fs.readFileSync(indexJsonPath, 'utf-8'));
@@ -169,7 +170,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
   <script type="module">
     import React from 'react';
     import { createRoot } from 'react-dom/client';
-    import App from '/apps/${appId}/${indexData.main}';
+    import App from '/apps/${userId}/${appId}/frontend/${indexData.main}';
     
     const renderApp = (Component) => {
         const root = createRoot(document.getElementById('root'));
@@ -242,14 +243,23 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
                             target: 'es2022',
                             format: 'esm'
                         });
+                        let transpiledCode = transpiled.code;
+                        // Backwards compatibility for old absolute paths in apps
+                        transpiledCode = transpiledCode.replace(new RegExp(`/apps/${appId}/`, 'g'), `/apps/${userId}/${appId}/`);
                         res.writeHead(200, { 'Content-Type': 'text/javascript', ...noCacheHeaders });
-                        res.end(transpiled.code, 'utf-8');
+                        res.end(transpiledCode, 'utf-8');
                     } catch (esError) {
                         console.error('esbuild transpilation error:', esError);
                         res.writeHead(500, { 'Content-Type': 'text/plain' });
                         res.end('Transpilation Error\n');
                     }
                 })();
+            } else if (['.html', '.css', '.js', '.json', '.svg'].includes(ext)) {
+                let fileContent = content.toString('utf-8');
+                // Backwards compatibility for old absolute paths in apps
+                fileContent = fileContent.replace(new RegExp(`/apps/${appId}/`, 'g'), `/apps/${userId}/${appId}/`);
+                res.writeHead(200, { 'Content-Type': contentType, ...noCacheHeaders });
+                res.end(fileContent, 'utf-8');
             } else {
                 res.writeHead(200, { 'Content-Type': contentType, ...noCacheHeaders });
                 res.end(content); // Raw content, no utf-8 forced (important for images)

@@ -192,7 +192,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         
         setStoreCatalog(parsedCatalog);
         setInstalledVersions(versionsMap);
-        setInstalledAppIds((prev) => Array.from(new Set([...prev, ...backendInstalledIds])));
+        setInstalledAppIds(backendInstalledIds);
       } catch (err: any) {
         console.warn('Store fetch error:', err.message);
       }
@@ -202,23 +202,8 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   }, [props.target, selectedBranch, githubToken]);
 
   // Installed App State
-  const [installedAppIds, setInstalledAppIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('netstore_installed_apps');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [installedAppIds, setInstalledAppIds] = useState<string[]>([]);
   const [installingMap, setInstallingMap] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('netstore_installed_apps', JSON.stringify(installedAppIds));
-    } catch (e) {
-      console.error('Failed to save installed apps', e);
-    }
-  }, [installedAppIds]);
 
   const windowStore = useWindowStore();
 
@@ -230,7 +215,9 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     );
   };
 
-  const handleInstall = (app: AppItem, e?: React.MouseEvent) => {
+  const [runInBackground, setRunInBackground] = useState<boolean>(false);
+
+  const handleInstall = (app: AppItem, e?: React.MouseEvent, runInBg: boolean = false) => {
     if (e) e.stopPropagation();
     if (installingMap[app.id]) return;
 
@@ -244,7 +231,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         'Content-Type': 'application/json',
         ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
       },
-      body: JSON.stringify({ appId: app.id, target: targetId, branch: selectedBranch, githubToken })
+      body: JSON.stringify({ appId: app.id, target: targetId, branch: selectedBranch, githubToken, runInBackground: runInBg })
     })
     .then(async (res) => {
       if (!res.ok) {
@@ -750,7 +737,10 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       {selectedApp && (
         <Dialog
           open={Boolean(selectedApp)}
-          onClose={() => setSelectedApp(null)}
+          onClose={() => {
+              setSelectedApp(null);
+              setRunInBackground(false);
+          }}
           maxWidth="sm"
           fullWidth
         >
@@ -839,10 +829,27 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                 </Button>
               </>
             )}
-            <Box sx={{ marginLeft: 'auto', display: 'flex', gap: 1 }}>
-              <Button onClick={() => setSelectedApp(null)} color="inherit">
-                Close
-              </Button>
+              {!installedAppIds.includes(selectedApp.id) && (
+                <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto', mr: 2 }}>
+                  <input
+                    type="checkbox"
+                    id="runInBackground"
+                    checked={runInBackground}
+                    onChange={(e) => setRunInBackground(e.target.checked)}
+                    style={{ marginRight: '8px' }}
+                  />
+                  <label htmlFor="runInBackground" style={{ fontSize: '0.85rem', color: '#a78bfa', cursor: 'pointer' }}>
+                    Run in background
+                  </label>
+                </Box>
+              )}
+              <Box sx={{ marginLeft: 'auto', display: 'flex', gap: 1 }}>
+                <Button onClick={() => {
+                    setSelectedApp(null);
+                    setRunInBackground(false);
+                }} color="inherit">
+                  Close
+                </Button>
               {installedAppIds.includes(selectedApp.id) ? (
                 <Button
                   variant="contained"
@@ -851,6 +858,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                   onClick={(e) => {
                     handleOpenApp(selectedApp, e);
                     setSelectedApp(null);
+                    setRunInBackground(false);
                   }}
                 >
                   Open App
@@ -861,7 +869,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                   color="secondary"
                   startIcon={<Download size={16} />}
                   onClick={(e) => {
-                    handleInstall(selectedApp, e);
+                    handleInstall(selectedApp, e, runInBackground);
                   }}
                 >
                   Install

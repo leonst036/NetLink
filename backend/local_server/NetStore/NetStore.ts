@@ -41,25 +41,24 @@ function saveGrantedPermissions(perms: Record<string, any>) {
     fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
 }
 
-// Create directory and index.json if missing
+// Create directory if missing
 export function InitNetStore(): void {
     if (!fs.existsSync(NET_STORE_DIR)) {
         fs.mkdirSync(NET_STORE_DIR, { recursive: true });
     }
-    const indexPath = path.join(NET_STORE_DIR, 'index.json');
-    if (!fs.existsSync(indexPath)) {
-        fs.writeFileSync(indexPath, JSON.stringify([]));
-    }
-    WriteApplicationJson();
     StartLocalApps();
 }
 
 // Start any local applications that have a local_server/index.ts
-export async function StartLocalApps(): Promise<void> {
-    const apps = ScanApplications();
+export async function StartLocalApps(targetUserId?: string, forceStart: boolean = false): Promise<void> {
+    const apps = ScanApplications(targetUserId);
     for (const app of apps) {
-        if (!app.id) continue;
-        const appDir = path.join(NET_STORE_DIR, app.id);
+        if (!app.id || !app.userId) continue;
+        
+        // Start apps if forceStart is true (user login) or if runInBackground is true (system boot)
+        if (!forceStart && app.runInBackground !== true) continue;
+        
+        const appDir = path.join(NET_STORE_DIR, app.userId, app.id);
         const localServerDir = path.join(appDir, 'local_server');
         const entryTs = path.join(localServerDir, 'index.ts');
         const entryJs = path.join(localServerDir, 'index.js');
@@ -119,65 +118,77 @@ export async function StartLocalApps(): Promise<void> {
             }
 
             try {
-                await denoSandbox.startApp(app.id, entryFile, appDir, extraFlags);
-                console.log(`Started local Deno sandbox for app: ${app.id}`);
+                const sandboxAppId = `${app.userId}_${app.id}`;
+                await denoSandbox.startApp(sandboxAppId, entryFile, appDir, extraFlags);
+                console.log(`Started local Deno sandbox for app: ${sandboxAppId}`);
             } catch (err) {
-                console.error(`Failed to start local Deno sandbox for app ${app.id}:`, err);
+                console.error(`Failed to start local Deno sandbox for app ${app.id} (User: ${app.userId}):`, err);
             }
         }
     }
 }
 
 // Scan application subdirectories for index.json
-export function ScanApplications(): any[] {
+export function ScanApplications(targetUserId?: string): any[] {
     if (!fs.existsSync(NET_STORE_DIR)) {
         InitNetStore();
     }
 
-    const entries = fs.readdirSync(NET_STORE_DIR);
-    const applicationFolders = entries.filter((folder) => {
-        const fullPath = path.join(NET_STORE_DIR, folder);
-        return fs.statSync(fullPath).isDirectory();
-    });
-
     const applicationJson: any[] = [];
-    for (const application of applicationFolders) {
-        const applicationPath = path.join(NET_STORE_DIR, application);
-        const indexPath = path.join(applicationPath, 'index.json');
-        if (fs.existsSync(indexPath)) {
-            try {
-                const indexData = fs.readFileSync(indexPath, 'utf-8');
-                const parsed = JSON.parse(indexData);
-                applicationJson.push({ ...parsed, installed: true });
-            } catch (err) {
-                console.error(`Failed to parse ${indexPath}:`, err);
+    const userFolders = fs.readdirSync(NET_STORE_DIR).filter(f => fs.statSync(path.join(NET_STORE_DIR, f)).isDirectory());
+    
+    for (const userId of userFolders) {
+        if (targetUserId && userId !== targetUserId) continue;
+        
+        const userDir = path.join(NET_STORE_DIR, userId);
+        const entries = fs.readdirSync(userDir);
+        const applicationFolders = entries.filter((folder) => {
+            const fullPath = path.join(userDir, folder);
+            return fs.statSync(fullPath).isDirectory();
+        });
+
+        for (const application of applicationFolders) {
+            const applicationPath = path.join(userDir, application);
+            const indexPath = path.join(applicationPath, 'index.json');
+            if (fs.existsSync(indexPath)) {
+                try {
+                    const indexData = fs.readFileSync(indexPath, 'utf-8');
+                    const parsed = JSON.parse(indexData);
+                    applicationJson.push({ ...parsed, installed: true, userId });
+                } catch (err) {
+                    console.error(`Failed to parse ${indexPath}:`, err);
+                }
             }
         }
     }
     return applicationJson;
 }
 
-// Write scanned applications to index.json
+// Kept for legacy compatibility if needed
 export function WriteApplicationJson(): void {
-    const indexPath = path.join(NET_STORE_DIR, 'index.json');
-    fs.writeFileSync(indexPath, JSON.stringify(ScanApplications(), null, 2));
+    // No-op
 }
 
 // Get all necessary files (relay, frontend) for syncing to Relay server
-export function getAppSyncFiles(): any[] {
+export function getAppSyncFiles(targetUserId?: string): any[] {
     if (!fs.existsSync(NET_STORE_DIR)) return [];
 
-    const entries = fs.readdirSync(NET_STORE_DIR);
-    const applicationFolders = entries.filter((folder) => {
-        const fullPath = path.join(NET_STORE_DIR, folder);
-        return fs.statSync(fullPath).isDirectory();
-    });
-
     const relaySyncData: any[] = [];
+    const userFolders = fs.readdirSync(NET_STORE_DIR).filter(f => fs.statSync(path.join(NET_STORE_DIR, f)).isDirectory());
     
-    for (const application of applicationFolders) {
-        const appDirPath = path.join(NET_STORE_DIR, application);
-        const filesData: any[] = [];
+    for (const userId of userFolders) {
+        if (targetUserId && userId !== targetUserId) continue;
+        
+        const userDir = path.join(NET_STORE_DIR, userId);
+        const entries = fs.readdirSync(userDir);
+        const applicationFolders = entries.filter((folder) => {
+            const fullPath = path.join(userDir, folder);
+            return fs.statSync(fullPath).isDirectory();
+        });
+
+        for (const application of applicationFolders) {
+            const appDirPath = path.join(userDir, application);
+            const filesData: any[] = [];
         
         const walkSync = (dir: string, filelist: string[] = []) => {
             if (!fs.existsSync(dir)) return filelist;
@@ -215,9 +226,11 @@ export function getAppSyncFiles(): any[] {
         if (filesData.length > 0) {
             relaySyncData.push({
                 appId: application,
+                userId: userId,
                 files: filesData
             });
         }
+    }
     }
     return relaySyncData;
 }
@@ -248,14 +261,17 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
         }
 
         const appMap = new Map();
+        // Since github apps are not user-specific, we keep them generic until installed
         for (const app of githubApps) {
             appMap.set(app.id, { ...app, installed: false });
         }
         
         for (const app of applications) {
             // Local apps override github apps properties if they exist
+            // Using a unique key per user installation so one user can have it installed and another doesn't
+            const key = `${app.userId}_${app.id}`;
             const existing = appMap.get(app.id) || {};
-            appMap.set(app.id, { ...existing, ...app, installed: true });
+            appMap.set(key, { ...existing, ...app, installed: true });
         }
         
         applications = Array.from(appMap.values());
@@ -271,16 +287,19 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
     }
 }
 
-export async function installApplication(appId: string, branch: string = 'NetStore', githubToken?: string) {
+export async function installApplication(appId: string, branch: string = 'NetStore', githubToken?: string, userId?: string, runInBackground: boolean = false) {
+    if (!userId) {
+        throw new Error('userId is required to install an application');
+    }
     try {
-        console.log(`Starting installation of application ${appId} from branch ${branch}...`);
+        console.log(`Starting installation of application ${appId} from branch ${branch} for user ${userId}...`);
 
-        // Stop any running sandbox instance for this app
-        denoSandbox.stopApp(appId);
+        const sandboxAppId = `${userId}_${appId}`;
+        denoSandbox.stopApp(sandboxAppId);
 
         // Check if application exists in local dev workspace
         const localDevAppDir = path.resolve(__dirname, '../../../../../NetLink-NetStore/applications', appId);
-        const appDir = path.join(NET_STORE_DIR, appId);
+        const appDir = path.join(NET_STORE_DIR, userId, appId);
 
         // Wipe destination appDir if it exists to clean out stale files
         if (fs.existsSync(appDir)) {
@@ -291,7 +310,6 @@ export async function installApplication(appId: string, branch: string = 'NetSto
         if (fs.existsSync(localDevAppDir)) {
             console.log(`Installing ${appId} from local workspace (${localDevAppDir})...`);
             fs.cpSync(localDevAppDir, appDir, { recursive: true });
-            WriteApplicationJson();
             await StartLocalApps();
             console.log(`Successfully installed local application: ${appId}`);
             return;
@@ -337,28 +355,42 @@ export async function installApplication(appId: string, branch: string = 'NetSto
         }
 
         console.log(`Successfully installed application: ${appId}`);
-        // Reload applications and notify relay or start sandboxes
-        WriteApplicationJson();
-        await StartLocalApps();
+
+        // Update index.json with runInBackground flag
+        const indexPath = path.join(appDir, 'index.json');
+        if (fs.existsSync(indexPath)) {
+            try {
+                const indexData = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+                indexData.runInBackground = runInBackground;
+                fs.writeFileSync(indexPath, JSON.stringify(indexData, null, 2));
+            } catch (err) {
+                console.error(`Failed to update runInBackground for ${appId}:`, err);
+            }
+        }
+
+        await StartLocalApps(userId, true);
     } catch (err) {
         console.error(`Error during installation of ${appId}:`, err);
         throw err;
     }
 }
 
-export async function uninstallApplication(appId: string) {
+export async function uninstallApplication(appId: string, userId?: string) {
+    if (!userId) {
+        throw new Error('userId is required to uninstall an application');
+    }
     try {
-        console.log(`Starting uninstallation of application ${appId}...`);
+        console.log(`Starting uninstallation of application ${appId} for user ${userId}...`);
 
-        denoSandbox.stopApp(appId);
+        const sandboxAppId = `${userId}_${appId}`;
+        denoSandbox.stopApp(sandboxAppId);
 
-        const appDir = path.join(NET_STORE_DIR, appId);
+        const appDir = path.join(NET_STORE_DIR, userId, appId);
         if (fs.existsSync(appDir)) {
             fs.rmSync(appDir, { recursive: true, force: true });
             console.log(`Removed directory for application ${appId}`);
         }
 
-        WriteApplicationJson();
         console.log(`Successfully uninstalled application: ${appId}`);
     } catch (err) {
         console.error(`Error during uninstallation of ${appId}:`, err);

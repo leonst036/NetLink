@@ -92,17 +92,22 @@ export function handleLocalServerConnection(
                     console.log(`Syncing ${message.backends.length} applications from local server: ${identifier}`);
                     for (const app of message.backends) {
                         const appId = app.appId;
+                        const userId = app.userId;
+                        if (!userId) continue;
+
                         const absoluteRelayAppsDir = path.resolve(RELAY_APPS_DIR);
-                        const appDir = path.resolve(RELAY_APPS_DIR, appId);
+                        const appDir = path.resolve(RELAY_APPS_DIR, userId, appId);
                         
                         // Security check: Ensure appDir is strictly within RELAY_APPS_DIR
                         if (!appDir.startsWith(absoluteRelayAppsDir + path.sep)) {
-                            console.warn(`Security risk: Path traversal attempt with appId: ${appId}`);
+                            console.warn(`Security risk: Path traversal attempt with appId: ${appId} or userId: ${userId}`);
                             continue;
                         }
                         
+                        const sandboxAppId = `${userId}_${appId}`;
+                        
                         // Stop any running Deno sandbox on relay before replacing files
-                        denoSandbox.stopApp(appId);
+                        denoSandbox.stopApp(sandboxAppId);
 
                         // Clean destination appDir on relay to remove any stale assets
                         if (fs.existsSync(appDir)) {
@@ -212,10 +217,10 @@ export function handleLocalServerConnection(
                             }
                             
                             try {
-                                await denoSandbox.startApp(appId, entryFile, appDir, extraFlags);
-                                console.log(`Started Deno sandbox for app: ${appId}`);
+                                await denoSandbox.startApp(sandboxAppId, entryFile, appDir, extraFlags);
+                                console.log(`Started relay Deno sandbox for app: ${sandboxAppId}`);
                             } catch (err) {
-                                console.error(`Failed to start Deno sandbox for app ${appId}:`, err);
+                                console.error(`Failed to start relay Deno sandbox for app ${sandboxAppId}:`, err);
                             }
                         }
                     }
@@ -266,7 +271,8 @@ export function handleClientConnection(
         
         controlWs.send(JSON.stringify({
             type: 'init_session',
-            sessionId: activeSessionId
+            sessionId: activeSessionId,
+            userId: identifier
         }));
 
         // Timeout after 10 seconds if server doesn't establish the connection

@@ -2,21 +2,29 @@ import http from 'http';
 import { serverApplications } from '../websocket/connectionManager.js';
 
 // Get applications received from local server(s)
-export function getApplicationJson(targetId?: string): any[] {
+export function getApplicationJson(targetId?: string, userId?: string): any[] {
+    let allApps: any[] = [];
     if (targetId) {
-        return serverApplications.get(targetId) || [];
+        allApps = serverApplications.get(targetId) || [];
+    } else {
+        for (const apps of serverApplications.values()) {
+            allApps.push(...apps);
+        }
     }
-    const allApps: any[] = [];
-    for (const apps of serverApplications.values()) {
-        allApps.push(...apps);
+    
+    // Filter apps by userId if provided. 
+    // Uninstalled apps from the GitHub catalog might not have a userId, so we include them if they aren't installed (installed: false)
+    if (userId) {
+        return allApps.filter(app => !app.installed || app.userId === userId);
     }
+    
     return allApps;
 }
 
 // Send application JSON to HTTP response
-export function sendApplicationJson(res: http.ServerResponse, targetId?: string): void {
+export function sendApplicationJson(res: http.ServerResponse, targetId?: string, userId?: string): void {
     try {
-        const applications = getApplicationJson(targetId);
+        const applications = getApplicationJson(targetId, userId);
         res.writeHead(200, {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'

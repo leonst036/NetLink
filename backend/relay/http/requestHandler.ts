@@ -79,12 +79,33 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     const match = parsedUrl.pathname.match(/^\/api\/([^\/]+)(?:\/|$)/);
     if (match) {
         const appId = match[1] as string;
-        const app = denoSandbox.getApp(appId);
         // Exclude system api routes like login, register, servers etc.
         const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'topology', 'users', 'applications', 'netstore'];
-        if (app && !systemRoutes.includes(appId)) {
-            proxy.web(req, res, { target: `http://localhost:${app.port}` });
-            return;
+        if (!systemRoutes.includes(appId)) {
+            let userId = 'unknown';
+            try {
+                // Manually parse token to get userId for routing (avoids async DB lookup)
+                const cookieHeader = req.headers.cookie || '';
+                const matchToken = cookieHeader.match(/netlink_token=([^;]+)/);
+                const token = matchToken ? matchToken[1] : (req.headers.authorization?.split(' ')[1] || parsedUrl.searchParams.get('token'));
+                if (token) {
+                    const parts = token.split('.');
+                    if (parts.length >= 2 && parts[1]) {
+                        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                        if (payload && payload.userId) {
+                            userId = payload.userId;
+                        }
+                    }
+                }
+            } catch (e) {
+                // Ignore parse errors, will just fail to route
+            }
+
+            const app = denoSandbox.getApp(`${userId}_${appId}`);
+            if (app) {
+                proxy.web(req, res, { target: `http://localhost:${app.port}` });
+                return;
+            }
         }
     }
 

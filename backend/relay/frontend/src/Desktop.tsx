@@ -10,6 +10,7 @@ import './Desktop.css';
 import { useWindowStore } from './store/useWindowStore';
 import { useNotificationStore } from './store/useNotificationStore';
 import { fetchServers as apiFetchServers } from './api/network';
+import { parseJwt } from './utils/cookieUtils';
 import type { ServerDevice } from './types';
 
 // Lazy loaded desktop applications for optimal code-splitting and small initial bundle size
@@ -346,6 +347,14 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535';
                     const reloadKey = appReloadKeys[dyn.appId] || 0;
                     
+                    let userId = 'unknown';
+                    try {
+                        if (token) {
+                            const payload = parseJwt(token);
+                            userId = payload?.userId || 'unknown';
+                        }
+                    } catch(e) {}
+                    
                     return (
                     <Window
                         key={dyn.id}
@@ -362,7 +371,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     >
                         <Box sx={{ width: '100%', height: '100%', background: '#fff' }}>
                             <iframe 
-                                src={`${protocol}//${host}/apps/${dyn.appId}/frontend/index.html?t=${reloadKey}`}
+                                src={`${protocol}//${host}/apps/${userId}/${dyn.appId}/frontend/index.html?t=${reloadKey}`}
                                 style={{ width: '100%', height: '100%', border: 'none' }}
                                 title={dyn.title}
                                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
