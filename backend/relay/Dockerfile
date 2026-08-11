@@ -17,6 +17,7 @@ COPY database/ ./database/
 COPY websocket/ ./websocket/
 COPY http/ ./http/
 COPY assets/ ./assets/
+COPY NetStore/ ./NetStore/
 
 # Compile TS code to the "dist" directory
 RUN npx tsc --outDir dist

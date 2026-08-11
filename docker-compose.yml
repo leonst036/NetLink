@@ -17,9 +17,7 @@ services:
       retries: 5
 
   relay:
-    build:
-      context: ./backend/relay
-      dockerfile: Dockerfile
+    image: leon036/netlink-relay:latest
     container_name: netlink-relay
     restart: unless-stopped
     ports:
@@ -29,7 +27,7 @@ services:
       - HTTP_PORT=4535
       - WS_PORT=4536
       - MONGO_URI=mongodb://mongodb:27017/NetLink
-      - JWT_SECRET=dev_secret_key_change_in_production
+      - JWT_SECRET=f30d495237de83c676b0d3f7f3849904a3b1bf3980fe15f073c5aebac5619b3e
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=admin
       - USE_SSL=false
@@ -38,17 +36,16 @@ services:
         condition: service_healthy
 
   local_server:
-    build:
-      context: ./backend/local_server
-      dockerfile: Dockerfile
+    image: leon036/netlink-local_server:latest
     container_name: netlink-local-server
     restart: unless-stopped
     environment:
       - RELAY_HOST=relay
-      - RELAY_PORT=4535
+      - RELAY_PORT=4536
       - RELAY_SSL=false
       - REJECT_UNAUTHORIZED=false
       - RELAY_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6ImxvY2FsLXNlcnZlciIsImlhdCI6MTc4NjE0ODk1M30.LYcW99CQ4nfekI73qy5hwkzZLmlrbOx3MPa9huMt4pI
+      - SCAN_CIDR=
     depends_on:
       - relay
 
