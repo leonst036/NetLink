@@ -5,7 +5,75 @@ import TrafficChart, { formatSpeed } from './components/TrafficChart';
 import InterfaceTable from './components/InterfaceTable';
 import ControlBar from './components/ControlBar';
 import { LocalTrafficStats, RelayTrafficStats, TrafficHistoryPoint, ActiveTab } from './types';
-import './styles.css';
+
+// Embedded CSS styles to prevent browser ESM CSS import MIME errors
+const customStyles = `
+.traffic-monitor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: #020617;
+  color: #f8fafc;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-y: auto;
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+.glass-panel {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.glass-panel:hover {
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+.traffic-monitor-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.traffic-monitor-container::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+.traffic-monitor-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 3px;
+}
+.traffic-monitor-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+`;
 
 // Format total byte volume
 function formatBytes(bytes: number): string {
@@ -124,6 +192,8 @@ export default function App() {
 
   return (
     <div className="traffic-monitor-container">
+      <style>{customStyles}</style>
+
       <Header activeTab={activeTab} setActiveTab={setActiveTab} isLive={isLive} />
 
       <ControlBar
