@@ -2,7 +2,7 @@ import React from 'react';
 import { TrafficHistoryPoint } from '../types';
 
 interface TrafficChartProps {
-  history: TrafficHistoryPoint[];
+  history?: TrafficHistoryPoint[];
   showLocal?: boolean;
   showRelay?: boolean;
 }
@@ -15,8 +15,10 @@ export function formatSpeed(bytesPerSec: number): string {
 }
 
 // SVG traffic chart showing live bandwidth rate history
-export default function TrafficChart({ history, showLocal = true, showRelay = true }: TrafficChartProps) {
-  if (history.length === 0) {
+export default function TrafficChart({ history = [], showLocal = true, showRelay = true }: TrafficChartProps) {
+  const safeHistory = Array.isArray(history) ? history : [];
+
+  if (safeHistory.length === 0) {
     return (
       <div className="glass-panel h-64 flex items-center justify-center text-slate-500 text-sm">
         Waiting for traffic data stream...
@@ -26,12 +28,12 @@ export default function TrafficChart({ history, showLocal = true, showRelay = tr
 
   // Calculate maximum value for chart scaling
   let maxSpeed = 1000;
-  for (const p of history) {
+  for (const p of safeHistory) {
     if (showLocal) {
-      maxSpeed = Math.max(maxSpeed, p.localRxSpeed, p.localTxSpeed);
+      maxSpeed = Math.max(maxSpeed, p.localRxSpeed || 0, p.localTxSpeed || 0);
     }
     if (showRelay) {
-      maxSpeed = Math.max(maxSpeed, p.relayRxSpeed, p.relayTxSpeed);
+      maxSpeed = Math.max(maxSpeed, p.relayRxSpeed || 0, p.relayTxSpeed || 0);
     }
   }
 
@@ -39,12 +41,12 @@ export default function TrafficChart({ history, showLocal = true, showRelay = tr
   const height = 240;
   const padding = 35;
 
-  const pointsCount = history.length;
+  const pointsCount = safeHistory.length;
   const stepX = (width - padding * 2) / Math.max(pointsCount - 1, 1);
 
   // Generate SVG path string from values array
   const createPath = (getVal: (p: TrafficHistoryPoint) => number) => {
-    return history
+    return safeHistory
       .map((p, index) => {
         const x = padding + index * stepX;
         const val = getVal(p);
@@ -54,10 +56,10 @@ export default function TrafficChart({ history, showLocal = true, showRelay = tr
       .join(' ');
   };
 
-  const localRxPath = createPath((p) => p.localRxSpeed);
-  const localTxPath = createPath((p) => p.localTxSpeed);
-  const relayRxPath = createPath((p) => p.relayRxSpeed);
-  const relayTxPath = createPath((p) => p.relayTxSpeed);
+  const localRxPath = createPath((p) => p.localRxSpeed || 0);
+  const localTxPath = createPath((p) => p.localTxSpeed || 0);
+  const relayRxPath = createPath((p) => p.relayRxSpeed || 0);
+  const relayTxPath = createPath((p) => p.relayTxSpeed || 0);
 
   return (
     <div className="glass-panel">
@@ -114,8 +116,8 @@ export default function TrafficChart({ history, showLocal = true, showRelay = tr
           })}
 
           {/* Time Labels X Axis */}
-          {history.map((p, idx) => {
-            if (idx % Math.ceil(history.length / 5) !== 0 && idx !== history.length - 1) return null;
+          {safeHistory.map((p, idx) => {
+            if (idx % Math.ceil(safeHistory.length / 5) !== 0 && idx !== safeHistory.length - 1) return null;
             const x = padding + idx * stepX;
             return (
               <text key={idx} x={x} y={height - 10} textAnchor="middle" fill="#64748b" fontSize="10" fontFamily="monospace">
