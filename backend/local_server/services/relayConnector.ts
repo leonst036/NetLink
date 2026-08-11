@@ -85,12 +85,49 @@ export function handleRelayConnection(token: string): void {
                 sessionWs.on('open', () => {
                     console.log(`Data connection established for session: ${message.sessionId}`);
                     handleWebSocketConnection(sessionWs, message.sessionId);
+
+                    if (message.userId) {
+                        import('../NetStore/NetStore.js').then((ns) => {
+                            if (ns.StartLocalApps) {
+                                ns.StartLocalApps(message.userId).catch(err => console.error('Failed to start user apps:', err));
+                            }
+                        }).catch(err => console.error('Failed to import NetStore.js:', err));
+                    }
                 });
 
                 sessionWs.on('error', (err) => {
                     console.error(`Data session socket error (${message.sessionId}):`, err);
                 });
+            } else if (message.type === 'install_application' && message.appId) {
+                console.log(`Relay requested installation of app: ${message.appId} for user: ${message.userId}`);
+                import('../NetStore/NetStore.js').then((ns) => {
+                    if (ns.installApplication) {
+                        ns.installApplication(message.appId, message.branch || 'NetStore', message.githubToken, message.userId, message.runInBackground).then(() => {
+                            console.log(`Successfully installed ${message.appId}. Syncing with relay...`);
+                            ns.sendApplicationJson(controlWs);
+                        }).catch((err: any) => {
+                            console.error(`Failed to install app ${message.appId}:`, err);
+                        });
+                    }
+                }).catch(err => {
+                    console.error('Failed to import NetStore.js:', err);
+                });
+            } else if (message.type === 'uninstall_application' && message.appId) {
+                console.log(`Relay requested uninstallation of app: ${message.appId} for user: ${message.userId}`);
+                import('../NetStore/NetStore.js').then((ns) => {
+                    if (ns.uninstallApplication) {
+                        ns.uninstallApplication(message.appId, message.userId).then(() => {
+                            console.log(`Successfully uninstalled ${message.appId}. Syncing with relay...`);
+                            ns.sendApplicationJson(controlWs);
+                        }).catch((err: any) => {
+                            console.error(`Failed to uninstall app ${message.appId}:`, err);
+                        });
+                    }
+                }).catch(err => {
+                    console.error('Failed to import NetStore.js:', err);
+                });
             }
+
         } catch (err) {
             console.error('Error handling relay control message:', err);
         }

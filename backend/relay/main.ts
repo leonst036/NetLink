@@ -4,7 +4,7 @@ import { URL } from 'url';
 import dotenv from 'dotenv';
 import * as mongoDB from 'mongodb';
 import { initializeDatabase } from './database/MongoManager.js';
-import { authenticateToken } from './auth/authenticator.js';
+import { authenticateToken, extractTokenFromRequest } from './auth/authenticator.js';
 import { handleLocalServerConnection, handleClientConnection, handleDesktopConnection } from './websocket/connectionHandlers.js';
 import { createServer } from './websocket/httpsHelper.js';
 import { handleRequest, appRouter } from './http/requestHandler.js';
@@ -34,7 +34,7 @@ wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
     try {
         const reqUrl = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
         const pathname = reqUrl.pathname;
-        const token = reqUrl.searchParams.get('token');
+        const token = extractTokenFromRequest(req, reqUrl);
         const sessionId = reqUrl.searchParams.get('sessionId');
         const target = reqUrl.searchParams.get('target');
 
@@ -65,6 +65,33 @@ wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
             // WS connection was successfully routed to an app router
             return;
         } else {
+            // Check if it's a proxied app request: /api/<appId>/...
+            const match = pathname.match(/^\/api\/([^\/]+)(?:\/|$)/);
+            if (match) {
+                const appId = match[1] as string;
+                const app = denoSandbox.getApp(appId);
+                const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'topology', 'users', 'applications', 'netstore'];
+                if (app && !systemRoutes.includes(appId)) {
+                    // Bridge websocket to Deno
+                    const targetUrl = `ws://localhost:${app.port}${req.url}`;
+                    const targetWs = new WsClient(targetUrl, {
+                        headers: {
+                            ...req.headers,
+                            host: `localhost:${app.port}`
+                        }
+                    });
+
+                    targetWs.on('open', () => console.log(`Bridged WS to Deno app ${appId}`));
+                    targetWs.on('message', (msg, isBinary) => ws.send(msg, { binary: isBinary }));
+                    targetWs.on('close', () => ws.close());
+                    targetWs.on('error', (err) => console.error(`Deno WS Error [${appId}]:`, err));
+
+                    ws.on('message', (msg, isBinary) => targetWs.readyState === WsClient.OPEN && targetWs.send(msg, { binary: isBinary }));
+                    ws.on('close', () => targetWs.close());
+                    return;
+                }
+            }
+
             console.warn(`Unsupported request path: ${pathname}`);
             ws.close(1003, 'Unsupported Path');
         }

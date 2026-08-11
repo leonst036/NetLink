@@ -1,11 +1,10 @@
 import http from 'http';
 import { URL } from 'url';
 import { getMongoClient, GetUsers, CreateUser, UpdateUser, DeleteUser } from '../../database/MongoManager.js';
-import { authenticateToken } from '../../auth/authenticator.js';
+import { authenticateToken, extractTokenFromRequest } from '../../auth/authenticator.js';
 
 export async function handleUsersRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.split(' ')[1] || parsedUrl.searchParams.get('token');
+    const token = extractTokenFromRequest(req, parsedUrl);
 
     const mongoClient = getMongoClient();
     if (!mongoClient) {

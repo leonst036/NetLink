@@ -2,6 +2,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import * as esbuild from 'esbuild';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +51,14 @@ export function handleStaticFileRoute(pathname: string, res: http.ServerResponse
     // Normalize pathname to prevent directory traversal
     const safeSuffix = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     let filePath = path.join(frontendPath, safeSuffix);
+
+    // In dev mode (frontendPath doesn't end with dist), static files might be in public/
+    if (!filePath.includes('dist') && !fs.existsSync(filePath)) {
+        const publicPath = path.join(frontendPath, 'public', safeSuffix);
+        if (fs.existsSync(publicPath)) {
+            filePath = publicPath;
+        }
+    }
 
     // If filePath is a directory, append index.html
     try {
