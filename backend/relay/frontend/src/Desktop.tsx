@@ -150,13 +150,14 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [target]);
 
-    const handlePermissionResponse = (appId: string, granted: boolean, folders: any[]) => {
+    const handlePermissionResponse = (appId: string, granted: boolean, permissions: any) => {
         if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
             wsConnection.send(JSON.stringify({
                 type: 'permission_response',
                 appId,
                 granted,
-                folders
+                permissions,
+                folders: permissions?.folders || []
             }));
         }
         setPermissionRequests(prev => prev.filter(req => req.appId !== appId));
@@ -198,6 +199,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     appId={req.appId}
                     appName={req.appName}
                     folders={req.folders}
+                    requestedPermissions={req.requestedPermissions}
                     onRespond={handlePermissionResponse}
                 />
             ))}

@@ -19,7 +19,7 @@ const __dirname = path.dirname(__filename);
 const RELAY_APPS_DIR = path.join(__dirname, '..', 'NetStore', 'Applications');
 const PERMISSIONS_FILE = path.join(RELAY_APPS_DIR, 'permissions.json');
 
-function getGrantedPermissions(): Record<string, string[]> {
+function getGrantedPermissions(): Record<string, any> {
     if (!fs.existsSync(PERMISSIONS_FILE)) return {};
     try {
         return JSON.parse(fs.readFileSync(PERMISSIONS_FILE, 'utf-8'));
@@ -28,7 +28,21 @@ function getGrantedPermissions(): Record<string, string[]> {
     }
 }
 
-function saveGrantedPermissions(perms: Record<string, string[]>) {
+function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
+    const raw = grantedRecord[appId];
+    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false };
+    if (Array.isArray(raw)) {
+        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false };
+    }
+    return {
+        folders: Array.isArray(raw.folders) ? raw.folders : [],
+        allowRun: Boolean(raw.allowRun),
+        allowEnv: Array.isArray(raw.allowEnv) ? raw.allowEnv : [],
+        allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet)
+    };
+}
+
+function saveGrantedPermissions(perms: Record<string, any>) {
     fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
 }
 
@@ -122,6 +136,7 @@ export function handleLocalServerConnection(
                         if (entryFile) {
                             const indexJsonPath = path.join(appDir, 'index.json');
                             let requestedFolders: any[] = [];
+                            let requestedPerms: any = {};
                             let appName = appId;
                             
                             if (fs.existsSync(indexJsonPath)) {
@@ -131,42 +146,69 @@ export function handleLocalServerConnection(
                                     if (Array.isArray(indexData.requiredExternalFolders)) {
                                         requestedFolders = indexData.requiredExternalFolders;
                                     }
+                                    if (indexData.requestedPermissions) {
+                                        requestedPerms = indexData.requestedPermissions;
+                                    }
                                 } catch {}
                             }
                             
-                            const granted = getGrantedPermissions();
-                            const appGranted = granted[appId] || [];
+                            const grantedAll = getGrantedPermissions();
+                            const appGranted = getAppGranted(grantedAll, appId);
                             
-                            if (requestedFolders.length > 0) {
-                                const allGranted = requestedFolders.every(f => appGranted.includes(f.path));
-                                
-                                if (!allGranted) {
-                                    console.log(`App ${appId} requires permissions. Requesting from frontend...`);
-                                    const clients = frontendClients.get(identifier);
-                                    if (clients) {
-                                        clients.forEach(client => {
-                                            if (client.readyState === WebSocket.OPEN) {
-                                                client.send(JSON.stringify({
-                                                    type: 'permission_request',
-                                                    appId,
-                                                    appName,
-                                                    folders: requestedFolders
-                                                }));
-                                            }
-                                        });
-                                    }
-                                    continue; // Wait for approval before starting
+                            const foldersGranted = requestedFolders.every(f => appGranted.folders.includes(f.path));
+                            const runGranted = !requestedPerms.allowRun || appGranted.allowRun;
+                            const envGranted = !requestedPerms.allowEnv || (
+                                Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.every((v: string) => appGranted.allowEnv.includes(v))
+                            );
+
+                            if (!foldersGranted || !runGranted || !envGranted) {
+                                console.log(`App ${appId} requires permissions. Requesting from frontend...`);
+                                const clients = frontendClients.get(identifier);
+                                if (clients) {
+                                    clients.forEach(client => {
+                                        if (client.readyState === WebSocket.OPEN) {
+                                            client.send(JSON.stringify({
+                                                type: 'permission_request',
+                                                appId,
+                                                appName,
+                                                folders: requestedFolders,
+                                                requestedPermissions: requestedPerms
+                                            }));
+                                        }
+                                    });
                                 }
+                                continue; // Wait for approval before starting
                             }
                             
                             const extraFlags: string[] = [];
-                            if (appGranted.length > 0 && requestedFolders.length > 0) {
+                            if (appGranted.folders.length > 0 && requestedFolders.length > 0) {
                                 requestedFolders.forEach(f => {
-                                    if (appGranted.includes(f.path)) {
+                                    if (appGranted.folders.includes(f.path)) {
                                         if (f.mode === 'write') extraFlags.push(`--allow-write=${f.path}`);
                                         extraFlags.push(`--allow-read=${f.path}`);
                                     }
                                 });
+                            }
+
+                            if (requestedPerms.allowRun && appGranted.allowRun) {
+                                if (Array.isArray(requestedPerms.allowRunCommands) && requestedPerms.allowRunCommands.length > 0) {
+                                    extraFlags.push(`--allow-run=${requestedPerms.allowRunCommands.join(',')}`);
+                                } else {
+                                    extraFlags.push('--allow-run');
+                                }
+                            }
+
+                            if (Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.length > 0 && appGranted.allowEnv) {
+                                const allowedEnvVars = requestedPerms.allowEnv.filter((v: string) => appGranted.allowEnv.includes(v));
+                                if (allowedEnvVars.length > 0) {
+                                    extraFlags.push(`--allow-env=PORT,${allowedEnvVars.join(',')}`);
+                                }
+                            }
+
+                            if (requestedPerms.allowNet && appGranted.allowNet) {
+                                if (Array.isArray(requestedPerms.allowNet) && requestedPerms.allowNet.length > 0) {
+                                    extraFlags.push(`--allow-net=${requestedPerms.allowNet.join(',')}`);
+                                }
                             }
                             
                             try {
@@ -270,7 +312,12 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
                 if (message.granted) {
                     console.log(`Permission granted for app ${message.appId}`);
                     const perms = getGrantedPermissions();
-                    perms[message.appId] = message.folders.map((f: any) => f.path);
+                    perms[message.appId] = message.permissions || {
+                        folders: (message.folders || []).map((f: any) => typeof f === 'string' ? f : f.path),
+                        allowRun: Boolean(message.allowRun),
+                        allowEnv: message.allowEnv || [],
+                        allowNet: Boolean(message.allowNet)
+                    };
                     saveGrantedPermissions(perms);
                     
                     // Request the local server to resync the app which will trigger start

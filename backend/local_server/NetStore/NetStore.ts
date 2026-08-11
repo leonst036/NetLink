@@ -14,7 +14,7 @@ const NET_STORE_DIR = __dirname.includes('dist')
     
 const PERMISSIONS_FILE = path.join(NET_STORE_DIR, 'permissions.json');
 
-function getGrantedPermissions(): Record<string, string[]> {
+function getGrantedPermissions(): Record<string, any> {
     if (!fs.existsSync(PERMISSIONS_FILE)) return {};
     try {
         return JSON.parse(fs.readFileSync(PERMISSIONS_FILE, 'utf-8'));
@@ -23,7 +23,21 @@ function getGrantedPermissions(): Record<string, string[]> {
     }
 }
 
-function saveGrantedPermissions(perms: Record<string, string[]>) {
+function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
+    const raw = grantedRecord[appId];
+    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false };
+    if (Array.isArray(raw)) {
+        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false };
+    }
+    return {
+        folders: Array.isArray(raw.folders) ? raw.folders : [],
+        allowRun: Boolean(raw.allowRun),
+        allowEnv: Array.isArray(raw.allowEnv) ? raw.allowEnv : [],
+        allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet)
+    };
+}
+
+function saveGrantedPermissions(perms: Record<string, any>) {
     fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
 }
 
@@ -53,33 +67,55 @@ export async function StartLocalApps(): Promise<void> {
 
         if (entryFile) {
             let requestedFolders: any[] = [];
-            let appName = app.name || app.id;
-            
+            let requestedPerms: any = app.requestedPermissions || {};
+
             if (Array.isArray(app.requiredExternalFolders)) {
                 requestedFolders = app.requiredExternalFolders;
             }
 
-            const granted = getGrantedPermissions();
-            const appGranted = granted[app.id] || [];
+            const grantedAll = getGrantedPermissions();
+            const appGranted = getAppGranted(grantedAll, app.id);
 
-            if (requestedFolders.length > 0) {
-                const allGranted = requestedFolders.every(f => appGranted.includes(f.path));
-                
-                if (!allGranted) {
-                    console.warn(`Local App ${app.id} requires external folder permissions but they are not granted. Waiting for admin approval...`);
-                    // We don't send WebSocket from here directly. The Relay Server handles the prompt and resyncs.
-                    continue; 
-                }
+            const foldersGranted = requestedFolders.every(f => appGranted.folders.includes(f.path));
+            const runGranted = !requestedPerms.allowRun || appGranted.allowRun;
+            const envGranted = !requestedPerms.allowEnv || (
+                Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.every((v: string) => appGranted.allowEnv.includes(v))
+            );
+
+            if (!foldersGranted || !runGranted || !envGranted) {
+                console.warn(`Local App ${app.id} requires permissions that are not granted. Waiting for admin approval...`);
+                continue;
             }
 
             const extraFlags: string[] = [];
-            if (appGranted.length > 0 && requestedFolders.length > 0) {
+            if (appGranted.folders.length > 0 && requestedFolders.length > 0) {
                 requestedFolders.forEach(f => {
-                    if (appGranted.includes(f.path)) {
+                    if (appGranted.folders.includes(f.path)) {
                         if (f.mode === 'write') extraFlags.push(`--allow-write=${f.path}`);
                         extraFlags.push(`--allow-read=${f.path}`);
                     }
                 });
+            }
+
+            if (requestedPerms.allowRun && appGranted.allowRun) {
+                if (Array.isArray(requestedPerms.allowRunCommands) && requestedPerms.allowRunCommands.length > 0) {
+                    extraFlags.push(`--allow-run=${requestedPerms.allowRunCommands.join(',')}`);
+                } else {
+                    extraFlags.push('--allow-run');
+                }
+            }
+
+            if (Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.length > 0 && appGranted.allowEnv) {
+                const allowedEnvVars = requestedPerms.allowEnv.filter((v: string) => appGranted.allowEnv.includes(v));
+                if (allowedEnvVars.length > 0) {
+                    extraFlags.push(`--allow-env=PORT,${allowedEnvVars.join(',')}`);
+                }
+            }
+
+            if (requestedPerms.allowNet && appGranted.allowNet) {
+                if (Array.isArray(requestedPerms.allowNet) && requestedPerms.allowNet.length > 0) {
+                    extraFlags.push(`--allow-net=${requestedPerms.allowNet.join(',')}`);
+                }
             }
 
             try {

@@ -35,17 +35,22 @@ export class DenoSandbox {
             'run',
             '--no-config',
             '--allow-net',
-            '--allow-run',
-            '--allow-sys',
-            '--allow-read',
-            '--allow-write',
-            '--allow-env',
+            `--allow-read=${appDir}`,
+            `--allow-write=${appDir}`,
+            '--allow-env=PORT',
             ...extraFlags,
             entryFile
         ];
 
+        const cleanEnv: Record<string, string> = {
+            PORT: port.toString(),
+            PATH: process.env.PATH || '',
+            HOME: process.env.HOME || '',
+            TMPDIR: process.env.TMPDIR || '/tmp'
+        };
+
         const denoProcess = spawn(denoCmd, args, {
-            env: { ...process.env, PORT: port.toString() }
+            env: cleanEnv
         });
 
         denoProcess.stdout.on('data', (data: any) => console.log(`[Local App ${appId}]: ${data}`));
