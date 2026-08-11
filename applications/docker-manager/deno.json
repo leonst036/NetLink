@@ -1,0 +1,15 @@
+{
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "lib": ["deno.window", "dom", "dom.iterable", "esnext"]
+  },
+  "imports": {
+    "react": "npm:react@^18.2.0",
+    "react-dom": "npm:react-dom@^18.2.0",
+    "@types/react": "npm:@types/react@^18.2.0",
+    "@types/react-dom": "npm:@types/react-dom@^18.2.0"
+  }
+}
+

@@ -93,5 +93,20 @@
     "shortDesc": "A simple test application to verify GitHub downloads.",
     "fullDesc": "This application was automatically created to test the NetStore GitHub installation mechanism. It contains basic frontend and local_server files.",
     "isFeatured": false
+  },
+  {
+    "id": "docker-manager",
+    "name": "Docker Manager",
+    "author": "Leon",
+    "category": "Utilities",
+    "rating": 5,
+    "downloads": "New",
+    "size": "Unknown",
+    "version": "v1.0.0",
+    "icon": "Container",
+    "color": "#2496ed",
+    "shortDesc": "Manage Docker containers in your network.",
+    "fullDesc": "Manage Docker containers in your network.",
+    "isFeatured": true
   }
 ]
