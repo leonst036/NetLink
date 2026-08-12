@@ -410,6 +410,10 @@ body {
   text-decoration: line-through;
 }
 
+.tm-legend-item.disabled {
+  cursor: not-allowed;
+}
+
 .tm-legend-dot {
   width: 10px;
   height: 3px;

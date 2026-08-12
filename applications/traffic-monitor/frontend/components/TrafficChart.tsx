@@ -27,9 +27,22 @@ export default function TrafficChart({ history = [], showLocal = true, showRelay
     relayTx: true,
   });
 
+  // Calculate active keys available for current chart props
+  const activeKeys: (keyof typeof visibleLines)[] = [];
+  if (showLocal) activeKeys.push('localRx', 'localTx');
+  if (showRelay) activeKeys.push('relayRx', 'relayTx');
+
+  const visibleCount = activeKeys.filter((key) => visibleLines[key]).length;
+
   const toggleLine = (line: keyof typeof visibleLines) => {
+    // Prevent hiding if this is the last visible line in the chart
+    if (visibleLines[line] && visibleCount <= 1) {
+      return;
+    }
     setVisibleLines((prev) => ({ ...prev, [line]: !prev[line] }));
   };
+
+  const isLastVisible = (line: keyof typeof visibleLines) => visibleLines[line] && visibleCount <= 1;
 
   if (safeHistory.length === 0) {
     return (
@@ -85,17 +98,17 @@ export default function TrafficChart({ history = [], showLocal = true, showRelay
           {showLocal && (
             <>
               <div
-                className={`tm-legend-item ${!visibleLines.localRx ? 'hidden' : ''}`}
+                className={`tm-legend-item ${!visibleLines.localRx ? 'hidden' : ''} ${isLastVisible('localRx') ? 'disabled' : ''}`}
                 onClick={() => toggleLine('localRx')}
-                title="Toggle Local RX line"
+                title={isLastVisible('localRx') ? 'At least one line must remain visible' : 'Toggle Local RX line'}
               >
                 <span className="tm-legend-dot" style={{ background: 'var(--tm-emerald)' }} />
                 <span>Local RX</span>
               </div>
               <div
-                className={`tm-legend-item ${!visibleLines.localTx ? 'hidden' : ''}`}
+                className={`tm-legend-item ${!visibleLines.localTx ? 'hidden' : ''} ${isLastVisible('localTx') ? 'disabled' : ''}`}
                 onClick={() => toggleLine('localTx')}
-                title="Toggle Local TX line"
+                title={isLastVisible('localTx') ? 'At least one line must remain visible' : 'Toggle Local TX line'}
               >
                 <span className="tm-legend-dot" style={{ background: 'var(--tm-cyan)' }} />
                 <span>Local TX</span>
@@ -106,17 +119,17 @@ export default function TrafficChart({ history = [], showLocal = true, showRelay
           {showRelay && (
             <>
               <div
-                className={`tm-legend-item ${!visibleLines.relayRx ? 'hidden' : ''}`}
+                className={`tm-legend-item ${!visibleLines.relayRx ? 'hidden' : ''} ${isLastVisible('relayRx') ? 'disabled' : ''}`}
                 onClick={() => toggleLine('relayRx')}
-                title="Toggle Relay RX line"
+                title={isLastVisible('relayRx') ? 'At least one line must remain visible' : 'Toggle Relay RX line'}
               >
                 <span className="tm-legend-dot" style={{ background: 'var(--tm-indigo)' }} />
                 <span>Relay RX</span>
               </div>
               <div
-                className={`tm-legend-item ${!visibleLines.relayTx ? 'hidden' : ''}`}
+                className={`tm-legend-item ${!visibleLines.relayTx ? 'hidden' : ''} ${isLastVisible('relayTx') ? 'disabled' : ''}`}
                 onClick={() => toggleLine('relayTx')}
-                title="Toggle Relay TX line"
+                title={isLastVisible('relayTx') ? 'At least one line must remain visible' : 'Toggle Relay TX line'}
               >
                 <span className="tm-legend-dot" style={{ background: 'var(--tm-amber)' }} />
                 <span>Relay TX</span>
