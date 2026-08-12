@@ -53,19 +53,21 @@ export default function BaseLoginForm({ initialIp, savedLogins, protocolName, pr
 
       <Box>
         <FormLabelText>Target IP / Hostname</FormLabelText>
-        <TextField fullWidth size="small" placeholder="e.g. 192.168.1.10" value={selectedIp} onChange={e => setSelectedIp(e.target.value)} />
+        <TextField fullWidth size="small" placeholder="e.g. 192.168.1.10" value={selectedIp} onChange={e => setSelectedIp(e.target.value)} className="styled-text-field" />
       </Box>
 
       {children}
 
-      <Box>
-        <FormLabelText>Username</FormLabelText>
-        <TextField fullWidth size="small" value={username} onChange={e => setUsername(e.target.value)} />
-      </Box>
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ flex: 1 }}>
+          <FormLabelText>Username</FormLabelText>
+          <TextField fullWidth size="small" value={username} onChange={e => setUsername(e.target.value)} className="styled-text-field" />
+        </Box>
 
-      <Box>
-        <FormLabelText>Password</FormLabelText>
-        <TextField fullWidth size="small" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+        <Box sx={{ flex: 1 }}>
+          <FormLabelText>Password</FormLabelText>
+          <TextField fullWidth size="small" type="password" value={password} onChange={e => setPassword(e.target.value)} className="styled-text-field" />
+        </Box>
       </Box>
 
       <Button variant="contained" color="warning" onClick={handleConnect} className="connect-button">

@@ -440,6 +440,13 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                     size="small"
                     value={protocolType}
                     onChange={e => setProtocolType(e.target.value as 'sftp' | 'smb')}
+                    className="styled-text-field"
+                    sx={{
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#6366f1' },
+                      color: '#f8fafc'
+                    }}
                   >
                     <MenuItem value="sftp">SFTP (SSH File Transfer)</MenuItem>
                     <MenuItem value="smb">SMB / CIFS (Windows Share)</MenuItem>
@@ -495,7 +502,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
 
             <ToolbarButton
               variant="outlined"
-              color="inherit"
+              className="new-folder"
               onClick={handleCreateFolderClick}
               startIcon={<FolderPlus size={14} />}
             >
@@ -503,7 +510,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             </ToolbarButton>
             <ToolbarButton
               variant="outlined"
-              color="inherit"
+              className="upload"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
               startIcon={<Upload size={14} />}
@@ -512,8 +519,8 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
             </ToolbarButton>
 
             <ToolbarButton
-              variant="contained"
-              color="error"
+              variant="outlined"
+              className="disconnect"
               onClick={disconnectSftp}
             >
               Disconnect
@@ -539,7 +546,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                   <CancelIconButton size="small" color="error" onClick={cancelUpload}><X size={14} /></CancelIconButton>
                 </ProgressActionsSection>
               </ProgressHeader>
-              <LinearProgress variant="determinate" value={uploadProgress} color="warning" />
+              <LinearProgress variant="determinate" value={uploadProgress} className="upload-progress" />
             </UploadProgressContainer>
           )}
 
@@ -556,7 +563,7 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                   <CancelIconButton size="small" color="error" onClick={cancelDownload}><X size={14} /></CancelIconButton>
                 </ProgressActionsSection>
               </ProgressHeader>
-              <LinearProgress variant={downloadProgress !== null ? "determinate" : "indeterminate"} value={downloadProgress || 0} color="info" />
+              <LinearProgress variant={downloadProgress !== null ? "determinate" : "indeterminate"} value={downloadProgress || 0} className="download-progress" />
             </DownloadProgressContainer>
           )}
 
@@ -618,13 +625,13 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
                             <Download size={14} />
                           </ActionIconButton>
                         )}
-                        <IconButton
+                        <ActionIconButton
                           size="small"
-                          color="error"
+                          className="delete"
                           onClick={(e: any) => { e.stopPropagation(); handleDeleteItemClick(file.name); }}
                         >
                           <Trash2 size={14} />
-                        </IconButton>
+                        </ActionIconButton>
                       </TableCell>
                     </StyledTableRow>
                   );
@@ -652,36 +659,37 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
       `}</style>
 
       {/* Folder Dialog */}
-      <Dialog open={folderDialog.open} onClose={() => setFolderDialog({ open: false, defaultName: '' })}>
-        <DialogTitle>Create New Folder</DialogTitle>
-        <DialogContent>
+      <Dialog PaperProps={{ className: 'fileapp-dialog-paper' }} open={folderDialog.open} onClose={() => setFolderDialog({ open: false, defaultName: '' })}>
+        <DialogTitle className="fileapp-dialog-title">Create New Folder</DialogTitle>
+        <DialogContent className="fileapp-dialog-content">
           <TextField
             autoFocus
             margin="dense"
             label="Folder Name"
             type="text"
             fullWidth
-            variant="outlined"
+            variant="standard"
+            className="styled-text-field"
             value={folderName}
             onChange={(e) => setFolderName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && confirmCreateFolder()}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFolderDialog({ open: false, defaultName: '' })} color="inherit">Cancel</Button>
-          <Button onClick={confirmCreateFolder} variant="contained" color="primary">Create</Button>
+          <Button onClick={() => setFolderDialog({ open: false, defaultName: '' })} sx={{ color: 'rgba(255,255,255,0.7)' }}>Cancel</Button>
+          <Button onClick={confirmCreateFolder} variant="contained" sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' } }}>Create</Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Dialog */}
-      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, itemName: '' })}>
-        <DialogTitle>Delete Item</DialogTitle>
-        <DialogContent>
+      <Dialog PaperProps={{ className: 'fileapp-dialog-paper' }} open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, itemName: '' })}>
+        <DialogTitle className="fileapp-dialog-title">Delete Item</DialogTitle>
+        <DialogContent className="fileapp-dialog-content">
           <Typography>Are you sure you want to delete "{deleteDialog.itemName}"?</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialog({ open: false, itemName: '' })} color="inherit">Cancel</Button>
-          <Button onClick={confirmDeleteItem} variant="contained" color="error">Delete</Button>
+          <Button onClick={() => setDeleteDialog({ open: false, itemName: '' })} sx={{ color: 'rgba(255,255,255,0.7)' }}>Cancel</Button>
+          <Button onClick={confirmDeleteItem} variant="contained" sx={{ bgcolor: '#f43f5e', '&:hover': { bgcolor: '#e11d48' } }}>Delete</Button>
         </DialogActions>
       </Dialog>
     </RootContainer>

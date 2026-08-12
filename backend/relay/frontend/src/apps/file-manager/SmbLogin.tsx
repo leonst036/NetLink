@@ -29,13 +29,15 @@ export default function SmbLogin({ initialIp, savedLogins, onConnect }: SmbLogin
       protocolType="smb"
       onConnect={handleConnect}
     >
-      <Box>
-        <FormLabelText>Share Name</FormLabelText>
-        <TextField fullWidth size="small" placeholder="e.g. C$ or share" value={share} onChange={e => setShare(e.target.value)} />
-      </Box>
-      <Box>
-        <FormLabelText>Domain / Workgroup</FormLabelText>
-        <TextField fullWidth size="small" placeholder="e.g. WORKGROUP" value={domain} onChange={e => setDomain(e.target.value)} />
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ flex: 1 }}>
+          <FormLabelText>Share Name</FormLabelText>
+          <TextField fullWidth size="small" placeholder="e.g. C$ or share" value={share} onChange={e => setShare(e.target.value)} className="styled-text-field" />
+        </Box>
+        <Box sx={{ flex: 1 }}>
+          <FormLabelText>Domain / Workgroup</FormLabelText>
+          <TextField fullWidth size="small" placeholder="e.g. WORKGROUP" value={domain} onChange={e => setDomain(e.target.value)} className="styled-text-field" />
+        </Box>
       </Box>
     </BaseLoginForm>
   );
