@@ -15,6 +15,13 @@ function formatBytes(bytes?: number): string {
   return `${(num / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+// Persistent fallback interface counters for frontend offline mode
+const fallbackInterfaces = [
+  { name: "eth0", rxBytes: 35000000, txBytes: 20000000, rxPackets: 14000, txPackets: 11000, baseRxSpeed: 420000, baseTxSpeed: 210000 },
+  { name: "wlan0", rxBytes: 10200000, txBytes: 8900000, rxPackets: 4500, txPackets: 3200, baseRxSpeed: 90000, baseTxSpeed: 45000 }
+];
+let lastFallbackTimestamp = Date.now();
+
 // Main Traffic Monitor App Component
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -44,18 +51,54 @@ export default function App() {
       }
     } catch {
       // Fallback telemetry measurements
+      const now = Date.now();
+      const timeDelta = Math.max((now - lastFallbackTimestamp) / 1000, 0.1);
+      lastFallbackTimestamp = now;
+
+      const updatedInterfaces = fallbackInterfaces.map((iface) => {
+        const variance = (Math.random() - 0.5) * 0.3;
+        const rxSpeed = Math.max(1000, Math.floor(iface.baseRxSpeed * (1 + variance)));
+        const txSpeed = Math.max(1000, Math.floor(iface.baseTxSpeed * (1 + variance)));
+
+        const rxDelta = Math.floor(rxSpeed * timeDelta);
+        const txDelta = Math.floor(txSpeed * timeDelta);
+
+        iface.rxBytes += rxDelta;
+        iface.txBytes += txDelta;
+        iface.rxPackets += Math.max(1, Math.floor(rxDelta / 1400));
+        iface.txPackets += Math.max(1, Math.floor(txDelta / 1400));
+
+        return {
+          name: iface.name,
+          rxBytes: iface.rxBytes,
+          txBytes: iface.txBytes,
+          rxPackets: iface.rxPackets,
+          txPackets: iface.txPackets,
+          rxSpeed,
+          txSpeed,
+        };
+      });
+
+      let totalRxSpeed = 0;
+      let totalTxSpeed = 0;
+      let totalRxBytes = 0;
+      let totalTxBytes = 0;
+      for (const iface of updatedInterfaces) {
+        totalRxSpeed += iface.rxSpeed;
+        totalTxSpeed += iface.txSpeed;
+        totalRxBytes += iface.rxBytes;
+        totalTxBytes += iface.txBytes;
+      }
+
       currentLocal = {
-        timestamp: Date.now(),
-        totalRxBytes: Math.floor(Math.random() * 50000000) + 40000000,
-        totalTxBytes: Math.floor(Math.random() * 30000000) + 20000000,
-        rxSpeed: Math.floor(Math.random() * 800000) + 150000,
-        txSpeed: Math.floor(Math.random() * 500000) + 80000,
+        timestamp: now,
+        totalRxBytes,
+        totalTxBytes,
+        rxSpeed: totalRxSpeed,
+        txSpeed: totalTxSpeed,
         activeConnections: Math.floor(Math.random() * 12) + 4,
         latencyMs: Math.floor(Math.random() * 6) + 2,
-        interfaces: [
-          { name: "eth0", rxBytes: 35000000, txBytes: 20000000, rxPackets: 14000, txPackets: 11000, rxSpeed: 420000, txSpeed: 210000 },
-          { name: "wlan0", rxBytes: 10200000, txBytes: 8900000, rxPackets: 4500, txPackets: 3200, rxSpeed: 90000, txSpeed: 45000 }
-        ]
+        interfaces: updatedInterfaces
       };
     }
     setLocalStats(currentLocal);

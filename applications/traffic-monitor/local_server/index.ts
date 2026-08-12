@@ -25,6 +25,24 @@ interface ServerTrafficStats {
 let lastTimestamp = Date.now();
 let prevStatsMap: Map<string, { rxBytes: number; txBytes: number }> = new Map();
 
+// Persistent fallback interface counters
+interface MockIfaceState {
+  name: string;
+  rxBytes: number;
+  txBytes: number;
+  rxPackets: number;
+  txPackets: number;
+  baseRxSpeed: number;
+  baseTxSpeed: number;
+}
+
+const mockInterfacesState: MockIfaceState[] = [
+  { name: "eth0", rxBytes: 15420000, txBytes: 8930000, rxPackets: 12500, txPackets: 9800, baseRxSpeed: 350000, baseTxSpeed: 180000 },
+  { name: "wlan0", rxBytes: 4200000, txBytes: 1100000, rxPackets: 3200, txPackets: 1400, baseRxSpeed: 80000, baseTxSpeed: 40000 },
+  { name: "lo", rxBytes: 980000, txBytes: 980000, rxPackets: 1200, txPackets: 1200, baseRxSpeed: 1024, baseTxSpeed: 1024 }
+];
+let lastMockTimestamp = Date.now();
+
 // Helper to read Linux network statistics
 async function readLinuxNetDev(): Promise<{ interfaces: NetworkInterfaceStats[]; totalRx: number; totalTx: number }> {
   try {
@@ -71,20 +89,42 @@ async function readLinuxNetDev(): Promise<{ interfaces: NetworkInterfaceStats[];
 
     return { interfaces, totalRx, totalTx };
   } catch {
-    // Fallback simulated data if /proc/net/dev is unavailable
+    // Dynamic fallback simulated data when /proc/net/dev is unavailable
     const now = Date.now();
-    const mockRx = Math.floor(Math.random() * 500000) + 100000;
-    const mockTx = Math.floor(Math.random() * 300000) + 50000;
+    const timeDelta = Math.max((now - lastMockTimestamp) / 1000, 0.1);
+    lastMockTimestamp = now;
 
-    return {
-      interfaces: [
-        { name: "eth0", rxBytes: 15420000, txBytes: 8930000, rxPackets: 12500, txPackets: 9800, rxSpeed: mockRx, txSpeed: mockTx },
-        { name: "wlan0", rxBytes: 4200000, txBytes: 1100000, rxPackets: 3200, txPackets: 1400, rxSpeed: Math.floor(mockRx * 0.2), txSpeed: Math.floor(mockTx * 0.1) },
-        { name: "lo", rxBytes: 980000, txBytes: 980000, rxPackets: 1200, txPackets: 1200, rxSpeed: 1024, txSpeed: 1024 }
-      ],
-      totalRx: 20600000,
-      totalTx: 11010000
-    };
+    let totalRx = 0;
+    let totalTx = 0;
+
+    const interfaces: NetworkInterfaceStats[] = mockInterfacesState.map((iface) => {
+      const variance = (Math.random() - 0.5) * 0.4;
+      const rxSpeed = Math.max(100, Math.floor(iface.baseRxSpeed * (1 + variance)));
+      const txSpeed = Math.max(100, Math.floor(iface.baseTxSpeed * (1 + variance)));
+
+      const rxDelta = Math.floor(rxSpeed * timeDelta);
+      const txDelta = Math.floor(txSpeed * timeDelta);
+
+      iface.rxBytes += rxDelta;
+      iface.txBytes += txDelta;
+      iface.rxPackets += Math.max(1, Math.floor(rxDelta / 1200));
+      iface.txPackets += Math.max(1, Math.floor(txDelta / 1200));
+
+      totalRx += iface.rxBytes;
+      totalTx += iface.txBytes;
+
+      return {
+        name: iface.name,
+        rxBytes: iface.rxBytes,
+        txBytes: iface.txBytes,
+        rxPackets: iface.rxPackets,
+        txPackets: iface.txPackets,
+        rxSpeed,
+        txSpeed,
+      };
+    });
+
+    return { interfaces, totalRx, totalTx };
   }
 }
 
