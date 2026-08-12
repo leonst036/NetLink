@@ -141,11 +141,22 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         
         let githubData = [];
         try {
-            const headers: Record<string, string> = {};
+            let ghRes: Response;
             if (githubToken) {
-              headers['Authorization'] = `token ${githubToken}`;
+              ghRes = await fetch(
+                `https://api.github.com/repos/leonst036/NetLink/contents/applications/applications.json?ref=${selectedBranch}`,
+                {
+                  headers: {
+                    'Authorization': `token ${githubToken}`,
+                    'Accept': 'application/vnd.github.v3.raw'
+                  }
+                }
+              );
+            } else {
+              ghRes = await fetch(
+                `https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/${selectedBranch}/applications/applications.json`
+              );
             }
-            const ghRes = await fetch(`https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/${selectedBranch}/applications/applications.json`, { headers });
             if (ghRes.ok) {
               githubData = await ghRes.json();
             } else {

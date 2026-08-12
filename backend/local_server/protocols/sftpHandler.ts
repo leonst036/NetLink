@@ -77,7 +77,7 @@ export function downloadFile(ws: WebSocket, sftp: SftpClient, path: string) {
     };
 
     try {
-        stream = sftp.createReadStream(normalizedPath);
+        stream = sftp.createReadStream(normalizedPath, { highWaterMark: 1024 * 1024 * 2 });
         ws.on('close', onClose);
         ws.on('message', onMessage);
 

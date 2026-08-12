@@ -178,18 +178,13 @@ export default function FileApp({ token, target, initialIp }: FileAppProps) {
     chunkStartTimeRef.current = Date.now();
     const reader = new FileReader();
     reader.onload = (e) => {
-      const arrayBuffer = e.target?.result as ArrayBuffer;
-      if (!arrayBuffer) return;
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const base64 = btoa(binary);
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) return;
+      const base64 = dataUrl.substring(dataUrl.indexOf(',') + 1);
       socketRef.current?.send(JSON.stringify({ type: 'uploadChunk', data: base64 }));
-      uploadOffsetRef.current += bytes.byteLength;
+      uploadOffsetRef.current += slice.size;
     };
-    reader.readAsArrayBuffer(slice);
+    reader.readAsDataURL(slice);
   };
 
   const handleConnect = (params: any) => {
