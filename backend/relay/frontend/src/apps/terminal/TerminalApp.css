@@ -16,11 +16,13 @@
   padding-right: 10px !important;
 }
 
-.login-select {
+.login-select,
+.session-select {
   width: 140px;
 }
 
-.login-select .MuiSelect-select {
+.login-select .MuiSelect-select,
+.session-select .MuiSelect-select {
   padding-top: 6.4px;
   padding-bottom: 6.4px;
 }
@@ -39,6 +41,7 @@
 .terminal-screen {
   flex: 1;
   padding: 12px;
+  overflow: hidden;
 }
 
 .terminal-screen .xterm {

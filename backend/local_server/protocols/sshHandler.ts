@@ -8,6 +8,7 @@ type SshSession = {
     attachedWs: WebSocket | null;
     messageHandler: ((message: any) => void) | null;
     streamBound: boolean;
+    history: string;
 };
 
 const activeSshSessions = new Map<string, SshSession>();
@@ -57,6 +58,9 @@ function attachWebSocket(sessionId: string, session: SshSession, ws: WebSocket):
     });
 
     if (ws.readyState === WebSocket.OPEN) {
+        if (session.history) {
+            ws.send(session.history);
+        }
         ws.send(`\r\n[SSH Session Active]: Reattached to session ${sessionId}\r\n`);
     }
 }
@@ -69,8 +73,15 @@ function bindStream(sessionId: string, session: SshSession): void {
     session.streamBound = true;
 
     session.stream.on('data', (data: Buffer) => {
+        const text = data.toString('utf-8');
+        session.history += text;
+        // Limit history to last 100k characters to avoid memory leaks
+        if (session.history.length > 100000) {
+            session.history = session.history.slice(-100000);
+        }
+        
         if (session.attachedWs && session.attachedWs.readyState === WebSocket.OPEN) {
-            session.attachedWs.send(data.toString('utf-8'));
+            session.attachedWs.send(text);
         }
     });
 
@@ -110,6 +121,7 @@ export function storeSshSession(ws: WebSocket, host: string, username: string, p
         attachedWs: ws,
         messageHandler: null,
         streamBound: false,
+        history: '',
     };
 
     activeSshSessions.set(activeSessionId, session);

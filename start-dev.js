@@ -15,6 +15,21 @@ let viteProcess = null;
 let localProcess = null;
 let startingTimeout = null;
 
+function startMongoProcess() {
+    console.log('🐳 Starting MongoDB via Docker...');
+    try {
+        const containers = execSync('docker ps -a --format "{{.Names}}"').toString();
+        if (containers.includes('netlink-mongo-dev')) {
+            execSync('docker start netlink-mongo-dev');
+        } else {
+            execSync('docker run -d --name netlink-mongo-dev -p 27017:27017 mongo:latest');
+        }
+        console.log('✅ MongoDB is running on port 27017');
+    } catch (e) {
+        console.log('❌ Failed to start MongoDB via Docker. Ensure Docker is running.');
+    }
+}
+
 function startRelayProcess() {
     if (relayProcess) {
         console.log('\n🔄 Restarting Relay Server...\n');
@@ -31,7 +46,8 @@ function startRelayProcess() {
         JWT_SECRET: JWT_SECRET,
         ADMIN_USERNAME: 'admin',
         ADMIN_PASSWORD: 'admin',
-        USE_SSL: 'false'
+        USE_SSL: 'false',
+        MONGO_URI: 'mongodb://localhost:27017'
     };
 
     relayProcess = spawn('node', ['--no-deprecation', 'dist/main.js'], {
@@ -117,6 +133,7 @@ function startProcesses() {
 
     console.log('\n🚀 Starting NetLink Development Environment...\n');
 
+    startMongoProcess();
     startRelayProcess();
     startViteProcess();
 

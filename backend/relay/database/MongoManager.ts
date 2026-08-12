@@ -180,3 +180,20 @@ export async function SaveDockConfig(client: mongoDB.MongoClient, username: stri
         { upsert: true }
     );
 }
+
+export async function GetStoredSshSessions(client: mongoDB.MongoClient, username: string) {
+    return client.db("NetLink").collection("ssh_sessions").find({ username }).toArray();
+}
+
+export async function SaveStoredSshSession(client: mongoDB.MongoClient, username: string, sessionData: any) {
+    const { sessionId, name, target, ip, sshUsername } = sessionData;
+    return client.db("NetLink").collection("ssh_sessions").updateOne(
+        { username, sessionId },
+        { $set: { name, target, ip, sshUsername, updatedAt: new Date() } },
+        { upsert: true }
+    );
+}
+
+export async function DeleteStoredSshSession(client: mongoDB.MongoClient, username: string, sessionId: string) {
+    return client.db("NetLink").collection("ssh_sessions").deleteOne({ username, sessionId });
+}

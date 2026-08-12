@@ -16,6 +16,8 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   const [sshUsername, setSshUsername] = useState('');
   const [sshPassword, setSshPassword] = useState('');
   const [savedLogins, setSavedLogins] = useState<any[]>([]);
+  const [storedSessions, setStoredSessions] = useState<any[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState('');
 
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [isConnected, setIsConnected] = useState(false);
@@ -26,19 +28,7 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
   const fitAddonRef = useRef<FitAddon | null>(null);
   const inputDisposableRef = useRef<{ dispose: () => void } | null>(null);
 
-  const getSessionStorageKey = () => `netlink_ssh_session:${target}:${selectedIp}:${sshUsername}`;
-
-  const getOrCreateSessionId = () => {
-    const storageKey = getSessionStorageKey();
-    const existingSessionId = sessionStorage.getItem(storageKey);
-    if (existingSessionId) {
-      return existingSessionId;
-    }
-
-    const newSessionId = crypto.randomUUID();
-    sessionStorage.setItem(storageKey, newSessionId);
-    return newSessionId;
-  };
+  // Removed getOrCreateSessionId using local storage
 
   const disconnectTerminal = () => {
     if (socketRef.current) {
@@ -98,9 +88,12 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
     }
 
     term.write('Connecting to NetLink Relay Server...\r\n');
-    console.log('Debug: Connecting to WebSocket')
+    console.log('Debug: Connecting to WebSocket');
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = activeSessionId || crypto.randomUUID();
+    if (!activeSessionId) {
+      setActiveSessionId(sessionId);
+    }
 
     const isSecure = window.location.protocol === 'https:';
     const protocol = isSecure ? 'wss:' : 'ws:';
@@ -231,6 +224,15 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
         }
       })
       .catch(err => console.error('Failed to fetch logins', err));
+
+    fetch('/api/ssh-sessions', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => {
+        if (data.sessions) {
+          setStoredSessions(data.sessions);
+        }
+      })
+      .catch(err => console.error('Failed to fetch stored sessions', err));
   }, [token]);
 
   const applyLogin = (e: any) => {
@@ -239,7 +241,47 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
       setSelectedIp(login.ip);
       setSshUsername(login.loginUsername);
       setSshPassword(login.password);
+      setActiveSessionId('');
     }
+  };
+
+  const applyStoredSession = (e: any) => {
+    const session = storedSessions.find(s => s.sessionId === e.target.value);
+    if (session) {
+      setSelectedIp(session.ip);
+      setSshUsername(session.sshUsername);
+      setSshPassword(''); // No password needed for reattach if session is alive
+      setActiveSessionId(session.sessionId);
+    }
+  };
+
+  const saveCurrentSession = () => {
+    if (!activeSessionId) return;
+    const name = prompt("Enter a name for this session:", `${sshUsername}@${selectedIp}`);
+    if (!name) return;
+
+    fetch('/api/ssh-sessions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        sessionId: activeSessionId,
+        name,
+        target,
+        ip: selectedIp,
+        sshUsername
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        setStoredSessions([...storedSessions, { sessionId: activeSessionId, name, target, ip: selectedIp, sshUsername }]);
+        alert('Session saved!');
+      }
+    })
+    .catch(err => console.error('Failed to save session', err));
   };
 
   return (
@@ -260,6 +302,19 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
             ))}
           </Select>
         )}
+        <Select
+          className="session-select"
+          size="small"
+          value=""
+          displayEmpty
+          onChange={applyStoredSession}
+          disabled={isConnected || storedSessions.length === 0}
+        >
+          <MenuItem value="" disabled>Stored Sessions...</MenuItem>
+          {storedSessions.map(s => (
+            <MenuItem key={s.sessionId} value={s.sessionId}>{s.name} ({s.ip})</MenuItem>
+          ))}
+        </Select>
         <TextField
           className="terminal-text-field"
           size="small"
@@ -289,14 +344,25 @@ export default function TerminalApp({ token, target, initialIp }: TerminalAppPro
           style={{ width: 120 }}
         />
         {isConnected ? (
-          <Button
-            className="terminal-button"
-            variant="contained"
-            color="error"
-            onClick={disconnectTerminal}
-          >
-            Disconnect
-          </Button>
+          <>
+            <Button
+              className="terminal-button"
+              variant="contained"
+              color="error"
+              onClick={disconnectTerminal}
+            >
+              Disconnect
+            </Button>
+            <Button
+              className="terminal-button"
+              variant="contained"
+              color="success"
+              onClick={saveCurrentSession}
+              style={{ marginLeft: 8 }}
+            >
+              Save Session
+            </Button>
+          </>
         ) : (
           <Button
             className="terminal-button"

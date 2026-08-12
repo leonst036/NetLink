@@ -6,6 +6,7 @@ import { handleRegisterRoute, handleValidateTargetRoute } from './routes/authRou
 import { handleUsersRoute } from './routes/userRoutes.js';
 import { handleTopologyRoute } from './routes/topologyRoutes.js';
 import { handleGetServersRoute, handleServerLoginsRoute } from './routes/serverRoutes.js';
+import { handleSshSessionsRoute } from './routes/sshSessionRoutes.js';
 import { handleInstallScriptRoute, handleDemoScriptRoute, handleDemoSetupRoute } from './routes/scriptRoutes.js';
 import { handleFaviconRoute, handleStaticFileRoute, handleAppFrontendRoute } from './routes/staticRoutes.js';
 import { handleNetStoreApplicationsRoute, handleInstallApplicationRoute, handleUninstallApplicationRoute } from './routes/netStoreRoutes.js';
@@ -56,6 +57,9 @@ appRouter.get('/api/demo-setup', handleDemoSetupRoute);
 // Server & Devices routes
 appRouter.get('/api/servers', (req, res, parsedUrl) => handleGetServersRoute(parsedUrl, req, res));
 appRouter.get('/api/server-logins', (req, res, parsedUrl) => handleServerLoginsRoute(parsedUrl, req, res));
+appRouter.get('/api/ssh-sessions', (req, res, parsedUrl) => handleSshSessionsRoute(parsedUrl, req, res));
+appRouter.post('/api/ssh-sessions', (req, res, parsedUrl) => handleSshSessionsRoute(parsedUrl, req, res));
+appRouter.delete('/api/ssh-sessions', (req, res, parsedUrl) => handleSshSessionsRoute(parsedUrl, req, res));
 
 // Topology routes
 appRouter.get('/api/topology', (req, res, parsedUrl) => handleTopologyRoute(parsedUrl, req, res));
@@ -85,7 +89,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     if (match) {
         const appId = match[1] as string;
         // Exclude system api routes like login, register, servers etc.
-        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'topology', 'users', 'applications', 'netstore', 'dock'];
+        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'ssh-sessions', 'topology', 'users', 'applications', 'netstore', 'dock'];
         if (!systemRoutes.includes(appId)) {
             let userId = 'unknown';
             try {
