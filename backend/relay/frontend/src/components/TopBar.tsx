@@ -72,8 +72,8 @@ export default function TopBar({ target, setTarget, allowedTargets, username: _u
                     </Box>
 
                     {allowedTargets.length > 0 && (
-                        <Box className="topbar-target-selector">
-                            <Typography variant="caption" className="topbar-target-label">
+                        <Box className="topbar-target-wrapper">
+                            <Typography sx={{ fontSize: '0.8rem' }} className="topbar-target-label">
                                 Target:
                             </Typography>
                             <Select
