@@ -89,42 +89,12 @@ async function readLinuxNetDev(): Promise<{ interfaces: NetworkInterfaceStats[];
 
     return { interfaces, totalRx, totalTx };
   } catch {
-    // Dynamic fallback simulated data when /proc/net/dev is unavailable
-    const now = Date.now();
-    const timeDelta = Math.max((now - lastMockTimestamp) / 1000, 0.1);
-    lastMockTimestamp = now;
-
-    let totalRx = 0;
-    let totalTx = 0;
-
-    const interfaces: NetworkInterfaceStats[] = mockInterfacesState.map((iface) => {
-      const variance = (Math.random() - 0.5) * 0.4;
-      const rxSpeed = Math.max(100, Math.floor(iface.baseRxSpeed * (1 + variance)));
-      const txSpeed = Math.max(100, Math.floor(iface.baseTxSpeed * (1 + variance)));
-
-      const rxDelta = Math.floor(rxSpeed * timeDelta);
-      const txDelta = Math.floor(txSpeed * timeDelta);
-
-      iface.rxBytes += rxDelta;
-      iface.txBytes += txDelta;
-      iface.rxPackets += Math.max(1, Math.floor(rxDelta / 1200));
-      iface.txPackets += Math.max(1, Math.floor(txDelta / 1200));
-
-      totalRx += iface.rxBytes;
-      totalTx += iface.txBytes;
-
-      return {
-        name: iface.name,
-        rxBytes: iface.rxBytes,
-        txBytes: iface.txBytes,
-        rxPackets: iface.rxPackets,
-        txPackets: iface.txPackets,
-        rxSpeed,
-        txSpeed,
-      };
-    });
-
-    return { interfaces, totalRx, totalTx };
+    // Return empty/zero interface statistics when /proc/net/dev is unavailable
+    return {
+      interfaces: [],
+      totalRx: 0,
+      totalTx: 0
+    };
   }
 }
 

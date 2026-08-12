@@ -27,6 +27,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [isLive, setIsLive] = useState<boolean>(true);
   const [refreshRate, setRefreshRate] = useState<number>(1);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
 
   const [localStats, setLocalStats] = useState<LocalTrafficStats | null>(null);
   const [relayStats, setRelayStats] = useState<RelayTrafficStats | null>(null);
@@ -36,6 +37,8 @@ export default function App() {
   const fetchTelemetry = useCallback(async () => {
     let currentLocal: LocalTrafficStats | null = null;
     let currentRelay: RelayTrafficStats | null = null;
+    let localOk = false;
+    let relayOk = false;
 
     try {
       const resLocal = await fetch('/api/traffic-monitor/stats');
@@ -43,6 +46,7 @@ export default function App() {
         const data = await resLocal.json();
         if (data && typeof data.rxSpeed === 'number') {
           currentLocal = data;
+          localOk = true;
         } else {
           throw new Error('Invalid stats format');
         }
@@ -50,54 +54,26 @@ export default function App() {
         throw new Error(`HTTP ${resLocal.status}`);
       }
     } catch {
-      // Fallback telemetry measurements
+      // Offline fallback: set speeds to 0 and preserve static interface byte counters
       const now = Date.now();
-      const timeDelta = Math.max((now - lastFallbackTimestamp) / 1000, 0.1);
-      lastFallbackTimestamp = now;
-
-      const updatedInterfaces = fallbackInterfaces.map((iface) => {
-        const variance = (Math.random() - 0.5) * 0.3;
-        const rxSpeed = Math.max(1000, Math.floor(iface.baseRxSpeed * (1 + variance)));
-        const txSpeed = Math.max(1000, Math.floor(iface.baseTxSpeed * (1 + variance)));
-
-        const rxDelta = Math.floor(rxSpeed * timeDelta);
-        const txDelta = Math.floor(txSpeed * timeDelta);
-
-        iface.rxBytes += rxDelta;
-        iface.txBytes += txDelta;
-        iface.rxPackets += Math.max(1, Math.floor(rxDelta / 1400));
-        iface.txPackets += Math.max(1, Math.floor(txDelta / 1400));
-
-        return {
-          name: iface.name,
-          rxBytes: iface.rxBytes,
-          txBytes: iface.txBytes,
-          rxPackets: iface.rxPackets,
-          txPackets: iface.txPackets,
-          rxSpeed,
-          txSpeed,
-        };
-      });
-
-      let totalRxSpeed = 0;
-      let totalTxSpeed = 0;
-      let totalRxBytes = 0;
-      let totalTxBytes = 0;
-      for (const iface of updatedInterfaces) {
-        totalRxSpeed += iface.rxSpeed;
-        totalTxSpeed += iface.txSpeed;
-        totalRxBytes += iface.rxBytes;
-        totalTxBytes += iface.txBytes;
-      }
+      const updatedInterfaces = fallbackInterfaces.map((iface) => ({
+        name: iface.name,
+        rxBytes: iface.rxBytes,
+        txBytes: iface.txBytes,
+        rxPackets: iface.rxPackets,
+        txPackets: iface.txPackets,
+        rxSpeed: 0,
+        txSpeed: 0,
+      }));
 
       currentLocal = {
         timestamp: now,
-        totalRxBytes,
-        totalTxBytes,
-        rxSpeed: totalRxSpeed,
-        txSpeed: totalTxSpeed,
-        activeConnections: Math.floor(Math.random() * 12) + 4,
-        latencyMs: Math.floor(Math.random() * 6) + 2,
+        totalRxBytes: fallbackInterfaces.reduce((sum, i) => sum + i.rxBytes, 0),
+        totalTxBytes: fallbackInterfaces.reduce((sum, i) => sum + i.txBytes, 0),
+        rxSpeed: 0,
+        txSpeed: 0,
+        activeConnections: 0,
+        latencyMs: 0,
         interfaces: updatedInterfaces
       };
     }
@@ -109,6 +85,7 @@ export default function App() {
         const data = await resRelay.json();
         if (data && typeof data.rxSpeed === 'number') {
           currentRelay = data;
+          relayOk = true;
         } else {
           throw new Error('Invalid relay stats format');
         }
@@ -116,20 +93,23 @@ export default function App() {
         throw new Error(`HTTP ${resRelay.status}`);
       }
     } catch {
-      // Fallback relay telemetry measurements
+      // Offline fallback: set relay speeds and connections to 0
       currentRelay = {
         timestamp: Date.now(),
-        relayRxBytes: Math.floor(Math.random() * 100000000) + 100000000,
-        relayTxBytes: Math.floor(Math.random() * 70000000) + 50000000,
-        rxSpeed: Math.floor(Math.random() * 1000000) + 300000,
-        txSpeed: Math.floor(Math.random() * 700000) + 200000,
-        activeSockets: Math.floor(Math.random() * 10) + 3,
-        activeTunnels: 2,
-        latencyMs: Math.floor(Math.random() * 20) + 10,
-        uptimeSeconds: 3600
+        relayRxBytes: 0,
+        relayTxBytes: 0,
+        rxSpeed: 0,
+        txSpeed: 0,
+        activeSockets: 0,
+        activeTunnels: 0,
+        latencyMs: 0,
+        uptimeSeconds: 0
       };
     }
     setRelayStats(currentRelay);
+
+    // Update connection offline state
+    setIsOffline(!localOk && !relayOk);
 
     // Append to live history
     const now = new Date();
@@ -179,7 +159,7 @@ export default function App() {
 
   return (
     <div className="tm-container">
-      <Header activeTab={activeTab} setActiveTab={setActiveTab} isLive={isLive} />
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} isLive={isLive} isOffline={isOffline} />
 
       <ControlBar
         isLive={isLive}

@@ -175,6 +175,19 @@ body {
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+.tm-badge-offline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 .tm-pulse-dot {
   width: 7px;
   height: 7px;

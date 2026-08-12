@@ -5,10 +5,11 @@ interface HeaderProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   isLive: boolean;
+  isOffline?: boolean;
 }
 
 // Header navigation component
-export default function Header({ activeTab, setActiveTab, isLive }: HeaderProps) {
+export default function Header({ activeTab, setActiveTab, isLive, isOffline = false }: HeaderProps) {
   return (
     <div className="tm-header">
       <div className="tm-brand">
@@ -18,9 +19,9 @@ export default function Header({ activeTab, setActiveTab, isLive }: HeaderProps)
         <div className="tm-title-group">
           <div className="tm-title-row">
             <h1 className="tm-title">Traffic Monitor</h1>
-            <span className="tm-badge-live">
-              <span className={isLive ? "tm-pulse-dot" : ""} />
-              {isLive ? "LIVE" : "PAUSED"}
+            <span className={isOffline ? "tm-badge-offline" : "tm-badge-live"}>
+              <span className={!isOffline && isLive ? "tm-pulse-dot" : ""} />
+              {isOffline ? "OFFLINE" : isLive ? "LIVE" : "PAUSED"}
             </span>
           </div>
           <p className="tm-subtitle">Traffic monitor for Relay and Local Server.</p>
