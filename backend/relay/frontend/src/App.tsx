@@ -159,6 +159,13 @@ function App() {
   return (
     <ThemeProvider theme={getAppTheme('Dark')}>
       <CssBaseline />
+      <Box className="mobile-blocker">
+        <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>Mobile Not Supported</Typography>
+        <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>
+          Please use a desktop or tablet in landscape mode to access NetLink OS. Mobile support is coming soon.
+        </Typography>
+      </Box>
+      <Box className="app-content">
       {!token ? (
         <Box className="login-container">
 
@@ -299,6 +306,7 @@ function App() {
       ) : (
         <Desktop token={token} onLogout={handleLogout} target={target} setTarget={setTarget} allowedTargets={allowedTargets} />
       )}
+      </Box>
     </ThemeProvider>
   );
 }

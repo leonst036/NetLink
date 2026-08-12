@@ -11,6 +11,9 @@ interface WindowState {
     sftpWindows: SftpInstance[];
     dynamicWindows: DynamicAppInstance[];
     pinnedApps: PinnedApp[];
+    maximizedWindows: string[];
+
+    setMaximized: (id: string, isMaximized: boolean) => void;
 
     setActiveWindow: (id: string | null) => void;
     setGraphWindow: (state: Partial<WindowState['graphWindow']>) => void;
@@ -53,6 +56,18 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     sftpWindows: [],
     dynamicWindows: [],
     pinnedApps: [],
+    maximizedWindows: [],
+
+    setMaximized: (id, isMaximized) => set((state) => {
+        const currentlyMaximized = state.maximizedWindows.includes(id);
+        if (isMaximized && !currentlyMaximized) {
+            return { maximizedWindows: [...state.maximizedWindows, id] };
+        }
+        if (!isMaximized && currentlyMaximized) {
+            return { maximizedWindows: state.maximizedWindows.filter(w => w !== id) };
+        }
+        return state;
+    }),
 
     setActiveWindow: (id) => set({ activeWindow: id }),
 

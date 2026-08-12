@@ -382,3 +382,27 @@
   background-color: rgba(255,255,255,0.1);
   color: rgba(255,255,255,0.3);
 }
+
+.mobile-blocker {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-content {
+    display: none !important;
+  }
+  
+  .mobile-blocker {
+    display: flex !important;
+    position: fixed;
+    inset: 0;
+    background: #000;
+    color: white;
+    z-index: 999999;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    text-align: center;
+  }
+}

@@ -8,9 +8,11 @@
 .topbar-toolbar {
     justify-content: space-between;
     min-height: 32px !important;
+    height: 32px !important;
+    padding: 0 16px !important;
 }
 
-.topbar-left-section {
+.topbar-left {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -36,7 +38,7 @@
     padding-bottom: 0;
 }
 
-.topbar-right-section {
+.topbar-right {
     display: flex;
     align-items: center;
     gap: 16px;

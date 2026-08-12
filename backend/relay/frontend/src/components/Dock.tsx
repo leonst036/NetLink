@@ -8,11 +8,15 @@ import type { PinnedApp, DynamicAppInstance } from '../types';
 export default function Dock() {
     const {
         graphWindow, settingsWindow, storeWindow, activeWindow,
-        terminals, vncWindows, sftpWindows, dynamicWindows, pinnedApps,
+        terminals, vncWindows, sftpWindows, dynamicWindows, pinnedApps, maximizedWindows,
         setGraphWindow, setSettingsWindow, setStoreWindow, bringToFront,
         openTerminal, openSftp, openVnc, openDynamicApp, closeDynamicApp,
         pinApp, unpinApp, isPinned
     } = useWindowStore();
+
+    const [isHovered, setIsHovered] = useState(false);
+    const hasMaximized = maximizedWindows.length > 0;
+    const isHidden = hasMaximized && !isHovered;
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState<{
@@ -151,7 +155,19 @@ export default function Dock() {
         unpinnedRunningApps.length > 0;
 
     return (
-        <Paper className="dock-container" elevation={16}>
+        <>
+            {hasMaximized && (
+                <Box 
+                    className="dock-trigger" 
+                    onMouseEnter={() => setIsHovered(true)} 
+                />
+            )}
+            <Paper 
+                className={`dock-container ${isHidden ? 'dock-hidden' : ''}`} 
+                elevation={16}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+            >
             <DockIcon
                 icon={<Network size={24} color="#38bdf8" />}
                 label="Topology Explorer"
@@ -340,7 +356,8 @@ export default function Dock() {
                     </>
                 )}
             </Menu>
-        </Paper>
+            </Paper>
+        </>
     );
 }
 
