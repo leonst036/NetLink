@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TrafficHistoryPoint } from '../types';
 
 interface TrafficChartProps {
@@ -19,6 +19,18 @@ export function formatSpeed(bytesPerSec?: number): string {
 export default function TrafficChart({ history = [], showLocal = true, showRelay = true }: TrafficChartProps) {
   const safeHistory = Array.isArray(history) ? history : [];
 
+  // Toggle visibility state for each metric line
+  const [visibleLines, setVisibleLines] = useState({
+    localRx: true,
+    localTx: true,
+    relayRx: true,
+    relayTx: true,
+  });
+
+  const toggleLine = (line: keyof typeof visibleLines) => {
+    setVisibleLines((prev) => ({ ...prev, [line]: !prev[line] }));
+  };
+
   if (safeHistory.length === 0) {
     return (
       <div className="tm-glass-card" style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--tm-text-muted)', fontSize: '0.85rem' }}>
@@ -27,14 +39,16 @@ export default function TrafficChart({ history = [], showLocal = true, showRelay
     );
   }
 
-  // Calculate maximum value for chart scaling
+  // Calculate maximum value for chart scaling based on visible lines
   let maxSpeed = 1000;
   for (const p of safeHistory) {
     if (showLocal) {
-      maxSpeed = Math.max(maxSpeed, p.localRxSpeed || 0, p.localTxSpeed || 0);
+      if (visibleLines.localRx) maxSpeed = Math.max(maxSpeed, p.localRxSpeed || 0);
+      if (visibleLines.localTx) maxSpeed = Math.max(maxSpeed, p.localTxSpeed || 0);
     }
     if (showRelay) {
-      maxSpeed = Math.max(maxSpeed, p.relayRxSpeed || 0, p.relayTxSpeed || 0);
+      if (visibleLines.relayRx) maxSpeed = Math.max(maxSpeed, p.relayRxSpeed || 0);
+      if (visibleLines.relayTx) maxSpeed = Math.max(maxSpeed, p.relayTxSpeed || 0);
     }
   }
 
@@ -70,11 +84,19 @@ export default function TrafficChart({ history = [], showLocal = true, showRelay
         <div className="tm-legend">
           {showLocal && (
             <>
-              <div className="tm-legend-item">
+              <div
+                className={`tm-legend-item ${!visibleLines.localRx ? 'hidden' : ''}`}
+                onClick={() => toggleLine('localRx')}
+                title="Toggle Local RX line"
+              >
                 <span className="tm-legend-dot" style={{ background: 'var(--tm-emerald)' }} />
                 <span>Local RX</span>
               </div>
-              <div className="tm-legend-item">
+              <div
+                className={`tm-legend-item ${!visibleLines.localTx ? 'hidden' : ''}`}
+                onClick={() => toggleLine('localTx')}
+                title="Toggle Local TX line"
+              >
                 <span className="tm-legend-dot" style={{ background: 'var(--tm-cyan)' }} />
                 <span>Local TX</span>
               </div>
@@ -83,11 +105,19 @@ export default function TrafficChart({ history = [], showLocal = true, showRelay
 
           {showRelay && (
             <>
-              <div className="tm-legend-item">
+              <div
+                className={`tm-legend-item ${!visibleLines.relayRx ? 'hidden' : ''}`}
+                onClick={() => toggleLine('relayRx')}
+                title="Toggle Relay RX line"
+              >
                 <span className="tm-legend-dot" style={{ background: 'var(--tm-indigo)' }} />
                 <span>Relay RX</span>
               </div>
-              <div className="tm-legend-item">
+              <div
+                className={`tm-legend-item ${!visibleLines.relayTx ? 'hidden' : ''}`}
+                onClick={() => toggleLine('relayTx')}
+                title="Toggle Relay TX line"
+              >
                 <span className="tm-legend-dot" style={{ background: 'var(--tm-amber)' }} />
                 <span>Relay TX</span>
               </div>
@@ -127,15 +157,23 @@ export default function TrafficChart({ history = [], showLocal = true, showRelay
 
           {showLocal && (
             <>
-              <path d={localRxPath} fill="none" stroke="var(--tm-emerald)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d={localTxPath} fill="none" stroke="var(--tm-cyan)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              {visibleLines.localRx && (
+                <path d={localRxPath} fill="none" stroke="var(--tm-emerald)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              )}
+              {visibleLines.localTx && (
+                <path d={localTxPath} fill="none" stroke="var(--tm-cyan)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              )}
             </>
           )}
 
           {showRelay && (
             <>
-              <path d={relayRxPath} fill="none" stroke="var(--tm-indigo)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d={relayTxPath} fill="none" stroke="var(--tm-amber)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              {visibleLines.relayRx && (
+                <path d={relayRxPath} fill="none" stroke="var(--tm-indigo)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              )}
+              {visibleLines.relayTx && (
+                <path d={relayTxPath} fill="none" stroke="var(--tm-amber)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              )}
             </>
           )}
         </svg>
@@ -143,3 +181,4 @@ export default function TrafficChart({ history = [], showLocal = true, showRelay
     </div>
   );
 }
+

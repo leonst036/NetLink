@@ -23,7 +23,7 @@ export default function Header({ activeTab, setActiveTab, isLive }: HeaderProps)
               {isLive ? "LIVE" : "PAUSED"}
             </span>
           </div>
-          <p className="tm-subtitle">Real-time bandwidth & network telemetry for Edge Server & Relay</p>
+          <p className="tm-subtitle">Traffic monitor for Relay and Local Server.</p>
         </div>
       </div>
 

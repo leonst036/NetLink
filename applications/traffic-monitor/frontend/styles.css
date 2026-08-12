@@ -396,6 +396,18 @@ body {
   align-items: center;
   gap: 6px;
   color: var(--tm-text-body);
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.tm-legend-item:hover {
+  opacity: 0.8;
+}
+
+.tm-legend-item.hidden {
+  opacity: 0.35;
+  text-decoration: line-through;
 }
 
 .tm-legend-dot {
