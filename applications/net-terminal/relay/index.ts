@@ -1,5 +1,5 @@
 const port = parseInt(Deno.env.get("PORT") || "8000");
-const dataFile = "./ssh-sessions.json";
+const dataFile = new URL('.', import.meta.url).pathname + "ssh-sessions.json";
 
 // Helper to read data
 async function readSessions() {

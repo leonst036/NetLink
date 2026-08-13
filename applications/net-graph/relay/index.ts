@@ -1,5 +1,5 @@
 const port = parseInt(Deno.env.get("PORT") || "8000");
-const dataFile = "./topology.json";
+const dataFile = new URL('.', import.meta.url).pathname + "topology.json";
 
 async function readTopology() {
     try {
