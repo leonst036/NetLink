@@ -1,32 +1,32 @@
 /* ==========================================================================
-   Docker Engine V2 - Stitch Modern Dark Glassmorphism UI
+   Docker Engine V2 - NetStore Premium Modern Dark Glassmorphism UI
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
 :root {
-  /* Color Tokens matching Stitch Material Dark Theme */
-  --dm-bg: #051424;
-  --dm-surface-low: #0d1c2d;
-  --dm-surface-container: #122131;
-  --dm-surface-high: #1c2b3c;
-  --dm-surface-highest: #273647;
+  /* Color Tokens matching NetStore Theme */
+  --dm-bg: #030712;
+  --dm-surface-low: #0f172a;
+  --dm-surface-container: rgba(15, 23, 42, 0.75);
+  --dm-surface-high: rgba(30, 41, 59, 0.8);
+  --dm-surface-highest: rgba(51, 65, 85, 0.8);
   
-  --dm-primary-container: #00f2ff;
-  --dm-on-primary: #00363a;
-  --dm-on-surface: #d4e4fa;
-  --dm-on-surface-variant: #b9cacb;
-  --dm-outline: #3a494b;
+  --dm-primary-container: #06b6d4;
+  --dm-on-primary: #030712;
+  --dm-on-surface: #f8fafc;
+  --dm-on-surface-variant: #cbd5e1;
+  --dm-outline: rgba(255, 255, 255, 0.08);
 
   --dm-emerald: #10b981;
-  --dm-emerald-glow: rgba(16, 185, 129, 0.4);
+  --dm-emerald-glow: rgba(16, 185, 129, 0.25);
   --dm-rose: #f43f5e;
-  --dm-rose-glow: rgba(244, 63, 94, 0.4);
-  --dm-amber: #eab308;
+  --dm-rose-glow: rgba(244, 63, 94, 0.25);
+  --dm-amber: #f59e0b;
 
-  --dm-font-heading: 'Geist', 'Inter', sans-serif;
-  --dm-font-body: 'Inter', sans-serif;
+  --dm-font-heading: 'Inter', system-ui, -apple-system, sans-serif;
+  --dm-font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --dm-font-mono: 'JetBrains Mono', monospace;
 }
 
@@ -68,14 +68,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(3, 10, 20, 0.6);
+  background: rgba(3, 7, 18, 0.8);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 242, 255, 0.4);
+  background: rgba(6, 182, 212, 0.25);
 }
 
 /* Login Panel Layout */
@@ -87,7 +87,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: radial-gradient(circle at 50% 10%, #0d233a 0%, #051424 50%, #030a14 100%);
+  background: radial-gradient(circle at 50% 0%, #0f172a 0%, #030712 70%);
   color: var(--dm-on-surface);
   font-family: var(--dm-font-body);
 }
@@ -96,12 +96,12 @@ body {
   width: 100%;
   max-width: 440px;
   padding: 36px;
-  background: rgba(13, 28, 45, 0.75);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 20px;
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 242, 255, 0.15);
+  background: var(--dm-surface-container);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--dm-outline);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .dm-login-header {
@@ -291,7 +291,7 @@ body {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background: #051424;
+  background: var(--dm-bg);
 }
 
 /* Top Navigation Bar */
@@ -306,10 +306,10 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: rgba(5, 20, 36, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--dm-surface-container);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--dm-outline);
 }
 
 .stitch-brand {
@@ -384,10 +384,10 @@ body {
   display: flex;
   flex-direction: column;
   padding: 20px 16px;
-  background: rgba(5, 20, 36, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--dm-surface-container);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-right: 1px solid var(--dm-outline);
   z-index: 40;
 }
 

@@ -1,0 +1,198 @@
+.root-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  background-color: transparent;
+}
+
+.sidebar-container {
+  width: 320px !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background-color: rgba(15, 23, 42, 0.6) !important; /* bg-slate-900/60 */
+  backdrop-filter: blur(12px) !important;
+  border-radius: 0 !important;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #f8fafc; /* text-slate-100 */
+}
+
+.device-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* Scrollbar styles for device list */
+.device-list::-webkit-scrollbar {
+  width: 6px;
+}
+.device-list::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.device-paper {
+  padding: 12px !important;
+  margin-bottom: 12px !important;
+  background-color: rgba(30, 41, 59, 0.5) !important; /* bg-slate-800/50 */
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.device-paper:hover {
+  background-color: rgba(30, 41, 59, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.device-hostname {
+  display: block;
+  margin-bottom: 12px;
+  color: #cbd5e1 !important; /* text-slate-300 */
+}
+
+.edit-actions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.quick-connect-container {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quick-connect-button {
+  flex: 1;
+  min-width: 0;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #cbd5e1 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.quick-connect-button:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #f8fafc !important;
+}
+
+.no-devices-text {
+  margin-top: 32px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.graph-area {
+  flex: 1;
+  position: relative;
+}
+
+.toolbar-container {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.info-paper {
+  padding: 8px 16px !important;
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  color: #f8fafc !important;
+}
+
+.loading-container {
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+  color: #38bdf8;
+}
+
+.styled-dialog .MuiDialog-paper {
+  background-color: #020617 !important; /* slate-950 */
+  background-image: none;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  min-width: 320px;
+  border-radius: 16px !important;
+}
+
+.styled-dialog-title {
+  padding-bottom: 8px;
+  color: #f8fafc;
+}
+
+.styled-dialog-content {
+  padding-bottom: 16px;
+  color: #cbd5e1;
+}
+
+.dialog-text {
+  margin-bottom: 16px;
+}
+
+.dialog-actions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-nat {
+  background: #7c2d12 !important;
+  color: #fdba74 !important;
+  border: 2px solid #ea580c !important;
+  border-radius: 8px !important;
+  padding: 15px !important;
+  font-weight: bold !important;
+}
+
+.node-relay {
+  background: #0f172a !important;
+  color: #38bdf8 !important;
+  border: 2px solid #38bdf8 !important;
+  border-radius: 8px !important;
+  padding: 15px !important;
+}
+
+.node-device {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid #475569 !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+}
+
+.node-switch {
+  background: #020617 !important;
+  color: #a78bfa !important;
+  border: 2px dashed #8b5cf6 !important;
+  border-radius: 50% !important;
+  width: 80px !important;
+  height: 80px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  font-size: 0.8rem !important;
+}
