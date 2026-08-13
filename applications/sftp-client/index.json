@@ -1,0 +1,6 @@
+{
+  "name": "sftp-client",
+  "version": "1.0.0",
+  "description": "SFTP File Manager",
+  "entrypoint": "frontend/dist/index.html"
+}

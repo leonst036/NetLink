@@ -1,0 +1,6 @@
+{
+  "name": "vnc-viewer",
+  "version": "1.0.0",
+  "description": "VNC Remote Desktop Client",
+  "entrypoint": "frontend/dist/index.html"
+}
