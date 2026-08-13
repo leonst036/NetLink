@@ -2,5 +2,9 @@
   "name": "net-graph",
   "version": "1.0.0",
   "description": "Network Topology Graph",
-  "entrypoint": "frontend/dist/index.html"
+  "entrypoint": "frontend/dist/index.html",
+  "requestedPermissions": {
+    "allowRead": true,
+    "allowWrite": true
+  }
 }

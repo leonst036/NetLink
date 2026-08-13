@@ -2,5 +2,9 @@
   "name": "net-terminal",
   "version": "1.0.0",
   "description": "Remote SSH Terminal",
-  "entrypoint": "frontend/dist/index.html"
+  "entrypoint": "frontend/dist/index.html",
+  "requestedPermissions": {
+    "allowRead": true,
+    "allowWrite": true
+  }
 }
