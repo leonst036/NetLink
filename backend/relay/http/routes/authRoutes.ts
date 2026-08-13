@@ -2,8 +2,8 @@ import http from 'http';
 import { URL } from 'url';
 import { getMongoClient, RegisterUser, StoreToken } from '../../database/MongoManager.js';
 import { controlConnections } from '../../websocket/connectionManager.js';
-import { GenerateToken } from '../../auth/tokenManager.js';
-
+import { GenerateToken, VerifyToken } from '../../auth/tokenManager.js';
+import { generateTicket } from '../../auth/ticketManager.js';
 export async function handleRegisterRoute(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     if (req.method === 'OPTIONS') {
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -66,4 +66,60 @@ export async function handleValidateTargetRoute(parsedUrl: URL, req: http.Incomi
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ valid: true, token }));
+}
+
+export async function handleTicketRoute(req: http.IncomingMessage, res: http.ServerResponse, parsedUrl: URL): Promise<void> {
+    if (req.method !== 'POST') {
+        res.writeHead(405, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Method not allowed' }));
+        return;
+    }
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    const authHeader = req.headers.authorization;
+    let token = '';
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1] || '';
+    } else {
+        const cookieHeader = req.headers.cookie || '';
+        const matchToken = cookieHeader.match(/netlink_token=([^;]+)/);
+        if (matchToken) {
+            token = matchToken[1] || '';
+        }
+    }
+
+    if (!token) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
+    }
+
+    try {
+        const decoded: any = await VerifyToken(token, process.env.JWT_SECRET || 'default_secret');
+        if (!decoded || !decoded.userId) {
+            throw new Error('Invalid token payload');
+        }
+
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', () => {
+            try {
+                const parsedBody = body ? JSON.parse(body) : {};
+                const target = parsedBody.target || parsedUrl.searchParams.get('target') || '';
+                
+                const ticket = generateTicket(decoded.userId, target);
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, ticket }));
+            } catch (err: any) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Bad request' }));
+            }
+        });
+    } catch (err: any) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized', details: err.message }));
+    }
 }

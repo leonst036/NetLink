@@ -102,9 +102,9 @@ export function handleStaticFileRoute(pathname: string, res: http.ServerResponse
 }
 
 export function handleAppFrontendRoute(pathname: string, res: http.ServerResponse): void {
-    // pathname like /apps/{userId}/{appId}/frontend/...
+    // pathname like /apps/{userId}/{appId}/frontend/... or /apps/{userId}/{appId}/...
     const parts = pathname.split('/');
-    if (parts.length < 5 || parts[1] !== 'apps' || parts[4] !== 'frontend') {
+    if (parts.length < 4 || parts[1] !== 'apps') {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not Found');
         return;
@@ -112,12 +112,40 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     
     const userId = parts[2] as string;
     const appId = parts[3] as string;
-    const subPath = parts.slice(5).join('/');
+    
+    // Extract subpath relative to app frontend
+    let subPath = '';
+    if (parts.length >= 5 && parts[4] === 'frontend') {
+        subPath = parts.slice(5).join('/');
+    } else {
+        subPath = parts.slice(4).join('/');
+    }
     
     // Relay apps directory is at ../../NetStore/Applications relative to the src/dist/http/routes root
     const RELAY_APPS_DIR = path.join(__dirname, '..', '..', 'NetStore', 'Applications');
     const safeSuffix = path.normalize(subPath).replace(/^(\.\.[\/\\])+/, '');
     let filePath = path.join(RELAY_APPS_DIR, userId, appId, 'frontend', safeSuffix);
+
+    // Prioritize fresh files from local dev workspace NetLink-NetStore if available
+    const localDevCandidates = [
+        path.join(__dirname, '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', safeSuffix),
+        path.join(__dirname, '..', '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', safeSuffix),
+        path.join(process.cwd(), '..', 'NetLink-NetStore', 'applications', appId, 'frontend', safeSuffix)
+    ];
+    for (const cand of localDevCandidates) {
+        if (fs.existsSync(cand)) {
+            filePath = cand;
+            break;
+        }
+    }
+
+    // Fallback if dist/index.html was requested but frontend/index.html exists directly
+    if (!fs.existsSync(filePath) && (safeSuffix === 'dist/index.html' || safeSuffix.startsWith('dist/'))) {
+        const fallbackPath = path.join(RELAY_APPS_DIR, userId, appId, 'frontend', safeSuffix.replace(/^dist[\/\\]/, ''));
+        if (fs.existsSync(fallbackPath)) {
+            filePath = fallbackPath;
+        }
+    }
 
     if (!fs.existsSync(filePath)) {
         if (fs.existsSync(filePath + '.tsx')) {
@@ -139,6 +167,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     } catch (e) {
         // Fallback or ignore, handle in fs.readFile
     }
+    console.log(`[staticRoutes] Trying to read file: ${filePath}`);
 
     // Dynamic React Support
     if (path.basename(filePath) === 'index.html' && !fs.existsSync(filePath)) {
@@ -147,6 +176,14 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
             try {
                 const indexData = JSON.parse(fs.readFileSync(indexJsonPath, 'utf-8'));
                 if (indexData.main && (indexData.main.endsWith('.tsx') || indexData.main.endsWith('.jsx'))) {
+                    // Ensure main path starts with frontend/ for static app route matching
+                    const cleanMain = indexData.main.startsWith('frontend/') 
+                        ? indexData.main 
+                        : 'frontend/' + indexData.main;
+                    const mainScriptPath = indexData.main.startsWith('/') 
+                        ? indexData.main 
+                        : `/apps/${userId}/${appId}/${cleanMain}`;
+
                     const shell = `<!DOCTYPE html>
 <html>
 <head>
@@ -170,18 +207,26 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
   <script type="module">
     import React from 'react';
     import { createRoot } from 'react-dom/client';
-    import App from '/apps/${userId}/${appId}/frontend/${indexData.main}';
     
-    const renderApp = (Component) => {
-        const root = createRoot(document.getElementById('root'));
-        root.render(React.createElement(Component, { token: localStorage.getItem('netlink_token') }));
-    };
+    const mainScriptPath = '${mainScriptPath}';
     
-    if (App instanceof Promise) {
-        App.then(m => renderApp(m.default || m));
-    } else {
-        renderApp(App);
-    }
+    // Dynamically import the main file
+    import(mainScriptPath).then(m => {
+        const renderApp = (Component) => {
+            const root = createRoot(document.getElementById('root'));
+            root.render(React.createElement(Component, { token: localStorage.getItem('netlink_token') }));
+        };
+        
+        const App = m.default || m;
+        if (App instanceof Promise) {
+            App.then(appModule => renderApp(appModule.default || appModule));
+        } else {
+            renderApp(App);
+        }
+    }).catch(err => {
+        console.error('Failed to load application entrypoint:', err);
+        document.getElementById('root').innerHTML = '<div style="color:red;padding:20px;">Failed to load application entrypoint</div>';
+    });
   </script>
 </body>
 </html>`;
@@ -258,6 +303,19 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
                 let fileContent = content.toString('utf-8');
                 // Backwards compatibility for old absolute paths in apps
                 fileContent = fileContent.replace(new RegExp(`/apps/${appId}/`, 'g'), `/apps/${userId}/${appId}/`);
+                if (ext === '.html') {
+                    fileContent = fileContent.replace(/="\/assets\//g, '="./assets/');
+                    
+                    // Inject global netlink.css for glassmorphism and tailwind classes
+                    if (!fileContent.includes('href="/netlink.css"')) {
+                        fileContent = fileContent.replace('</head>', '  <link rel="stylesheet" href="/netlink.css">\n</head>');
+                    }
+                    
+                    // Inject background glows for the standard NetLink aesthetic
+                    if (!fileContent.includes('class="bg-glow"')) {
+                        fileContent = fileContent.replace('<div id="root">', '<div class="bg-glow"></div>\n  <div class="bg-glow-2"></div>\n  <div id="root">');
+                    }
+                }
                 res.writeHead(200, { 'Content-Type': contentType, ...noCacheHeaders });
                 res.end(fileContent, 'utf-8');
             } else {

@@ -10,7 +10,7 @@ export function getGitHubHeaders(customToken?: string): Record<string, string> {
 }
 
 async function getGitHubApplicationsVersion(branch: string = 'NetStore', customToken?: string) {
-    const url = `https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/${branch}/applications/version.json`;
+    const url = `https://raw.githubusercontent.com/leonst036/NetLink-NetStore/refs/heads/${branch}/applications/version.json`;
     const response = await fetch(url, { headers: getGitHubHeaders(customToken) });
     if (!response.ok) {
         throw new Error(`Failed to fetch applications version for branch ${branch}`);
@@ -20,7 +20,7 @@ async function getGitHubApplicationsVersion(branch: string = 'NetStore', customT
 }
 
 export async function getGitHubApplicationsList(branch: string = 'NetStore', customToken?: string) {
-    const url = `https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/${branch}/applications/applications.json`;
+    const url = `https://raw.githubusercontent.com/leonst036/NetLink-NetStore/refs/heads/${branch}/applications/applications.json`;
     const response = await fetch(url, { headers: getGitHubHeaders(customToken) });
     if (!response.ok) {
         throw new Error(`Failed to fetch applications list for branch ${branch}`);

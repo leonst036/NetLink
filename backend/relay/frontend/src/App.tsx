@@ -99,7 +99,13 @@ function App() {
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       const response = await originalFetch(...args);
-      if (response.status === 401) {
+      
+      let url = '';
+      if (typeof args[0] === 'string') url = args[0];
+      else if (args[0] instanceof Request) url = args[0].url;
+      else if (args[0] instanceof URL) url = args[0].href;
+      
+      if (response.status === 401 && !url.includes('github.com')) {
         console.warn('HTTP 401 Unauthorized detected. Dispatching auth expired event.');
         window.dispatchEvent(new CustomEvent('netlink_auth_expired'));
       }

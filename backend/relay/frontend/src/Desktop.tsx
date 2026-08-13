@@ -3,22 +3,15 @@ import Window from './Window';
 import TopBar from './components/TopBar';
 import Dock from './components/Dock';
 import GeminiLoader from './components/GeminiLoader';
-import { Terminal, Network, Monitor, Folder, Settings, StoreIcon } from 'lucide-react';
+import DynamicAppLoader from './components/DynamicAppLoader';
+import { StoreIcon } from 'lucide-react';
 import { Box, Alert } from '@mui/material';
 import PermissionModal from './components/PermissionModal';
 import './Desktop.css';
 import { useWindowStore } from './store/useWindowStore';
 import { useNotificationStore } from './store/useNotificationStore';
-import { fetchServers as apiFetchServers } from './api/network';
-import { parseJwt } from './utils/cookieUtils';
-import type { ServerDevice } from './types';
 
 // Lazy loaded desktop applications for optimal code-splitting and small initial bundle size
-const TerminalApp = lazy(() => import('./apps/terminal/TerminalApp'));
-const NetworkGraph = lazy(() => import('./apps/network-graph/NetworkGraph'));
-const VncApp = lazy(() => import('./apps/vnc/VncApp'));
-const FileApp = lazy(() => import('./apps/file-manager/FileApp'));
-const SettingsApp = lazy(() => import('./apps/settings/SettingsApp'));
 const NetStoreApp = lazy(() => import('./apps/net-store/NetStoreApp'));
 
 interface DesktopProps {
@@ -30,9 +23,6 @@ interface DesktopProps {
 }
 
 export default function Desktop({ token, onLogout, target, setTarget, allowedTargets }: DesktopProps) {
-    const [servers, setServers] = useState<ServerDevice[]>([]);
-    const [isScanning, setIsScanning] = useState(false);
-    
     // Permission state
     const [permissionRequests, setPermissionRequests] = useState<any[]>([]);
     const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
@@ -54,19 +44,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         theme: localStorage.getItem('netlink_theme') || 'Dark',
     });
 
-    const [appReloadKeys, setAppReloadKeys] = useState<Record<string, number>>({});
-
-    useEffect(() => {
-        const handleAppsUpdated = (e: any) => {
-            const appId = e.detail?.appId;
-            if (appId) {
-                setAppReloadKeys(prev => ({ ...prev, [appId]: (prev[appId] || 0) + 1 }));
-            }
-        };
-        window.addEventListener('netlink_apps_updated', handleAppsUpdated);
-        return () => window.removeEventListener('netlink_apps_updated', handleAppsUpdated);
-    }, []);
-
     useEffect(() => {
         const handleSettingsChange = () => {
             try {
@@ -83,6 +60,19 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         return () => window.removeEventListener('settingsChange', handleSettingsChange);
     }, []);
 
+    useEffect(() => {
+        const handleIframeMessage = (e: MessageEvent) => {
+            if (e.data && e.data.type === 'open_app') {
+                const { appId, title, extraParams } = e.data;
+                if (appId) {
+                    useWindowStore.getState().openDynamicApp(appId, title || appId, extraParams);
+                }
+            }
+        };
+        window.addEventListener('message', handleIframeMessage);
+        return () => window.removeEventListener('message', handleIframeMessage);
+    }, []);
+
     const getBackgroundStyle = () => {
         switch (settings.wallpaper) {
             case 'wp1': return 'linear-gradient(135deg, #0f172a 0%, #020617 100%)';
@@ -94,27 +84,13 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     };
 
     // Window states
-    const { activeWindow, graphWindow, settingsWindow, storeWindow, terminals, vncWindows, sftpWindows, dynamicWindows, setGraphWindow, setSettingsWindow, setStoreWindow, openTerminal, openVnc, openSftp, bringToFront, closeTerminal, closeVnc, closeSftp, minimizeTerminal, minimizeVnc, minimizeSftp, closeDynamicApp, minimizeDynamicApp, fetchDockConfig } = useWindowStore();
+    const { activeWindow, storeWindow, dynamicWindows, setStoreWindow, bringToFront, closeDynamicApp, minimizeDynamicApp, fetchDockConfig } = useWindowStore();
 
     useEffect(() => {
         fetchDockConfig();
     }, [fetchDockConfig]);
 
-    const fetchServers = async () => {
-        setIsScanning(true);
-        try {
-            const devices = await apiFetchServers(target);
-            setServers(devices);
-        } catch (err) {
-            console.error('Failed to fetch servers', err);
-        } finally {
-            setIsScanning(false);
-        }
-    };
-
     useEffect(() => {
-        fetchServers();
-
         const isSecure = window.location.protocol === 'https:';
         const protocol = isSecure ? 'wss:' : 'ws:';
         let host = window.location.host;
@@ -134,12 +110,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                if (data.type === 'scanning') {
-                    setIsScanning(true);
-                } else if (data.type === 'server_list' && data.devices) {
-                    setServers(data.devices);
-                    setIsScanning(false);
-                } else if (data.type === 'permission_request') {
+                if (data.type === 'permission_request') {
                     setPermissionRequests(prev => [...prev, data]);
                 }
             } catch (err) {
@@ -212,57 +183,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                 className="windows-area"
                 sx={{ filter: settings.theme === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : settings.theme === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none' }}
             >
-                {graphWindow.isOpen && (
-                    <Window
-                        id="graph"
-                        title="Network Topology Explorer"
-                        icon={<Network size={14} color="#38bdf8" />}
-                        isActive={activeWindow === 'graph'}
-                        isMinimized={graphWindow.isMinimized}
-                        onMinimize={() => setGraphWindow({ isMinimized: true })}
-                        onFocus={() => bringToFront('graph')}
-                        onClose={() => setGraphWindow({ isOpen: false })}
-                        defaultPosition={{ x: 50, y: 50 }}
-                        defaultSize={{ width: 900, height: 600 }}
-                    >
-                        <Box className="topology-explorer-container">
-                            <Box className="graph-area">
-                                <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
-                                    <NetworkGraph
-                                        servers={servers}
-                                        onNodeClick={(ip: string) => openTerminal(ip)}
-                                        onVncClick={(ip: string) => openVnc(ip)}
-                                        onSftpClick={(ip: string) => openSftp(ip)}
-                                        token={token}
-                                        target={target}
-                                        isScanning={isScanning}
-                                        onScanClick={fetchServers}
-                                    />
-                                </Suspense>
-                            </Box>
-                        </Box>
-                    </Window>
-                )}
-
-                {settingsWindow.isOpen && (
-                    <Window
-                        id="settings"
-                        title="System Settings"
-                        icon={<Settings size={14} color="#94a3b8" />}
-                        isActive={activeWindow === 'settings'}
-                        isMinimized={settingsWindow.isMinimized}
-                        onMinimize={() => setSettingsWindow({ isMinimized: true })}
-                        onFocus={() => bringToFront('settings')}
-                        onClose={() => setSettingsWindow({ isOpen: false })}
-                        defaultPosition={{ x: 100, y: 100 }}
-                        defaultSize={{ width: 840, height: 600 }}
-                    >
-                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
-                            <SettingsApp token={token} />
-                        </Suspense>
-                    </Window>
-                )}
-
                 {storeWindow.isOpen && (
                     <Window
                         id="store"
@@ -282,81 +202,10 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     </Window>
                 )}
 
-                {terminals.map(term => (
-                    <Window
-                        key={term.id}
-                        id={term.id}
-                        title={`NetLink Terminal - ${term.ip || 'Localhost'}`}
-                        icon={<Terminal size={14} color="#a78bfa" />}
-                        isActive={activeWindow === term.id}
-                        isMinimized={term.isMinimized}
-                        onMinimize={() => minimizeTerminal(term.id, true)}
-                        onFocus={() => bringToFront(term.id)}
-                        onClose={() => closeTerminal(term.id)}
-                        defaultPosition={{ x: 150, y: 150 }}
-                        defaultSize={{ width: 800, height: 500 }}
-                    >
-                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
-                            <TerminalApp token={token} target={target} initialIp={term.ip} />
-                        </Suspense>
-                    </Window>
-                ))}
-
-                {vncWindows.map(vnc => (
-                    <Window
-                        key={vnc.id}
-                        id={vnc.id}
-                        title={`NetLink VNC - ${vnc.ip}`}
-                        icon={<Monitor size={14} color="#10b981" />}
-                        isActive={activeWindow === vnc.id}
-                        isMinimized={vnc.isMinimized}
-                        onMinimize={() => minimizeVnc(vnc.id, true)}
-                        onFocus={() => bringToFront(vnc.id)}
-                        onClose={() => closeVnc(vnc.id)}
-                        defaultPosition={{ x: 200, y: 200 }}
-                        defaultSize={{ width: 800, height: 600 }}
-                    >
-                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
-                            <VncApp token={token} target={target} initialIp={vnc.ip} />
-                        </Suspense>
-                    </Window>
-                ))}
-
-                {sftpWindows.map(sftp => (
-                    <Window
-                        key={sftp.id}
-                        id={sftp.id}
-                        title={`NetLink File Client ${sftp.ip ? `- ${sftp.ip}` : ''}`}
-                        icon={<Folder size={14} color="#fb923c" />}
-                        isActive={activeWindow === sftp.id}
-                        isMinimized={sftp.isMinimized}
-                        onMinimize={() => minimizeSftp(sftp.id, true)}
-                        onFocus={() => bringToFront(sftp.id)}
-                        onClose={() => closeSftp(sftp.id)}
-                        defaultPosition={{ x: 250, y: 250 }}
-                        defaultSize={{ width: 800, height: 500 }}
-                    >
-                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
-                            <FileApp token={token} target={target} initialIp={sftp.ip} />
-                        </Suspense>
-                    </Window>
-                ))}
-
                 {dynamicWindows.map(dyn => {
-                    const isSecure = window.location.protocol === 'https:';
-                    const protocol = isSecure ? 'https:' : 'http:';
-                    let host = window.location.host;
-                    if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535';
-                    const reloadKey = appReloadKeys[dyn.appId] || 0;
-                    
-                    let userId = 'unknown';
-                    try {
-                        if (token) {
-                            const payload = parseJwt(token);
-                            userId = payload?.userId || 'unknown';
-                        }
-                    } catch(e) {}
-                    
+                    const builtInApps = ['net-graph', 'net-terminal', 'sftp-client', 'sys-settings', 'vnc-viewer'];
+                    const isBuiltIn = builtInApps.includes(dyn.appId);
+
                     return (
                     <Window
                         key={dyn.id}
@@ -371,14 +220,15 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultPosition={{ x: 300, y: 150 }}
                         defaultSize={{ width: 800, height: 600 }}
                     >
-                        <Box sx={{ width: '100%', height: '100%', background: '#fff' }}>
-                            <iframe 
-                                src={`${protocol}//${host}/apps/${userId}/${dyn.appId}/frontend/index.html?t=${reloadKey}`}
-                                style={{ width: '100%', height: '100%', border: 'none' }}
-                                title={dyn.title}
-                                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
+                            <DynamicAppLoader 
+                                appId={dyn.appId} 
+                                token={token} 
+                                target={target} 
+                                isBuiltIn={isBuiltIn}
+                                extraParams={dyn.extraParams}
                             />
-                        </Box>
+                        </Suspense>
                     </Window>
                 )})}
             </Box>

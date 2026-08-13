@@ -74,8 +74,29 @@ export async function handleInstallApplicationRoute(parsedUrl: URL, req: http.In
                     runInBackground: Boolean(runInBackground)
                 }));
 
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, message: 'Installation command sent' }));
+                const requestHandler = (msg: string) => {
+                    try {
+                        const data = JSON.parse(msg);
+                        if (data.type === 'install_success' && data.appId === appId) {
+                            targetWs.removeListener('message', requestHandler);
+                            clearTimeout(timeout);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: true, message: 'Installation completed' }));
+                        } else if (data.type === 'install_error' && data.appId === appId) {
+                            targetWs.removeListener('message', requestHandler);
+                            clearTimeout(timeout);
+                            res.writeHead(500, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: data.error }));
+                        }
+                    } catch (err) {}
+                };
+                targetWs.on('message', requestHandler);
+                
+                const timeout = setTimeout(() => {
+                    targetWs.removeListener('message', requestHandler);
+                    res.writeHead(202, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, message: 'Installation command sent (timeout)' }));
+                }, 15000);
 
             } catch (e) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -137,8 +158,29 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
                     userId: userId
                 }));
 
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, message: 'Uninstallation command sent' }));
+                const requestHandler = (msg: string) => {
+                    try {
+                        const data = JSON.parse(msg);
+                        if (data.type === 'uninstall_success' && data.appId === appId) {
+                            targetWs.removeListener('message', requestHandler);
+                            clearTimeout(timeout);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: true, message: 'Uninstallation completed' }));
+                        } else if (data.type === 'uninstall_error' && data.appId === appId) {
+                            targetWs.removeListener('message', requestHandler);
+                            clearTimeout(timeout);
+                            res.writeHead(500, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: data.error }));
+                        }
+                    } catch (err) {}
+                };
+                targetWs.on('message', requestHandler);
+                
+                const timeout = setTimeout(() => {
+                    targetWs.removeListener('message', requestHandler);
+                    res.writeHead(202, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, message: 'Uninstallation command sent (timeout)' }));
+                }, 15000);
 
             } catch (e) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });

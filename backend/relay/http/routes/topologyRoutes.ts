@@ -7,12 +7,6 @@ export async function handleTopologyRoute(parsedUrl: URL, req: http.IncomingMess
     const token = extractTokenFromRequest(req, parsedUrl);
     const target = parsedUrl.searchParams.get('target');
 
-    if (!target) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'target parameter required' }));
-        return;
-    }
-
     const mongoClient = getMongoClient();
     if (!mongoClient) {
         res.writeHead(503, { 'Content-Type': 'application/json' });
@@ -20,12 +14,15 @@ export async function handleTopologyRoute(parsedUrl: URL, req: http.IncomingMess
         return;
     }
 
+
+
     try {
         const decoded = await authenticateToken(token || null, mongoClient);
         const username = decoded.userId || decoded.username || decoded.sub;
+        const actualTarget = target || decoded.deviceId || username;
 
         if (req.method === 'GET') {
-            const data = await GetTopology(mongoClient, username, target);
+            const data = await GetTopology(mongoClient, username, actualTarget);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(data || { nodes: [], edges: [], nicknames: {} }));
         } else if (req.method === 'POST') {
@@ -34,7 +31,7 @@ export async function handleTopologyRoute(parsedUrl: URL, req: http.IncomingMess
             req.on('end', async () => {
                 try {
                     const { nodes, edges, nicknames } = JSON.parse(body);
-                    await SaveTopology(mongoClient, username, target, nodes, edges, nicknames);
+                    await SaveTopology(mongoClient, username, actualTarget, nodes, edges, nicknames);
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ success: true }));
                 } catch (e) {

@@ -20,18 +20,26 @@ export function parseCookies(cookieHeader?: string): Record<string, string> {
     return list;
 }
 
-export function extractTokenFromRequest(req: http.IncomingMessage, parsedUrl?: URL): string | null {
+export function extractTokenFromRequest(req: http.IncomingMessage, parsedUrl?: URL): { type: 'jwt' | 'ticket', value: string } | null {
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        return authHeader.split(' ')[1] || null;
+    if (authHeader) {
+        if (authHeader.startsWith('Bearer ')) {
+            return { type: 'jwt', value: authHeader.split(' ')[1] || '' };
+        }
+        if (authHeader.startsWith('Ticket ')) {
+            return { type: 'ticket', value: authHeader.split(' ')[1] || '' };
+        }
     }
     if (parsedUrl) {
+        const urlTicket = parsedUrl.searchParams.get('ticket');
+        if (urlTicket) return { type: 'ticket', value: urlTicket };
+
         const urlToken = parsedUrl.searchParams.get('token');
-        if (urlToken) return urlToken;
+        if (urlToken) return { type: 'jwt', value: urlToken };
     }
     const cookies = parseCookies(req.headers.cookie);
     if (cookies.netlink_token) {
-        return cookies.netlink_token;
+        return { type: 'jwt', value: cookies.netlink_token };
     }
     return null;
 }
@@ -40,12 +48,30 @@ export function extractTokenFromRequest(req: http.IncomingMessage, parsedUrl?: U
  * Authenticates a token via JWT verify and optionally MongoDB.
  */
 export async function authenticateToken(
-    token: string | null, 
+    authResult: { type: 'jwt' | 'ticket', value: string } | string | null, 
     mongoClient: mongoDB.MongoClient | null
 ): Promise<any> {
-    if (!token) {
+    if (!authResult) {
         throw new Error('Token is missing');
     }
+    
+    let tokenType = 'jwt';
+    let token = '';
+
+    if (typeof authResult === 'string') {
+        token = authResult;
+    } else {
+        tokenType = authResult.type;
+        token = authResult.value;
+    }
+
+    if (tokenType === 'ticket') {
+        const { consumeTicket } = await import('./ticketManager.js');
+        const ticketData = consumeTicket(token);
+        if (!ticketData) throw new Error('Invalid or expired ticket');
+        return { userId: ticketData.userId, deviceId: ticketData.target || ticketData.userId };
+    }
+
     const secretKey = process.env.JWT_SECRET || 'default_secret';
     
     // 1. JWT verification

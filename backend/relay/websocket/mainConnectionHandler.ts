@@ -3,6 +3,7 @@ import http from 'http';
 import { URL } from 'url';
 import * as mongoDB from 'mongodb';
 import { authenticateToken, extractTokenFromRequest } from '../auth/authenticator.js';
+import { consumeTicket } from '../auth/ticketManager.js';
 import { handleLocalServerConnection, handleClientConnection, handleDesktopConnection } from './connectionHandlers.js';
 import { appRouter } from '../http/requestHandler.js';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
@@ -16,13 +17,22 @@ export const handleMainConnection = async (
         const reqUrl = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
         const pathname = reqUrl.pathname;
         const token = extractTokenFromRequest(req, reqUrl);
+        const ticket = reqUrl.searchParams.get('ticket');
         const sessionId = reqUrl.searchParams.get('sessionId');
         const target = reqUrl.searchParams.get('target');
 
         // Authenticate connection
         let decodedPayload: any = null;
         try {
-            decodedPayload = await authenticateToken(token, mongoClient);
+            if (ticket) {
+                const ticketData = consumeTicket(ticket);
+                if (!ticketData) {
+                    throw new Error('Invalid or expired ticket');
+                }
+                decodedPayload = { userId: ticketData.userId, deviceId: ticketData.target || ticketData.userId };
+            } else {
+                decodedPayload = await authenticateToken(token, mongoClient);
+            }
         } catch (authError: any) {
             console.error(`Authentication failed for IP ${req.socket.remoteAddress}: ${authError.message}`);
             ws.close(1008, `Authentication Failed: ${authError.message}`);
@@ -30,12 +40,13 @@ export const handleMainConnection = async (
         }
 
         // Extract identifier from the token payload (fallback to token itself)
-        const identifier = decodedPayload?.deviceId || decodedPayload?.userId || decodedPayload?.sub || token!;
+        const rawToken = token?.value || '';
+        const identifier = decodedPayload?.deviceId || decodedPayload?.userId || decodedPayload?.sub || rawToken;
 
         console.log(`Connection established at path: ${pathname} (Identifier: ${identifier})`);
 
         if (pathname === '/connect') {
-            handleLocalServerConnection(ws, identifier, token, sessionId);
+            handleLocalServerConnection(ws, identifier, rawToken, sessionId);
         } else if (pathname === '/client') {
             const targetId = target || identifier; // If target is not specified, assume target is the token/identifier itself
             handleClientConnection(ws, identifier, targetId, sessionId);

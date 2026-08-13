@@ -144,7 +144,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             let ghRes: Response;
             if (githubToken) {
               ghRes = await fetch(
-                `https://api.github.com/repos/leonst036/NetLink/contents/applications/applications.json?ref=${selectedBranch}`,
+                `https://api.github.com/repos/leonst036/NetLink-NetStore/contents/applications/applications.json?ref=${selectedBranch}`,
                 {
                   headers: {
                     'Authorization': `token ${githubToken}`,
@@ -154,7 +154,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
               );
             } else {
               ghRes = await fetch(
-                `https://raw.githubusercontent.com/leonst036/NetLink/refs/heads/${selectedBranch}/applications/applications.json`
+                `https://raw.githubusercontent.com/leonst036/NetLink-NetStore/refs/heads/${selectedBranch}/applications/applications.json`
               );
             }
             if (ghRes.ok) {
@@ -317,31 +317,9 @@ export default function NetStoreApp(props: NetStoreAppProps) {
 
   const handleOpenApp = (app: AppItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-
-    if (app.nativeKey) {
-      switch (app.nativeKey) {
-        case 'graph':
-          windowStore.setGraphWindow({ isOpen: true });
-          windowStore.bringToFront('graph');
-          break;
-        case 'terminal':
-          windowStore.openTerminal('');
-          break;
-        case 'vnc':
-          windowStore.openVnc('192.168.1.1');
-          break;
-        case 'sftp':
-          windowStore.openSftp('');
-          break;
-        case 'settings':
-          windowStore.setSettingsWindow({ isOpen: true });
-          windowStore.bringToFront('settings');
-          break;
-      }
-    } else {
-      notifyUser(`Opening ${app.name}...`, 'success');
-      windowStore.openDynamicApp(app.id, app.name);
-    }
+    notifyUser(`Opening ${app.name}...`, 'success');
+    const entry = app.entrypoint || ((app as any).main ? ((app as any).main.startsWith('frontend/') ? (app as any).main : `frontend/${(app as any).main}`) : undefined);
+    windowStore.openDynamicApp(app.id, app.name, entry ? { entrypoint: entry } : undefined);
   };
 
   const installedCount = storeCatalog.filter(app => installedAppIds.includes(app.id)).length;

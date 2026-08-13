@@ -2,7 +2,7 @@ import http from 'http';
 import { URL } from 'url';
 import { handleLogin } from '../auth/login.js';
 import { getMongoClient } from '../database/MongoManager.js';
-import { handleRegisterRoute, handleValidateTargetRoute } from './routes/authRoutes.js';
+import { handleRegisterRoute, handleValidateTargetRoute, handleTicketRoute } from './routes/authRoutes.js';
 import { handleUsersRoute } from './routes/userRoutes.js';
 import { handleTopologyRoute } from './routes/topologyRoutes.js';
 import { handleGetServersRoute, handleServerLoginsRoute } from './routes/serverRoutes.js';
@@ -11,9 +11,16 @@ import { handleInstallScriptRoute, handleDemoScriptRoute, handleDemoSetupRoute }
 import { handleFaviconRoute, handleStaticFileRoute, handleAppFrontendRoute } from './routes/staticRoutes.js';
 import { handleNetStoreApplicationsRoute, handleInstallApplicationRoute, handleUninstallApplicationRoute } from './routes/netStoreRoutes.js';
 import { handleDockRoute } from './routes/dockRoutes.js';
+
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { Router } from './Router.js';
 import httpProxy from 'http-proxy';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const appRouter = new Router();
 const proxy = httpProxy.createProxyServer({});
@@ -48,6 +55,7 @@ appRouter.post('/login', handleLogin);
 appRouter.post('/api/register', (req, res) => handleRegisterRoute(req, res));
 appRouter.post('/register', (req, res) => handleRegisterRoute(req, res));
 appRouter.post('/api/validate-target', (req, res, parsedUrl) => handleValidateTargetRoute(parsedUrl, req, res));
+appRouter.post('/api/auth/ticket', (req, res, parsedUrl) => handleTicketRoute(req, res, parsedUrl));
 
 // Script routes
 appRouter.get('/api/install.sh', handleInstallScriptRoute);
@@ -89,7 +97,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     if (match) {
         const appId = match[1] as string;
         // Exclude system api routes like login, register, servers etc.
-        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'ssh-sessions', 'topology', 'users', 'applications', 'netstore', 'dock'];
+        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'ssh-sessions', 'topology', 'users', 'applications', 'netstore', 'dock', 'auth'];
         if (!systemRoutes.includes(appId)) {
             let userId = 'unknown';
             try {
@@ -123,10 +131,72 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     
     // If no route matched, fallback to static file serving
     if (!handled) {
-        if (parsedUrl.pathname.startsWith('/apps/')) {
-            handleAppFrontendRoute(parsedUrl.pathname, res);
+        const pathname = parsedUrl.pathname;
+        if (pathname.startsWith('/built-in-apps/')) {
+            const filePath = pathname.replace('/built-in-apps/', '');
+            // Resolve applications directory in both dev (source) and dist modes
+            const candidates = [
+                path.join(__dirname, '..', '..', '..', '..', 'NetLink-NetStore', 'applications'),
+                path.join(__dirname, '..', '..', '..', '..', '..', 'NetLink-NetStore', 'applications'),
+                path.join(process.cwd(), '..', 'NetLink-NetStore', 'applications')
+            ];
+            let applicationsDir: string = candidates[0] || '';
+            for (const cand of candidates) {
+                if (fs.existsSync(cand)) {
+                    applicationsDir = cand;
+                    break;
+                }
+            }
+            
+            const absolutePath = path.join(applicationsDir, filePath);
+            
+            if (!absolutePath.startsWith(applicationsDir)) {
+                res.writeHead(403);
+                res.end('Forbidden');
+                return;
+            }
+
+            try {
+                if (fs.existsSync(absolutePath) && fs.statSync(absolutePath).isFile()) {
+                    const ext = path.extname(absolutePath);
+                    let contentType = 'text/plain';
+                    if (ext === '.html') contentType = 'text/html';
+                    else if (ext === '.js' || ext === '.mjs') contentType = 'application/javascript';
+                    else if (ext === '.css') contentType = 'text/css';
+                    else if (ext === '.svg') contentType = 'image/svg+xml';
+                    else if (ext === '.png') contentType = 'image/png';
+                    else if (ext === '.json') contentType = 'application/json';
+
+                    const noCacheHeaders = {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    };
+                    res.writeHead(200, { 'Content-Type': contentType, ...noCacheHeaders });
+                    if (ext === '.html') {
+                        let html = fs.readFileSync(absolutePath, 'utf-8');
+                        html = html.replace(/="\/assets\//g, '="./assets/');
+                        res.end(html);
+                    } else {
+                        fs.createReadStream(absolutePath).pipe(res);
+                    }
+                    return;
+                } else {
+                    res.writeHead(404);
+                    res.end('Not found');
+                    return;
+                }
+            } catch (e) {
+                res.writeHead(500);
+                res.end('Internal error');
+                return;
+            }
+        }
+
+        if (pathname.startsWith('/apps/')) {
+            handleAppFrontendRoute(pathname, res);
         } else {
-            handleStaticFileRoute(parsedUrl.pathname, res);
+            handleStaticFileRoute(pathname, res);
         }
     }
 }

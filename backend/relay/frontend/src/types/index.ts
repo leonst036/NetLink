@@ -29,6 +29,7 @@ export interface DynamicAppInstance {
     appId: string; // The NetStore app ID
     title: string;
     isMinimized: boolean;
+    extraParams?: Record<string, string>;
 }
 
 export interface ServerDevice {

@@ -4,16 +4,24 @@ import { serverDevices } from '../../websocket/connectionManager.js';
 import { getMongoClient, GetServerLogins, SaveServerLogin, DeleteServerLogin } from '../../database/MongoManager.js';
 import { authenticateToken, extractTokenFromRequest } from '../../auth/authenticator.js';
 
-export function handleGetServersRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): void {
-    const target = parsedUrl.searchParams.get('target');
-    if (!target) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'target parameter required' }));
-        return;
+export async function handleGetServersRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    try {
+        const token = extractTokenFromRequest(req, parsedUrl);
+        const decoded = await authenticateToken(token || null, getMongoClient());
+        const target = parsedUrl.searchParams.get('target') || decoded.deviceId;
+
+        if (!target) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'target parameter required' }));
+            return;
+        }
+        const devices = serverDevices.get(target) || [];
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(devices));
+    } catch (err: any) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized', details: err.message }));
     }
-    const devices = serverDevices.get(target) || [];
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ devices }));
 }
 
 export async function handleServerLoginsRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {

@@ -105,8 +105,10 @@ export function handleRelayConnection(token: string): void {
                         ns.installApplication(message.appId, message.branch || 'NetStore', message.githubToken, message.userId, message.runInBackground).then(() => {
                             console.log(`Successfully installed ${message.appId}. Syncing with relay...`);
                             ns.sendApplicationJson(controlWs);
+                            controlWs.send(JSON.stringify({ type: 'install_success', appId: message.appId }));
                         }).catch((err: any) => {
                             console.error(`Failed to install app ${message.appId}:`, err);
+                            controlWs.send(JSON.stringify({ type: 'install_error', appId: message.appId, error: err.message }));
                         });
                     }
                 }).catch(err => {
@@ -119,8 +121,10 @@ export function handleRelayConnection(token: string): void {
                         ns.uninstallApplication(message.appId, message.userId).then(() => {
                             console.log(`Successfully uninstalled ${message.appId}. Syncing with relay...`);
                             ns.sendApplicationJson(controlWs);
+                            controlWs.send(JSON.stringify({ type: 'uninstall_success', appId: message.appId }));
                         }).catch((err: any) => {
                             console.error(`Failed to uninstall app ${message.appId}:`, err);
+                            controlWs.send(JSON.stringify({ type: 'uninstall_error', appId: message.appId, error: err.message }));
                         });
                     }
                 }).catch(err => {
