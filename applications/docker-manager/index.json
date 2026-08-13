@@ -1,5 +1,7 @@
 {
-    "id": "docker-manager",
-    "version": "1.0.0",
-    "main": "frontend/main.tsx"
+  "id": "docker-manager",
+  "version": "1.0.0",
+  "main": "frontend/main.tsx",
+  "runInBackground": true,
+  "backend": "index.ts"
 }

@@ -4,6 +4,13 @@
   "main": "main.tsx",
   "requestedPermissions": {
     "allowRun": true,
-    "allowRunCommands": ["sh", "cat", "ip", "ss"]
-  }
+    "allowRunCommands": [
+      "sh",
+      "cat",
+      "ip",
+      "ss"
+    ]
+  },
+  "runInBackground": true,
+  "backend": "index.ts"
 }
