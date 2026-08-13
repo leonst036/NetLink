@@ -67,7 +67,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
   // Load Topology
   useEffect(() => {
     setIsLoading(true);
-    fetch(`/api/topology`, {
+    fetch(`/api/net-graph/topology`, {
       headers: { 'Authorization': `Ticket ${ticket}` }
     })
       .then(res => {
@@ -225,7 +225,7 @@ export default function NetworkGraph({ servers, onNodeClick, onVncClick, onSftpC
   const saveTopology = async () => {
     setIsSaving(true);
     try {
-      await fetch(`/api/topology`, {
+      await fetch(`/api/net-graph/topology`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

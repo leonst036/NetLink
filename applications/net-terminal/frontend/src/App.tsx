@@ -206,7 +206,7 @@ export default function App() {
       })
       .catch(err => console.error("Failed to fetch logins", err));
 
-    fetch("/api/ssh-sessions", { headers: { "Authorization": `Ticket ${ticket}` } })
+    fetch("/api/net-terminal/ssh-sessions", { headers: { "Authorization": `Ticket ${ticket}` } })
       .then(res => res.json())
       .then(data => {
         if (data.sessions) {
@@ -241,7 +241,7 @@ export default function App() {
     const name = prompt("Enter a name for this session:", `${sshUsername}@${selectedIp}`);
     if (!name) return;
 
-    fetch("/api/ssh-sessions", {
+    fetch("/api/net-terminal/ssh-sessions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
