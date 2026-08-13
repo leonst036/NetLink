@@ -182,7 +182,8 @@ NetLink supports true multi-user isolation. Apps are installed in isolated direc
 NetLink includes an online catalog and dynamic installation mechanism:
 1. **Catalog Sync**: NetLink queries remote application lists from GitHub (`leonst036/NetLink` branch `NetStore`).
 2. **App Installation**: When installing an app from the catalog, NetLink downloads the tree of app files directly into `backend/local_server/NetStore/Applications/<appId>/`.
-3. **Resynchronization**: Local server automatically updates `index.json`, registers backend relay syncs, checks required permissions, and starts local sandboxes.
+3. **Automatic Size Calculation**: On-disk application directory size is automatically computed by NetLink (`calculateDirectorySize`) and formatted in human-readable units (`B`, `KB`, `MB`, `GB`) for display in the NetStore UI and card badges.
+4. **Resynchronization**: Local server automatically updates `index.json`, registers backend relay syncs, checks required permissions, and starts local sandboxes.
 
 ---
 

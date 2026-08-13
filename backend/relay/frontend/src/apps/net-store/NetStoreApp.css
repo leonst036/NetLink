@@ -213,3 +213,14 @@
 .spin-icon {
   animation: spin 1s linear infinite;
 }
+
+/* Dialog Styling */
+.netstore-dialog-paper {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+.netstore-dialog-actions .MuiButton-root {
+  white-space: nowrap !important;
+  text-transform: none;
+}

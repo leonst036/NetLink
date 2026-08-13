@@ -41,6 +41,38 @@ function saveGrantedPermissions(perms: Record<string, any>) {
     fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
 }
 
+// Calculate total size of directory in bytes
+export function calculateDirectorySize(dirPath: string): number {
+    if (!fs.existsSync(dirPath)) return 0;
+    let totalSize = 0;
+    try {
+        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dirPath, entry.name);
+            if (entry.isDirectory()) {
+                totalSize += calculateDirectorySize(fullPath);
+            } else if (entry.isFile()) {
+                try {
+                    const stat = fs.statSync(fullPath);
+                    totalSize += stat.size;
+                } catch {}
+            }
+        }
+    } catch (e) {
+        console.error(`Failed to calculate directory size for ${dirPath}:`, e);
+    }
+    return totalSize;
+}
+
+// Format bytes into human readable string
+export function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
 // Create directory if missing
 export function InitNetStore(): void {
     if (!fs.existsSync(NET_STORE_DIR)) {
@@ -154,7 +186,8 @@ export function ScanApplications(targetUserId?: string): any[] {
                 try {
                     const indexData = fs.readFileSync(indexPath, 'utf-8');
                     const parsed = JSON.parse(indexData);
-                    applicationJson.push({ ...parsed, installed: true, userId, id: parsed.id || application });
+                    const calculatedSize = formatBytes(calculateDirectorySize(applicationPath));
+                    applicationJson.push({ ...parsed, size: calculatedSize, installed: true, userId, id: parsed.id || application });
                 } catch (err) {
                     console.error(`Failed to parse ${indexPath}:`, err);
                 }
@@ -277,7 +310,12 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
         const appMap = new Map();
         // Since github apps are not user-specific, we keep them generic until installed
         for (const app of githubApps) {
-            appMap.set(app.id, { ...app, installed: false });
+            const appDevDir = resolveLocalNetStorePath('applications', app.id);
+            let appSize = app.size;
+            if (fs.existsSync(appDevDir)) {
+                appSize = formatBytes(calculateDirectorySize(appDevDir));
+            }
+            appMap.set(app.id, { ...app, size: appSize, installed: false });
         }
         
         for (const app of applications) {
@@ -369,15 +407,16 @@ export async function installApplication(appId: string, branch: string = 'NetSto
 
         console.log(`Successfully installed application: ${appId}`);
 
-        // Update index.json with runInBackground flag
+        // Update index.json with runInBackground flag and calculated size
         const indexPath = path.join(appDir, 'index.json');
         if (fs.existsSync(indexPath)) {
             try {
                 const indexData = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
                 indexData.runInBackground = runInBackground;
+                indexData.size = formatBytes(calculateDirectorySize(appDir));
                 fs.writeFileSync(indexPath, JSON.stringify(indexData, null, 2));
             } catch (err) {
-                console.error(`Failed to update runInBackground for ${appId}:`, err);
+                console.error(`Failed to update index.json for ${appId}:`, err);
             }
         }
 

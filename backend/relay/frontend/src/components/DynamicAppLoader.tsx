@@ -10,7 +10,7 @@ interface DynamicAppLoaderProps {
   isBuiltIn?: boolean; // If true, loads from static server, else from user's apps
 }
 
-export default function DynamicAppLoader({ appId, token, target, extraParams = {}, isBuiltIn = true }: DynamicAppLoaderProps) {
+export default function DynamicAppLoader({ appId, token, target, extraParams = {} }: DynamicAppLoaderProps) {
   const [ticket, setTicket] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 

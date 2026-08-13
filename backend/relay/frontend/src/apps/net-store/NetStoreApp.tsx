@@ -65,6 +65,8 @@ interface AppItem {
   fullDesc: string;
   features: string[];
   isFeatured?: boolean;
+  entrypoint?: string;
+  main?: string;
 }
 
 
@@ -620,12 +622,21 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                           <Typography className="netstore-app-author">
                             {app.author}
                           </Typography>
-                          <Chip
-                            label={app.category}
-                            size="small"
-                            variant="outlined"
-                            sx={{ mt: 0.5, height: 20, fontSize: '0.675rem' }}
-                          />
+                          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                            <Chip
+                              label={app.category}
+                              size="small"
+                              variant="outlined"
+                              sx={{ height: 20, fontSize: '0.675rem' }}
+                            />
+                            <Chip
+                              label={app.size}
+                              size="small"
+                              variant="outlined"
+                              color="info"
+                              sx={{ height: 20, fontSize: '0.675rem', opacity: 0.85 }}
+                            />
+                          </Box>
                         </Box>
                       </Box>
 
@@ -748,6 +759,19 @@ export default function NetStoreApp(props: NetStoreAppProps) {
           }}
           maxWidth="sm"
           fullWidth
+          slotProps={{
+            paper: {
+              className: 'netstore-dialog-paper',
+              sx: {
+                backgroundColor: '#0f172a',
+                backgroundImage: 'none',
+                color: '#fff',
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)'
+              }
+            }
+          }}
         >
           <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -768,7 +792,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             </IconButton>
           </DialogTitle>
 
-          <DialogContent dividers>
+          <DialogContent dividers sx={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
             {/* Meta Row */}
             <Box sx={{ display: 'flex', gap: 2, mb: 3, p: 1.5, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.05)' }}>
               <Box sx={{ flex: 1, textAlign: 'center' }}>
@@ -810,64 +834,84 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             </Box>
           </DialogContent>
 
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button
-              color={windowStore.isPinned(selectedApp.id) ? "secondary" : "inherit"}
-              variant="outlined"
-              startIcon={windowStore.isPinned(selectedApp.id) ? <PinOff size={16} /> : <Pin size={16} />}
-              onClick={(e) => {
-                e.stopPropagation();
-                windowStore.togglePinApp({ appId: selectedApp.id, title: selectedApp.name, color: selectedApp.color });
-              }}
-            >
-              {windowStore.isPinned(selectedApp.id) ? 'Unpin from Dock' : 'Pin to Dock'}
-            </Button>
-            {installedAppIds.includes(selectedApp.id) && !selectedApp.nativeKey && (
-              <>
-                <Button
-                  color="error"
-                  onClick={(e) => {
-                    handleUninstall(selectedApp, e);
-                    setSelectedApp(null);
-                  }}
-                >
-                  Uninstall
-                </Button>
-                <Button
-                  color="info"
-                  variant="outlined"
-                  startIcon={<RefreshCw size={16} />}
-                  onClick={(e) => {
-                    handleInstall(selectedApp, e);
-                  }}
-                >
-                  {installedVersions[selectedApp.id] && selectedApp.version && installedVersions[selectedApp.id] !== selectedApp.version ? 'Update App' : 'Reinstall App'}
-                </Button>
-              </>
-            )}
+          <DialogActions className="netstore-dialog-actions" sx={{ px: 3, py: 2, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 1.5, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            {/* Left side actions */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+              <Button
+                size="small"
+                color={windowStore.isPinned(selectedApp.id) ? "secondary" : "inherit"}
+                variant="outlined"
+                startIcon={windowStore.isPinned(selectedApp.id) ? <PinOff size={16} /> : <Pin size={16} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  windowStore.togglePinApp({ appId: selectedApp.id, title: selectedApp.name, color: selectedApp.color });
+                }}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                {windowStore.isPinned(selectedApp.id) ? 'Unpin' : 'Pin to Dock'}
+              </Button>
+              {installedAppIds.includes(selectedApp.id) && !selectedApp.nativeKey && (
+                <>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="error"
+                    startIcon={<Trash2 size={16} />}
+                    onClick={(e) => {
+                      handleUninstall(selectedApp, e);
+                      setSelectedApp(null);
+                    }}
+                    sx={{ whiteSpace: 'nowrap' }}
+                  >
+                    Uninstall
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="info"
+                    startIcon={<RefreshCw size={16} />}
+                    onClick={(e) => {
+                      handleInstall(selectedApp, e);
+                    }}
+                    sx={{ whiteSpace: 'nowrap' }}
+                  >
+                    {installedVersions[selectedApp.id] && selectedApp.version && installedVersions[selectedApp.id] !== selectedApp.version ? 'Update App' : 'Reinstall App'}
+                  </Button>
+                </>
+              )}
+            </Box>
+
+            {/* Right side actions */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', ml: 'auto' }}>
               {!installedAppIds.includes(selectedApp.id) && (
-                <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto', mr: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
                   <input
                     type="checkbox"
                     id="runInBackground"
                     checked={runInBackground}
                     onChange={(e) => setRunInBackground(e.target.checked)}
-                    style={{ marginRight: '8px' }}
+                    style={{ marginRight: '8px', cursor: 'pointer', accentColor: '#38bdf8' }}
                   />
-                  <label htmlFor="runInBackground" style={{ fontSize: '0.85rem', color: '#a78bfa', cursor: 'pointer' }}>
+                  <label htmlFor="runInBackground" style={{ fontSize: '0.85rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none' }}>
                     Run in background
                   </label>
                 </Box>
               )}
-              <Box sx={{ marginLeft: 'auto', display: 'flex', gap: 1 }}>
-                <Button onClick={() => {
-                    setSelectedApp(null);
-                    setRunInBackground(false);
-                }} color="inherit">
-                  Close
-                </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                color="inherit"
+                onClick={() => {
+                  setSelectedApp(null);
+                  setRunInBackground(false);
+                }}
+                sx={{ whiteSpace: 'nowrap', borderColor: 'rgba(255,255,255,0.2)' }}
+              >
+                Close
+              </Button>
               {installedAppIds.includes(selectedApp.id) ? (
                 <Button
+                  size="small"
                   variant="contained"
                   color="success"
                   startIcon={<ExternalLink size={16} />}
@@ -876,17 +920,20 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                     setSelectedApp(null);
                     setRunInBackground(false);
                   }}
+                  sx={{ whiteSpace: 'nowrap', fontWeight: 'bold' }}
                 >
                   Open App
                 </Button>
               ) : (
                 <Button
+                  size="small"
                   variant="contained"
-                  color="secondary"
+                  color="primary"
                   startIcon={<Download size={16} />}
                   onClick={(e) => {
                     handleInstall(selectedApp, e, runInBackground);
                   }}
+                  sx={{ whiteSpace: 'nowrap', fontWeight: 'bold' }}
                 >
                   Install
                 </Button>
