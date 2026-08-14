@@ -1,181 +1,278 @@
 .root-container {
   display: flex;
   height: 100%;
-  background-color: transparent;
+  background-color: #090d16;
+  color: #f8fafc;
 }
+
 .sidebar-paper {
-  width: 260px;
-  background-color: rgba(0,0,0,0.2);
-  border-right: 1px solid rgba(255,255,255,0.05);
+  width: 240px;
+  background-color: rgba(15, 23, 42, 0.85) !important;
+  backdrop-filter: blur(16px);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
   border-radius: 0;
 }
+
 .sidebar-header {
-  padding: 24px;
-  padding-bottom: 8px;
+  padding: 24px 20px 12px 20px;
 }
+
 .sidebar-title {
-  font-weight: bold;
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  color: #f8fafc;
 }
+
 .sidebar-list {
-  padding-left: 8px;
-  padding-right: 8px;
+  padding: 8px;
 }
+
 .tab-list-item {
   margin-bottom: 4px;
 }
+
 .tab-button {
-  border-radius: 8px;
+  border-radius: 8px !important;
+  padding: 10px 14px !important;
+  transition: all 0.15s ease-in-out !important;
+  color: #94a3b8 !important;
 }
+
+.tab-button:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #f8fafc !important;
+}
+
+.tab-button.Mui-selected {
+  background-color: rgba(56, 189, 248, 0.12) !important;
+  color: #38bdf8 !important;
+  font-weight: 600 !important;
+}
+
+.tab-button.Mui-selected .tab-icon {
+  color: #38bdf8 !important;
+}
+
 .tab-icon {
-  min-width: 40px;
+  min-width: 36px !important;
+  color: inherit;
 }
-.tab-text {
-  /* fontWeight handled dynamically if needed, or static */
-}
+
 .main-content-container {
   flex: 1;
-  padding: 32px;
+  padding: 32px 40px;
   overflow-y: auto;
+  background-color: #0b0f19;
 }
+
 .content-max-width {
-  max-width: 800px;
+  max-width: 840px;
 }
+
 .section-title {
-  margin-bottom: 32px;
-  font-weight: bold;
+  margin-bottom: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #f8fafc;
 }
+
 .styled-card {
-  background-color: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 12px;
+  background-color: rgba(17, 24, 39, 0.6) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4) !important;
 }
+
 .styled-card-content {
-  padding: 24px;
+  padding: 24px !important;
 }
+
 .styled-card-content:last-child {
-  padding-bottom: 24px;
+  padding-bottom: 24px !important;
 }
+
 .card-subtitle {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  color: #38bdf8 !important;
 }
+
 .vertical-stack {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
+
 .flex-row-space-between {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 6px 0;
 }
+
 .styled-text-field {
-  width: 250px;
+  width: 260px;
 }
+
 .styled-select {
-  width: 250px;
+  width: 260px;
 }
+
 .styled-form-group {
-  gap: 16px;
+  gap: 12px;
 }
+
 .flex-row-gap-2 {
   display: flex;
   gap: 16px;
 }
+
 .wallpaper-container {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
 }
+
 .wallpaper-thumb {
-  width: 100px;
-  height: 60px;
+  width: 120px;
+  height: 72px;
   border-radius: 8px;
   cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  overflow: hidden;
 }
+
+.wallpaper-thumb:hover {
+  transform: translateY(-2px);
+}
+
 .solid-wallpaper-button {
-  width: 100px;
-  height: 60px;
+  width: 120px;
+  height: 72px;
   border-radius: 8px;
   cursor: pointer;
   background-color: #090d1a;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: transform 0.15s ease, border-color 0.15s ease;
 }
+
+.solid-wallpaper-button:hover {
+  transform: translateY(-2px);
+}
+
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
+
 .form-fields-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
+
 .button-actions-container {
   display: flex;
-  gap: 16px;
+  gap: 12px;
+  margin-top: 16px;
 }
+
 .styled-table-container {
-  background-color: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 12px;
+  background-color: rgba(17, 24, 39, 0.6) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
 }
+
 .empty-table-cell {
-  padding-top: 32px;
-  padding-bottom: 32px;
+  padding: 48px 16px !important;
+  text-align: center;
+  color: #64748b !important;
 }
+
 .name-table-cell {
-  font-weight: 500;
+  font-weight: 600 !important;
+  color: #f8fafc !important;
 }
+
 .styled-chip {
-  text-transform: uppercase;
+  font-weight: 700 !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.5px;
 }
+
 .details-table-cell {
-  /* color handled via theme */
+  color: #94a3b8 !important;
 }
+
 .edit-button {
   min-width: auto;
-  margin-right: 8px;
+  margin-right: 6px;
 }
+
 .permissions-title {
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
 }
+
 .styled-divider {
   margin-top: 24px;
   margin-bottom: 24px;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
+
 .theme-card-root {
-  width: 100px;
+  width: 110px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  transition: transform 0.15s ease;
 }
+
+.theme-card-root:hover {
+  transform: translateY(-2px);
+}
+
 .theme-card-preview {
   width: 100%;
-  height: 64px;
+  height: 68px;
   border-radius: 8px;
-  padding: 8px;
+  padding: 10px;
   position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
+
 .theme-card-header {
   width: 100%;
   height: 8px;
   border-radius: 4px;
   margin-bottom: 8px;
 }
+
 .theme-card-body {
   width: 60%;
   height: 6px;
   border-radius: 4px;
 }
+
 .theme-card-label {
-  /* dynamic style */
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
 }

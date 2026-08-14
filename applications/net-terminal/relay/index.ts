@@ -93,7 +93,11 @@ function handleTerminalWs(socket: WebSocket) {
         }
 
         if (stream && stream.writable) {
-            stream.write(event.data);
+            let inputData: any = event.data;
+            if (inputData instanceof ArrayBuffer) {
+                inputData = new Uint8Array(inputData);
+            }
+            stream.write(inputData);
         }
     };
 

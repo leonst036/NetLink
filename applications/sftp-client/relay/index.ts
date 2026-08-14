@@ -9,12 +9,17 @@ function normalizePath(p: string): string {
 
 function handleSftpWs(ws: WebSocket) {
     let sftp: any = null;
+    let writeStream: any = null;
 
     ws.onopen = () => {
         ws.send(JSON.stringify({ type: "ready_for_credentials" }));
     };
 
     const cleanup = () => {
+        if (writeStream) {
+            try { writeStream.destroy(); } catch {}
+            writeStream = null;
+        }
         if (sftp) {
             try { sftp.end(); } catch {}
             sftp = null;
@@ -99,6 +104,54 @@ function handleSftpWs(ws: WebSocket) {
                     });
                 } catch (err: any) {
                     ws.send(JSON.stringify({ type: 'error', message: err.message || String(err) }));
+                }
+            } else if (data.type === "upload") {
+                const normalized = normalizePath(data.path);
+                try {
+                    writeStream = sftp.createWriteStream(normalized);
+                    writeStream.on('error', (err: any) => {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ type: 'error', message: err.message || String(err) }));
+                        }
+                    });
+                    ws.send(JSON.stringify({ type: 'uploadReady' }));
+                } catch (err: any) {
+                    ws.send(JSON.stringify({ type: 'error', message: err.message || String(err) }));
+                }
+            } else if (data.type === "uploadChunk") {
+                if (writeStream) {
+                    let buffer: Buffer;
+                    if (typeof data.data === 'string') {
+                        buffer = Buffer.from(data.data, 'base64');
+                    } else if (data.data && data.data.data) {
+                        buffer = Buffer.from(data.data.data);
+                    } else {
+                        buffer = Buffer.from(data.data);
+                    }
+                    const canWrite = writeStream.write(buffer);
+                    if (!canWrite) {
+                        writeStream.once('drain', () => {
+                            if (ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ type: 'uploadAck' }));
+                            }
+                        });
+                    } else {
+                        ws.send(JSON.stringify({ type: 'uploadAck' }));
+                    }
+                }
+            } else if (data.type === "uploadEnd") {
+                if (writeStream) {
+                    writeStream.end(() => {
+                        writeStream = null;
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ type: 'uploadSuccess' }));
+                        }
+                    });
+                }
+            } else if (data.type === "uploadCancel") {
+                if (writeStream) {
+                    try { writeStream.destroy(); } catch {}
+                    writeStream = null;
                 }
             } else if (data.type === "disconnect") {
                 cleanup();

@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react';
-import { User, Users, Monitor, Shield, Key, Plus, Trash2, Save } from 'lucide-react';
+import {
+  User,
+  Users,
+  Monitor,
+  Shield,
+  Key,
+  Plus,
+  Trash2,
+  Edit2,
+  Save,
+  Server
+} from 'lucide-react';
 import {
   Box,
   Paper,
@@ -31,7 +42,8 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Grid
 } from '@mui/material';
 import './SettingsApp.css';
 
@@ -48,11 +60,19 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
   const [username, setUsername] = useState(() => localStorage.getItem('netlink_username') || 'Admin');
   const [wallpaper, setWallpaper] = useState(() => localStorage.getItem('netlink_wallpaper') || 'default');
   const [appTheme, setAppTheme] = useState(() => localStorage.getItem('netlink_theme') || 'Dark');
+  const [windowAnimations, setWindowAnimations] = useState(() => localStorage.getItem('netlink_animations') !== 'false');
+  const [notificationSounds, setNotificationSounds] = useState(() => localStorage.getItem('netlink_sounds') === 'true');
+  const [debugMode, setDebugMode] = useState(() => localStorage.getItem('netlink_debug') === 'true');
 
   const updateSetting = (key: string, value: string, setter: (val: string) => void) => {
     setter(value);
     localStorage.setItem(key, value);
     window.dispatchEvent(new Event('settingsChange'));
+    try {
+      window.parent.postMessage({ type: 'netlink_setting_changed', key, value }, '*');
+    } catch {
+      // Ignore cross-origin error
+    }
   };
 
   const getPermissions = () => {
@@ -67,14 +87,14 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
   const canManageUsers = permissions.includes('manage_users');
 
   const tabs = [
-    { id: 'general', label: 'General', icon: <User size={20} /> },
-    { id: 'appearance', label: 'Appearance', icon: <Monitor size={20} /> },
-    { id: 'logins', label: 'Server Logins', icon: <Key size={20} /> },
-    { id: 'security', label: 'Security', icon: <Shield size={20} /> },
+    { id: 'general', label: 'General', icon: <User size={19} /> },
+    { id: 'appearance', label: 'Appearance', icon: <Monitor size={19} /> },
+    { id: 'logins', label: 'Server Logins', icon: <Key size={19} /> },
+    { id: 'security', label: 'Security', icon: <Shield size={19} /> },
   ];
 
   if (canManageUsers) {
-    tabs.splice(3, 0, { id: 'users', label: 'User Management', icon: <Users size={20} /> });
+    tabs.splice(3, 0, { id: 'users', label: 'User Management', icon: <Users size={19} /> });
   }
 
   const [logins, setLogins] = useState<any[]>([]);
@@ -88,17 +108,9 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
 
   useEffect(() => {
     if (activeTab === 'logins') {
-      try {
-        fetchLogins();
-      } catch (err) {
-        console.error('Failed to fetch logins', err);
-      }
+      fetchLogins();
     } else if (activeTab === 'users' && canManageUsers) {
-      try {
-        fetchUsers();
-      } catch (err) {
-        console.error('Failed to fetch users', err);
-      }
+      fetchUsers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -149,11 +161,7 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
         headers: { 'Authorization': `Ticket ${ticket}` }
       });
       if (res.ok) {
-        try {
-          await fetchUsers();
-        } catch (err) {
-          console.error('Failed to fetch users', err);
-        }
+        await fetchUsers();
       }
     } catch (err) {
       console.error('Failed to delete user', err);
@@ -171,13 +179,13 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
     }
   };
 
-  const ALL_PERMISSIONS = [ // TODO: Move these permissions to the DB
-    { id: 'manage_users', label: 'Manage Users' },
-    { id: 'manage_logins', label: 'Manage Server Logins' },
-    { id: 'access_terminal', label: 'Access Terminal' },
-    { id: 'access_vnc', label: 'Access VNC' },
-    { id: 'access_sftp', label: 'Access SFTP File Explorer' },
-    { id: 'scan_network', label: 'Scan Network' }
+  const ALL_PERMISSIONS = [
+    { id: 'manage_users', label: 'Manage Users', desc: 'Create, edit, and delete system user accounts' },
+    { id: 'manage_logins', label: 'Manage Server Logins', desc: 'Add and configure remote server credentials' },
+    { id: 'access_terminal', label: 'Access SSH Terminal', desc: 'Launch interactive SSH terminal sessions' },
+    { id: 'access_vnc', label: 'Access VNC Desktop', desc: 'Connect to remote VNC graphical desktops' },
+    { id: 'access_sftp', label: 'Access SFTP File Explorer', desc: 'Browse and transfer remote files' },
+    { id: 'scan_network', label: 'Scan Network', desc: 'Perform automatic subnet and topology scans' }
   ];
 
   const fetchLogins = async () => {
@@ -194,6 +202,18 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
     }
   };
 
+  const handleProtocolChange = (type: string) => {
+    if (!editingLogin) return;
+    let defaultPort = '22';
+    if (type === 'vnc') defaultPort = '5900';
+    if (type === 'smb') defaultPort = '445';
+    setEditingLogin({
+      ...editingLogin,
+      type,
+      port: defaultPort
+    });
+  };
+
   const saveLogin = async () => {
     if (!editingLogin) return;
     try {
@@ -206,12 +226,8 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
         body: JSON.stringify(editingLogin)
       });
       if (res.ok) {
-        try {
-          setEditingLogin(null);
-          await fetchLogins();
-        } catch (err) {
-          console.error('Failed to fetch logins', err);
-        }
+        setEditingLogin(null);
+        await fetchLogins();
       }
     } catch (err) {
       console.error('Failed to save login', err);
@@ -230,11 +246,7 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
         headers: { 'Authorization': `Ticket ${ticket}` }
       });
       if (res.ok) {
-        try {
-          await fetchLogins();
-        } catch (err) {
-          console.error('Failed to fetch logins', err);
-        }
+        await fetchLogins();
       }
     } catch (err) {
       console.error('Failed to delete login', err);
@@ -242,12 +254,22 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
     setDeleteLoginDialog({ open: false, id: '' });
   };
 
+  const getProtocolChip = (type: string) => {
+    const upper = (type || 'ssh').toUpperCase();
+    let color: 'primary' | 'secondary' | 'success' | 'warning' = 'primary';
+    if (upper === 'VNC') color = 'secondary';
+    if (upper === 'SFTP') color = 'success';
+    if (upper === 'SMB') color = 'warning';
+
+    return <Chip label={upper} color={color} size="small" className="styled-chip" variant="outlined" />;
+  };
+
   return (
     <RootContainer>
       {/* Sidebar */}
       <SidebarPaper elevation={0}>
         <SidebarHeader>
-          <SidebarTitle variant="h6">Settings</SidebarTitle>
+          <Typography variant="h6" className="sidebar-title">Settings</Typography>
         </SidebarHeader>
         <SidebarList>
           {tabs.map(tab => (
@@ -275,18 +297,20 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
       {/* Main Content Area */}
       <MainContentContainer>
         <ContentMaxWidth>
+          {/* General Tab */}
           {activeTab === 'general' && (
             <Box>
-              <SectionTitle variant="h5">General Settings</SectionTitle>
+              <Typography variant="h5" className="section-title">General Settings</Typography>
 
               <StyledCard variant="outlined" $mb>
                 <StyledCardContent>
-                  <CardSubtitle variant="subtitle2" color="text.secondary">
-                    User Profile
-                  </CardSubtitle>
+                  <Typography variant="subtitle2" className="card-subtitle">User Profile</Typography>
                   <VerticalStack>
                     <FlexRowSpaceBetween>
-                      <Typography>Username</Typography>
+                      <Box>
+                        <Typography sx={{ fontWeight: 500 }}>Display Name</Typography>
+                        <Typography variant="body2" color="text.secondary">Name shown across the desktop workspace</Typography>
+                      </Box>
                       <StyledTextField
                         size="small"
                         value={username}
@@ -294,9 +318,15 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
                       />
                     </FlexRowSpaceBetween>
                     <FlexRowSpaceBetween>
-                      <Typography>Language</Typography>
-                      <StyledSelect size="small" value="en">
+                      <Box>
+                        <Typography sx={{ fontWeight: 500 }}>Language</Typography>
+                        <Typography variant="body2" color="text.secondary">Default system and app language</Typography>
+                      </Box>
+                      <StyledSelect size="small" defaultValue="en">
                         <MenuItem value="en">English (US)</MenuItem>
+                        <MenuItem value="de">Deutsch (DE)</MenuItem>
+                        <MenuItem value="fr">Français (FR)</MenuItem>
+                        <MenuItem value="es">Español (ES)</MenuItem>
                       </StyledSelect>
                     </FlexRowSpaceBetween>
                   </VerticalStack>
@@ -305,30 +335,38 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
 
               <StyledCard variant="outlined">
                 <StyledCardContent>
-                  <CardSubtitle variant="subtitle2" color="text.secondary">
-                    Desktop Behavior
-                  </CardSubtitle>
+                  <Typography variant="subtitle2" className="card-subtitle">Desktop Experience</Typography>
                   <StyledFormGroup>
                     <FlexRowSpaceBetween>
-                      <Typography>Show desktop icons</Typography>
-                      <Switch defaultChecked />
-                    </FlexRowSpaceBetween>
-                    <FlexRowSpaceBetween>
-                      <Typography>Enable window animations</Typography>
-                      <Switch defaultChecked />
-                    </FlexRowSpaceBetween>
-                    <FlexRowSpaceBetween>
-                      <Typography>Play notification sounds</Typography>
-                      <Switch />
-                    </FlexRowSpaceBetween>
-                    <FlexRowSpaceBetween>
-                      <Typography>Enable debug mode (logs &amp; VNC FPS/Latency)</Typography>
+                      <Box>
+                        <Typography sx={{ fontWeight: 500 }}>Window Animations</Typography>
+                        <Typography variant="body2" color="text.secondary">Smooth open, minimize, and restore transitions</Typography>
+                      </Box>
                       <Switch
-                        defaultChecked={localStorage.getItem('netlink_debug') === 'true'}
-                        onChange={(_e, checked) => {
-                          localStorage.setItem('netlink_debug', checked.toString());
-                          window.dispatchEvent(new Event('settingsChange'));
-                        }}
+                        checked={windowAnimations}
+                        onChange={(_e, checked) => updateSetting('netlink_animations', checked.toString(), () => setWindowAnimations(checked))}
+                      />
+                    </FlexRowSpaceBetween>
+                    <Divider sx={{ my: 1, borderColor: 'rgba(255,255,255,0.05)' }} />
+                    <FlexRowSpaceBetween>
+                      <Box>
+                        <Typography sx={{ fontWeight: 500 }}>Notification Sounds</Typography>
+                        <Typography variant="body2" color="text.secondary">Audio feedback for system events</Typography>
+                      </Box>
+                      <Switch
+                        checked={notificationSounds}
+                        onChange={(_e, checked) => updateSetting('netlink_sounds', checked.toString(), () => setNotificationSounds(checked))}
+                      />
+                    </FlexRowSpaceBetween>
+                    <Divider sx={{ my: 1, borderColor: 'rgba(255,255,255,0.05)' }} />
+                    <FlexRowSpaceBetween>
+                      <Box>
+                        <Typography sx={{ fontWeight: 500 }}>Debug Overlay & Diagnostic Logs</Typography>
+                        <Typography variant="body2" color="text.secondary">Display live VNC FPS, latency metrics, and relay logs</Typography>
+                      </Box>
+                      <Switch
+                        checked={debugMode}
+                        onChange={(_e, checked) => updateSetting('netlink_debug', checked.toString(), () => setDebugMode(checked))}
                       />
                     </FlexRowSpaceBetween>
                   </StyledFormGroup>
@@ -337,37 +375,69 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
             </Box>
           )}
 
+          {/* Appearance Tab */}
           {activeTab === 'appearance' && (
             <Box>
-              <SectionTitle variant="h5">Appearance</SectionTitle>
+              <Typography variant="h5" className="section-title">Appearance & Themes</Typography>
 
               <StyledCard variant="outlined" $mb>
                 <StyledCardContent>
-                  <CardSubtitle variant="subtitle2" color="text.secondary">
-                    Theme (Beta)
-                  </CardSubtitle>
+                  <Typography variant="subtitle2" className="card-subtitle">Theme Mode</Typography>
                   <FlexRowGap2>
-                    <ThemeCard name="Dark" active={appTheme === 'Dark'} color="#0f172a" onClick={() => updateSetting('netlink_theme', 'Dark', setAppTheme)} />
-                    <ThemeCard name="Light" active={appTheme === 'Light'} color="#f8fafc" textColor="#0f172a" onClick={() => updateSetting('netlink_theme', 'Light', setAppTheme)} />
+                    <ThemeCard
+                      name="Dark Nebula"
+                      active={appTheme === 'Dark'}
+                      color="#0b0f19"
+                      accent="#38bdf8"
+                      onClick={() => updateSetting('netlink_theme', 'Dark', setAppTheme)}
+                    />
+                    <ThemeCard
+                      name="Midnight Blue"
+                      active={appTheme === 'Midnight'}
+                      color="#0f172a"
+                      accent="#818cf8"
+                      onClick={() => updateSetting('netlink_theme', 'Midnight', setAppTheme)}
+                    />
+                    <ThemeCard
+                      name="Cyber Neon"
+                      active={appTheme === 'Cyber'}
+                      color="#180c2e"
+                      accent="#ec4899"
+                      onClick={() => updateSetting('netlink_theme', 'Cyber', setAppTheme)}
+                    />
                   </FlexRowGap2>
                 </StyledCardContent>
               </StyledCard>
 
               <StyledCard variant="outlined" $mb>
                 <StyledCardContent>
-                  <CardSubtitle variant="subtitle2" color="text.secondary">
-                    Wallpaper
-                  </CardSubtitle>
+                  <Typography variant="subtitle2" className="card-subtitle">Desktop Wallpaper</Typography>
                   <WallpaperContainer>
-                    <WallpaperThumb $active={wallpaper === 'default'} $bg='url("/login-bg.png") center/cover' onClick={() => updateSetting('netlink_wallpaper', 'default', setWallpaper)} />
-                    <WallpaperThumb $active={wallpaper === 'wp1'} $bg='linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp1', setWallpaper)} />
-                    <WallpaperThumb $active={wallpaper === 'wp2'} $bg='linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp2', setWallpaper)} />
-                    <WallpaperThumb $active={wallpaper === 'wp3'} $bg='linear-gradient(135deg, #064e3b 0%, #0f172a 100%)' onClick={() => updateSetting('netlink_wallpaper', 'wp3', setWallpaper)} />
+                    <WallpaperThumb
+                      $active={wallpaper === 'default'}
+                      $bg='url("/login-bg.png") center/cover'
+                      onClick={() => updateSetting('netlink_wallpaper', 'default', setWallpaper)}
+                    />
+                    <WallpaperThumb
+                      $active={wallpaper === 'wp1'}
+                      $bg='linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)'
+                      onClick={() => updateSetting('netlink_wallpaper', 'wp1', setWallpaper)}
+                    />
+                    <WallpaperThumb
+                      $active={wallpaper === 'wp2'}
+                      $bg='linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)'
+                      onClick={() => updateSetting('netlink_wallpaper', 'wp2', setWallpaper)}
+                    />
+                    <WallpaperThumb
+                      $active={wallpaper === 'wp3'}
+                      $bg='linear-gradient(135deg, #064e3b 0%, #0f172a 100%)'
+                      onClick={() => updateSetting('netlink_wallpaper', 'wp3', setWallpaper)}
+                    />
                     <SolidWallpaperButton
                       onClick={() => updateSetting('netlink_wallpaper', 'solid', setWallpaper)}
                       $active={wallpaper === 'solid'}
                     >
-                      Solid
+                      Solid Charcoal
                     </SolidWallpaperButton>
                   </WallpaperContainer>
                 </StyledCardContent>
@@ -375,15 +445,16 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
 
               <StyledCard variant="outlined">
                 <StyledCardContent>
-                  <CardSubtitle variant="subtitle2" color="text.secondary">
-                    Display Settings
-                  </CardSubtitle>
+                  <Typography variant="subtitle2" className="card-subtitle">Display Scale</Typography>
                   <FlexRowSpaceBetween>
-                    <Typography>UI Scale</Typography>
-                    <StyledSelect size="small" value="100">
-                      <MenuItem value="100">100% (Default)</MenuItem>
-                      <MenuItem value="125">125%</MenuItem>
-                      <MenuItem value="150">150%</MenuItem>
+                    <Box>
+                      <Typography sx={{ fontWeight: 500 }}>Interface Scaling</Typography>
+                      <Typography variant="body2" color="text.secondary">Adjust element sizing for high-DPI displays</Typography>
+                    </Box>
+                    <StyledSelect size="small" defaultValue="100">
+                      <MenuItem value="100">100% (Standard)</MenuItem>
+                      <MenuItem value="125">125% (Comfortable)</MenuItem>
+                      <MenuItem value="150">150% (Large)</MenuItem>
                     </StyledSelect>
                   </FlexRowSpaceBetween>
                 </StyledCardContent>
@@ -391,40 +462,127 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
             </Box>
           )}
 
+          {/* Server Logins Tab */}
           {activeTab === 'logins' && (
             <Box>
               <SectionHeader>
-                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Server Logins</Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<Plus size={16} />}
-                  onClick={() => setEditingLogin({ id: '', name: 'New Server', ip: '', port: '22', loginUsername: 'root', password: '', type: 'ssh' })}
-                >
-                  Add Login
-                </Button>
+                <Box>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc' }}>Server Logins</Typography>
+                  <Typography variant="body2" color="text.secondary">Manage saved credentials for SSH, SFTP, VNC, and SMB access</Typography>
+                </Box>
+                {!editingLogin && (
+                  <Button
+                    variant="contained"
+                    startIcon={<Plus size={16} />}
+                    onClick={() => setEditingLogin({ id: '', name: 'Home Server', ip: '', port: '22', loginUsername: 'root', password: '', type: 'ssh' })}
+                  >
+                    Add Server
+                  </Button>
+                )}
               </SectionHeader>
 
               {editingLogin ? (
                 <StyledCard variant="outlined">
                   <StyledCardContent>
-                    <CardSubtitle variant="subtitle2" color="text.secondary">
-                      Edit Server Login
-                    </CardSubtitle>
+                    <Typography variant="subtitle2" className="card-subtitle">
+                      {editingLogin.id ? 'Edit Server Login' : 'Add New Server Login'}
+                    </Typography>
                     <FormFieldsContainer>
-                      <TextField label="Name" size="small" value={editingLogin.name} onChange={e => setEditingLogin({ ...editingLogin, name: e.target.value })} fullWidth />
-                      <TextField label="IP Address" size="small" value={editingLogin.ip} onChange={e => setEditingLogin({ ...editingLogin, ip: e.target.value })} fullWidth />
-                      <TextField label="Port" size="small" value={editingLogin.port} onChange={e => setEditingLogin({ ...editingLogin, port: e.target.value })} fullWidth />
-                      <TextField label="Username" size="small" value={editingLogin.loginUsername} onChange={e => setEditingLogin({ ...editingLogin, loginUsername: e.target.value })} fullWidth />
-                      <TextField label="Password" type="password" size="small" value={editingLogin.password} onChange={e => setEditingLogin({ ...editingLogin, password: e.target.value })} fullWidth />
-                      <Select size="small" value={editingLogin.type} onChange={e => setEditingLogin({ ...editingLogin, type: e.target.value })} fullWidth>
-                        <MenuItem value="ssh">SSH</MenuItem>
-                        <MenuItem value="vnc">VNC</MenuItem>
-                        <MenuItem value="sftp">SFTP</MenuItem>
-                        <MenuItem value="smb">SMB</MenuItem>
-                      </Select>
-                      <ButtonActionsContainer $mt={2}>
-                        <Button variant="contained" color="success" startIcon={<Save size={16} />} onClick={saveLogin}>Save</Button>
-                        <Button variant="outlined" color="inherit" onClick={() => setEditingLogin(null)}>Cancel</Button>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={8}>
+                          <TextField
+                            label="Server Name"
+                            size="small"
+                            value={editingLogin.name}
+                            onChange={e => setEditingLogin({ ...editingLogin, name: e.target.value })}
+                            fullWidth
+                            placeholder="e.g. Debian Test Server"
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Select
+                            size="small"
+                            value={editingLogin.type || 'ssh'}
+                            onChange={e => handleProtocolChange(e.target.value)}
+                            fullWidth
+                          >
+                            <MenuItem value="ssh">SSH (Terminal)</MenuItem>
+                            <MenuItem value="sftp">SFTP (File Transfer)</MenuItem>
+                            <MenuItem value="vnc">VNC (Remote Desktop)</MenuItem>
+                            <MenuItem value="smb">SMB (Network Share)</MenuItem>
+                          </Select>
+                        </Grid>
+                        <Grid item xs={12} sm={8}>
+                          <TextField
+                            label="Host / IP Address"
+                            size="small"
+                            value={editingLogin.ip}
+                            onChange={e => setEditingLogin({ ...editingLogin, ip: e.target.value })}
+                            fullWidth
+                            placeholder="192.168.1.100"
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <TextField
+                            label="Port"
+                            size="small"
+                            value={editingLogin.port}
+                            onChange={e => setEditingLogin({ ...editingLogin, port: e.target.value })}
+                            fullWidth
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            label="Username"
+                            size="small"
+                            value={editingLogin.loginUsername}
+                            onChange={e => setEditingLogin({ ...editingLogin, loginUsername: e.target.value })}
+                            fullWidth
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            label="Password"
+                            type="password"
+                            size="small"
+                            value={editingLogin.password}
+                            onChange={e => setEditingLogin({ ...editingLogin, password: e.target.value })}
+                            fullWidth
+                          />
+                        </Grid>
+                        {editingLogin.type === 'smb' && (
+                          <>
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                label="Share Name"
+                                size="small"
+                                value={editingLogin.share || ''}
+                                onChange={e => setEditingLogin({ ...editingLogin, share: e.target.value })}
+                                fullWidth
+                                placeholder="e.g. data"
+                              />
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                label="Domain / Workgroup"
+                                size="small"
+                                value={editingLogin.domain || ''}
+                                onChange={e => setEditingLogin({ ...editingLogin, domain: e.target.value })}
+                                fullWidth
+                                placeholder="WORKGROUP"
+                              />
+                            </Grid>
+                          </>
+                        )}
+                      </Grid>
+
+                      <ButtonActionsContainer>
+                        <Button variant="contained" color="primary" startIcon={<Save size={16} />} onClick={saveLogin}>
+                          Save Server
+                        </Button>
+                        <Button variant="outlined" color="inherit" onClick={() => setEditingLogin(null)}>
+                          Cancel
+                        </Button>
                       </ButtonActionsContainer>
                     </FormFieldsContainer>
                   </StyledCardContent>
@@ -433,27 +591,58 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
                 <StyledTableContainer component={Paper} elevation={0}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow>
-                        <TableCell>Name</TableCell>
-                        <TableCell>Type</TableCell>
-                        <TableCell>Address</TableCell>
-                        <TableCell align="right">Actions</TableCell>
+                      <TableRow sx={{ backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
+                        <TableCell sx={{ color: '#94a3b8', fontWeight: 600 }}>Name</TableCell>
+                        <TableCell sx={{ color: '#94a3b8', fontWeight: 600 }}>Protocol</TableCell>
+                        <TableCell sx={{ color: '#94a3b8', fontWeight: 600 }}>Connection Endpoint</TableCell>
+                        <TableCell align="right" sx={{ color: '#94a3b8', fontWeight: 600 }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {logins.length === 0 ? (
                         <TableRow>
-                          <EmptyTableCell colSpan={4} align="center">No saved logins yet. Click "Add Login" to create one.</EmptyTableCell>
+                          <TableCell colSpan={4} className="empty-table-cell">
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, py: 2 }}>
+                              <Server size={36} color="#64748b" />
+                              <Typography sx={{ color: '#94a3b8', fontWeight: 500 }}>No saved server logins yet</Typography>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<Plus size={14} />}
+                                onClick={() => setEditingLogin({ id: '', name: 'Home Server', ip: '', port: '22', loginUsername: 'root', password: '', type: 'ssh' })}
+                                sx={{ mt: 1 }}
+                              >
+                                Add Your First Server
+                              </Button>
+                            </Box>
+                          </TableCell>
                         </TableRow>
                       ) : (
                         logins.map((login) => (
-                          <TableRow key={login.id}>
-                            <NameTableCell>{login.name}</NameTableCell>
-                            <TableCell><StyledChip label={login.type} size="small" color="primary" variant="outlined" /></TableCell>
-                            <DetailsTableCell>{login.loginUsername}@{login.ip}:{login.port}</DetailsTableCell>
+                          <TableRow key={login.id} sx={{ '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.02)' } }}>
+                            <TableCell className="name-table-cell">
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                <Server size={16} color="#38bdf8" />
+                                {login.name}
+                              </Box>
+                            </TableCell>
+                            <TableCell>{getProtocolChip(login.type)}</TableCell>
+                            <TableCell className="details-table-cell">
+                              {login.loginUsername ? `${login.loginUsername}@` : ''}{login.ip}{login.port ? `:${login.port}` : ''}
+                            </TableCell>
                             <TableCell align="right">
-                              <EditButton size="small" onClick={() => setEditingLogin(login)}>Edit</EditButton>
-                              <IconButton size="small" color="error" onClick={() => handleDeleteLoginClick(login.id)}>
+                              <IconButton
+                                size="small"
+                                sx={{ color: '#38bdf8', mr: 1 }}
+                                onClick={() => setEditingLogin(login)}
+                              >
+                                <Edit2 size={16} />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleDeleteLoginClick(login.id)}
+                              >
                                 <Trash2 size={16} />
                               </IconButton>
                             </TableCell>
@@ -467,78 +656,189 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
             </Box>
           )}
 
+          {/* User Management Tab */}
           {activeTab === 'users' && canManageUsers && (
             <Box>
               <SectionHeader>
-                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>User Management</Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<Plus size={16} />}
-                  onClick={() => setEditingUser({ username: '', password: '', role: 'user', permissions: [] })}
-                >
-                  Add User
-                </Button>
+                <Box>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc' }}>User Management</Typography>
+                  <Typography variant="body2" color="text.secondary">Create and manage accounts, roles, and service permissions</Typography>
+                </Box>
+                {!editingUser && (
+                  <Button
+                    variant="contained"
+                    startIcon={<Plus size={16} />}
+                    onClick={() => setEditingUser({ username: '', password: '', role: 'user', permissions: ['access_terminal', 'scan_network'] })}
+                  >
+                    Add User
+                  </Button>
+                )}
               </SectionHeader>
 
               {editingUser ? (
                 <StyledCard variant="outlined">
                   <StyledCardContent>
-                    <CardSubtitle variant="subtitle2" color="text.secondary">
-                      {usersList.find(u => u.username === editingUser.username) ? "Edit User" : "New User"}
-                    </CardSubtitle>
-                    <VerticalStack>
-                      <TextField label="Username" size="small" value={editingUser.username} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} disabled={!!usersList.find(u => u.username === editingUser.username)} fullWidth />
-                      <TextField label={usersList.find(u => u.username === editingUser.username) ? "New Password (Leave blank to keep current)" : "Password"} type="password" size="small" value={editingUser.password} onChange={e => setEditingUser({ ...editingUser, password: e.target.value })} fullWidth />
+                    <Typography variant="subtitle2" className="card-subtitle">
+                      {usersList.find(u => u.username === editingUser.username) ? 'Edit User Account' : 'Create New User Account'}
+                    </Typography>
+                    <FormFieldsContainer>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            label="Username"
+                            size="small"
+                            value={editingUser.username}
+                            onChange={e => setEditingUser({ ...editingUser, username: e.target.value })}
+                            disabled={Boolean(usersList.find(u => u.username === editingUser.username))}
+                            fullWidth
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            label="Password"
+                            type="password"
+                            size="small"
+                            value={editingUser.password || ''}
+                            onChange={e => setEditingUser({ ...editingUser, password: e.target.value })}
+                            placeholder={usersList.find(u => u.username === editingUser.username) ? '(Leave empty to keep current)' : ''}
+                            fullWidth
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Select
+                            size="small"
+                            value={editingUser.role || 'user'}
+                            onChange={e => setEditingUser({ ...editingUser, role: e.target.value })}
+                            fullWidth
+                          >
+                            <MenuItem value="user">Standard User</MenuItem>
+                            <MenuItem value="admin">System Administrator</MenuItem>
+                          </Select>
+                        </Grid>
+                      </Grid>
+
+                      <Divider sx={{ my: 1.5, borderColor: 'rgba(255,255,255,0.06)' }} />
 
                       <Box>
-                        <PermissionsTitle variant="subtitle2">Permissions</PermissionsTitle>
-                        <FormGroup>
+                        <Typography variant="subtitle2" className="permissions-title">
+                          Service Permissions
+                        </Typography>
+                        <Grid container spacing={1.5}>
                           {ALL_PERMISSIONS.map(perm => (
-                            <FormControlLabel
-                              key={perm.id}
-                              control={<Checkbox checked={editingUser.permissions?.includes(perm.id) || false} onChange={() => togglePermission(perm.id)} />}
-                              label={perm.label}
-                            />
+                            <Grid item xs={12} sm={6} key={perm.id}>
+                              <Paper
+                                variant="outlined"
+                                sx={{
+                                  p: 1.5,
+                                  backgroundColor: 'rgba(255,255,255,0.015)',
+                                  borderColor: (editingUser.permissions || []).includes(perm.id) ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255,255,255,0.06)',
+                                  borderRadius: 2
+                                }}
+                              >
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      size="small"
+                                      checked={(editingUser.permissions || []).includes(perm.id)}
+                                      onChange={() => togglePermission(perm.id)}
+                                      color="primary"
+                                    />
+                                  }
+                                  label={
+                                    <Box>
+                                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#f8fafc' }}>
+                                        {perm.label}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary">
+                                        {perm.desc}
+                                      </Typography>
+                                    </Box>
+                                  }
+                                  sx={{ m: 0, width: '100%', alignItems: 'flex-start' }}
+                                />
+                              </Paper>
+                            </Grid>
                           ))}
-                        </FormGroup>
+                        </Grid>
                       </Box>
 
-                      <ButtonActionsContainer $mt={1}>
-                        <Button variant="contained" color="success" startIcon={<Save size={16} />} onClick={saveUser}>Save</Button>
-                        <Button variant="outlined" color="inherit" onClick={() => setEditingUser(null)}>Cancel</Button>
+                      <ButtonActionsContainer>
+                        <Button variant="contained" color="primary" startIcon={<Save size={16} />} onClick={saveUser}>
+                          Save Account
+                        </Button>
+                        <Button variant="outlined" color="inherit" onClick={() => setEditingUser(null)}>
+                          Cancel
+                        </Button>
                       </ButtonActionsContainer>
-                    </VerticalStack>
+                    </FormFieldsContainer>
                   </StyledCardContent>
                 </StyledCard>
               ) : (
                 <StyledTableContainer component={Paper} elevation={0}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow>
-                        <TableCell>Username</TableCell>
-                        <TableCell>Role</TableCell>
-                        <TableCell>Permissions</TableCell>
-                        <TableCell align="right">Actions</TableCell>
+                      <TableRow sx={{ backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
+                        <TableCell sx={{ color: '#94a3b8', fontWeight: 600 }}>Username</TableCell>
+                        <TableCell sx={{ color: '#94a3b8', fontWeight: 600 }}>Role</TableCell>
+                        <TableCell sx={{ color: '#94a3b8', fontWeight: 600 }}>Granted Permissions</TableCell>
+                        <TableCell align="right" sx={{ color: '#94a3b8', fontWeight: 600 }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {usersList.length === 0 ? (
                         <TableRow>
-                          <EmptyTableCell colSpan={4} align="center">No users found.</EmptyTableCell>
+                          <TableCell colSpan={4} className="empty-table-cell">
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, py: 2 }}>
+                              <Users size={36} color="#64748b" />
+                              <Typography sx={{ color: '#94a3b8', fontWeight: 500 }}>No users found</Typography>
+                            </Box>
+                          </TableCell>
                         </TableRow>
                       ) : (
-                        usersList.map((user) => (
-                          <TableRow key={user.username}>
-                            <NameTableCell>{user.username}</NameTableCell>
-                            <TableCell>
-                              {user.role === 'admin' ? <Chip label="Admin" size="small" color="error" variant="outlined" /> : <Chip label="User" size="small" variant="outlined" />}
+                        usersList.map((u) => (
+                          <TableRow key={u.username} sx={{ '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.02)' } }}>
+                            <TableCell className="name-table-cell">
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                <User size={16} color={u.role === 'admin' ? '#f43f5e' : '#38bdf8'} />
+                                {u.username}
+                              </Box>
                             </TableCell>
-                            <DetailsTableCell>{user.permissions?.length || 0} Granted</DetailsTableCell>
+                            <TableCell>
+                              <Chip
+                                label={u.role === 'admin' ? 'ADMINISTRATOR' : 'USER'}
+                                color={u.role === 'admin' ? 'error' : 'default'}
+                                size="small"
+                                className="styled-chip"
+                                variant={u.role === 'admin' ? 'filled' : 'outlined'}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                {(u.permissions || []).slice(0, 3).map((p: string) => (
+                                  <Chip key={p} label={p.replace('_', ' ')} size="small" sx={{ fontSize: '0.7rem', height: 20 }} />
+                                ))}
+                                {(u.permissions || []).length > 3 && (
+                                  <Chip label={`+${u.permissions.length - 3} more`} size="small" variant="outlined" sx={{ fontSize: '0.7rem', height: 20 }} />
+                                )}
+                              </Box>
+                            </TableCell>
                             <TableCell align="right">
-                              <EditButton size="small" onClick={() => setEditingUser(user)}>Edit</EditButton>
-                              <IconButton size="small" color="error" onClick={() => handleDeleteUserClick(user.username)}>
-                                <Trash2 size={16} />
+                              <IconButton
+                                size="small"
+                                sx={{ color: '#38bdf8', mr: 1 }}
+                                onClick={() => setEditingUser({ ...u, password: '' })}
+                              >
+                                <Edit2 size={16} />
                               </IconButton>
+                              {u.username !== 'admin' && (
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => handleDeleteUserClick(u.username)}
+                                >
+                                  <Trash2 size={16} />
+                                </IconButton>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))
@@ -550,58 +850,79 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
             </Box>
           )}
 
+          {/* Security Tab */}
           {activeTab === 'security' && (
             <Box>
-              <SectionTitle variant="h5">Security Settings</SectionTitle>
+              <Typography variant="h5" className="section-title">Security & Credentials</Typography>
 
               <StyledCard variant="outlined" $mb>
                 <StyledCardContent>
-                  <CardSubtitle variant="subtitle2" color="text.secondary">
-                    Authentication
-                  </CardSubtitle>
+                  <Typography variant="subtitle2" className="card-subtitle">Session Security</Typography>
                   <StyledFormGroup>
                     <FlexRowSpaceBetween>
-                      <Typography>Require password on wake</Typography>
-                      <Switch defaultChecked />
+                      <Box>
+                        <Typography sx={{ fontWeight: 500 }}>Ticket-Based Sandbox Auth</Typography>
+                        <Typography variant="body2" color="text.secondary">Enforce isolated cryptographic tickets for application iframes</Typography>
+                      </Box>
+                      <Chip label="ACTIVE" color="success" size="small" className="styled-chip" />
                     </FlexRowSpaceBetween>
+                    <Divider sx={{ my: 1, borderColor: 'rgba(255,255,255,0.05)' }} />
                     <FlexRowSpaceBetween>
-                      <Typography>Save credentials securely</Typography>
-                      <Switch defaultChecked />
+                      <Box>
+                        <Typography sx={{ fontWeight: 500 }}>Relay Channel Encryption</Typography>
+                        <Typography variant="body2" color="text.secondary">TLS tunnel transport between Relay Server and Local Server</Typography>
+                      </Box>
+                      <Chip label="ENABLED" color="primary" size="small" className="styled-chip" />
                     </FlexRowSpaceBetween>
                   </StyledFormGroup>
-                  <StyledDivider />
-                  <Button variant="outlined" color="error">
-                    Clear Saved Credentials
-                  </Button>
                 </StyledCardContent>
               </StyledCard>
             </Box>
           )}
-
         </ContentMaxWidth>
       </MainContentContainer>
 
       {/* Delete User Dialog */}
-      <Dialog open={deleteUserDialog.open} onClose={() => setDeleteUserDialog({ open: false, username: '' })}>
-        <DialogTitle>Delete User</DialogTitle>
+      <Dialog
+        open={deleteUserDialog.open}
+        onClose={() => setDeleteUserDialog({ open: false, username: '' })}
+        PaperProps={{ sx: { backgroundColor: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ color: '#f8fafc', fontWeight: 700 }}>Delete User Account</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to delete user "{deleteUserDialog.username}"?</Typography>
+          <Typography sx={{ color: '#94a3b8' }}>
+            Are you sure you want to permanently delete user <strong style={{ color: '#f8fafc' }}>"{deleteUserDialog.username}"</strong>? This action cannot be undone.
+          </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteUserDialog({ open: false, username: '' })} color="inherit">Cancel</Button>
-          <Button onClick={confirmDeleteUser} variant="contained" color="error">Delete</Button>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteUserDialog({ open: false, username: '' })} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={confirmDeleteUser} variant="contained" color="error">
+            Delete User
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Login Dialog */}
-      <Dialog open={deleteLoginDialog.open} onClose={() => setDeleteLoginDialog({ open: false, id: '' })}>
-        <DialogTitle>Delete Login</DialogTitle>
+      <Dialog
+        open={deleteLoginDialog.open}
+        onClose={() => setDeleteLoginDialog({ open: false, id: '' })}
+        PaperProps={{ sx: { backgroundColor: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ color: '#f8fafc', fontWeight: 700 }}>Delete Server Login</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to delete this login?</Typography>
+          <Typography sx={{ color: '#94a3b8' }}>
+            Are you sure you want to remove this saved server credential?
+          </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteLoginDialog({ open: false, id: '' })} color="inherit">Cancel</Button>
-          <Button onClick={confirmDeleteLogin} variant="contained" color="error">Delete</Button>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteLoginDialog({ open: false, id: '' })} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={confirmDeleteLogin} variant="contained" color="error">
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </RootContainer>
@@ -609,16 +930,20 @@ export default function SettingsApp({ ticket }: SettingsAppProps) {
 }
 
 // Subcomponents
-const ThemeCard = ({ name, active, color, textColor = 'white', accent, onClick }: { name: string, active: boolean, color: string, textColor?: string, accent?: string, onClick: () => void }) => {
+const ThemeCard = ({ name, active, color, accent, onClick }: { name: string, active: boolean, color: string, accent?: string, onClick: () => void }) => {
   return (
     <ThemeCardRoot onClick={onClick}>
       <ThemeCardPreview $color={color} $active={active}>
-        <ThemeCardHeader $textColor={textColor} />
-        <ThemeCardBody $accent={accent} $textColor={textColor} />
+        <ThemeCardHeader />
+        <ThemeCardBody $accent={accent} />
       </ThemeCardPreview>
-      <ThemeCardLabel variant="caption" $active={active}>
+      <Typography
+        variant="caption"
+        className="theme-card-label"
+        sx={{ color: active ? '#38bdf8' : '#94a3b8' }}
+      >
         {name}
-      </ThemeCardLabel>
+      </Typography>
     </ThemeCardRoot>
   );
 };
@@ -627,24 +952,21 @@ const ThemeCard = ({ name, active, color, textColor = 'white', accent, onClick }
 const RootContainer = (props: any) => <Box className="root-container" {...props} />;
 const SidebarPaper = (props: any) => <Paper className="sidebar-paper" {...props} />;
 const SidebarHeader = (props: any) => <Box className="sidebar-header" {...props} />;
-const SidebarTitle = (props: any) => <Typography className="sidebar-title" {...props} />;
 const SidebarList = (props: any) => <List className="sidebar-list" {...props} />;
 const TabListItem = (props: any) => <ListItem className="tab-list-item" {...props} />;
 const TabButton = (props: any) => <ListItemButton className="tab-button" {...props} />;
 const TabIcon = ({ $active, ...props }: any) => {
-  return <ListItemIcon className="tab-icon" sx={{ color: $active ? 'primary.main' : 'inherit' }} {...props} />;
+  return <ListItemIcon className="tab-icon" sx={{ color: $active ? '#38bdf8' : '#64748b' }} {...props} />;
 };
 const TabText = ({ $active, ...props }: any) => {
-  return <Typography className="tab-text" sx={{ fontWeight: $active ? 'bold' : 'medium', color: $active ? 'primary.main' : 'inherit' }} {...props} />;
+  return <Typography sx={{ fontWeight: $active ? 600 : 500, color: $active ? '#38bdf8' : '#cbd5e1', fontSize: '0.92rem' }} {...props} />;
 };
 const MainContentContainer = (props: any) => <Box className="main-content-container" {...props} />;
 const ContentMaxWidth = (props: any) => <Box className="content-max-width" {...props} />;
-const SectionTitle = (props: any) => <Typography className="section-title" {...props} />;
 const StyledCard = ({ $mb, ...props }: any) => (
   <Card className="styled-card" sx={{ mb: $mb ? 3 : 0 }} {...props} />
 );
 const StyledCardContent = (props: any) => <CardContent className="styled-card-content" {...props} />;
-const CardSubtitle = (props: any) => <Typography className="card-subtitle" {...props} />;
 const VerticalStack = (props: any) => <Box className="vertical-stack" {...props} />;
 const FlexRowSpaceBetween = (props: any) => <Box className="flex-row-space-between" {...props} />;
 const StyledTextField = (props: any) => <TextField className="styled-text-field" {...props} />;
@@ -653,38 +975,24 @@ const StyledFormGroup = (props: any) => <FormGroup className="styled-form-group"
 const FlexRowGap2 = (props: any) => <Box className="flex-row-gap-2" {...props} />;
 const WallpaperContainer = (props: any) => <Box className="wallpaper-container" {...props} />;
 const WallpaperThumb = ({ $bg, $active, ...props }: any) => {
-  return <Box className="wallpaper-thumb" sx={{ background: $bg, border: $active ? (theme) => `2px solid ${theme.palette.primary.main}` : 'none' }} {...props} />;
+  return <Box className="wallpaper-thumb" sx={{ background: $bg, border: $active ? '2px solid #38bdf8' : '2px solid transparent' }} {...props} />;
 };
 const SolidWallpaperButton = ({ $active, ...props }: any) => {
-  return <Box className="solid-wallpaper-button" sx={{ border: $active ? (theme) => `2px solid ${theme.palette.primary.main}` : (theme) => `1px dashed ${theme.palette.divider}` }} {...props} />;
+  return <Box className="solid-wallpaper-button" sx={{ border: $active ? '2px solid #38bdf8' : '1px dashed rgba(255,255,255,0.15)', color: $active ? '#38bdf8' : '#94a3b8' }} {...props} />;
 };
 const SectionHeader = (props: any) => <Box className="section-header" {...props} />;
 const FormFieldsContainer = (props: any) => <Box className="form-fields-container" {...props} />;
-const ButtonActionsContainer = ({ $mt, ...props }: any) => (
-  <Box className="button-actions-container" sx={{ mt: $mt !== undefined ? $mt : 0 }} {...props} />
+const ButtonActionsContainer = (props: any) => (
+  <Box className="button-actions-container" {...props} />
 );
 const StyledTableContainer = (props: any) => <TableContainer className="styled-table-container" {...props} />;
-const EmptyTableCell = (props: any) => {
-  return <TableCell className="empty-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
-};
-const NameTableCell = (props: any) => <TableCell className="name-table-cell" {...props} />;
-const StyledChip = (props: any) => <Chip className="styled-chip" {...props} />;
-const DetailsTableCell = (props: any) => {
-  return <TableCell className="details-table-cell" sx={{ color: 'text.secondary' }} {...props} />;
-};
-const EditButton = (props: any) => <Button className="edit-button" {...props} />;
-const PermissionsTitle = (props: any) => <Typography className="permissions-title" {...props} />;
-const StyledDivider = (props: any) => <Divider className="styled-divider" {...props} />;
 const ThemeCardRoot = (props: any) => <Box className="theme-card-root" {...props} />;
 const ThemeCardPreview = ({ $color, $active, ...props }: any) => {
-  return <Box className="theme-card-preview" sx={{ backgroundColor: $color, border: $active ? (theme) => `2px solid ${theme.palette.primary.main}` : (theme) => `1px solid ${theme.palette.divider}` }} {...props} />;
+  return <Box className="theme-card-preview" sx={{ backgroundColor: $color, border: $active ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)' }} {...props} />;
 };
-const ThemeCardHeader = ({ $textColor, ...props }: any) => (
-  <Box className="theme-card-header" sx={{ backgroundColor: $textColor === 'white' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} {...props} />
+const ThemeCardHeader = (props: any) => (
+  <Box className="theme-card-header" sx={{ backgroundColor: 'rgba(255,255,255,0.12)' }} {...props} />
 );
-const ThemeCardBody = ({ $accent, $textColor, ...props }: any) => (
-  <Box className="theme-card-body" sx={{ backgroundColor: $accent || ($textColor === 'white' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)') }} {...props} />
+const ThemeCardBody = ({ $accent, ...props }: any) => (
+  <Box className="theme-card-body" sx={{ backgroundColor: $accent || 'rgba(255,255,255,0.06)' }} {...props} />
 );
-const ThemeCardLabel = ({ $active, ...props }: any) => {
-  return <Typography className="theme-card-label" sx={{ color: $active ? 'primary.main' : 'text.secondary', fontWeight: $active ? 'bold' : 'normal' }} {...props} />;
-};
