@@ -1,7 +1,5 @@
-import ipLib from "npm:ip";
-
 const port = parseInt(Deno.env.get("PORT") || "8000");
-const dataFile = new URL('.', import.meta.url).pathname + "topology.json";
+const dataFile = new URL('./topology.json', import.meta.url).pathname;
 
 export interface Device {
     ip: string;
@@ -16,23 +14,73 @@ async function readTopology() {
         if (error instanceof Deno.errors.NotFound) {
             return { nodes: [], edges: [], nicknames: {} };
         }
-        console.error("Error reading topology file:", error);
         return { nodes: [], edges: [], nicknames: {} };
     }
 }
 
 async function writeTopology(data: any) {
-    await Deno.writeTextFile(dataFile, JSON.stringify(data, null, 2));
+    try {
+        await Deno.writeTextFile(dataFile, JSON.stringify(data, null, 2));
+    } catch (error) {
+        console.error("Error writing topology file:", error);
+    }
 }
 
-function getLocalNetworkDetails(): { address: string; netmask: string } | null {
+function ipToLong(ip: string): number {
+    return ip.split('.').reduce((acc, octet) => ((acc << 8) + parseInt(octet, 10)) >>> 0, 0);
+}
+
+function longToIp(long: number): string {
+    return [
+        (long >>> 24) & 255,
+        (long >>> 16) & 255,
+        (long >>> 8) & 255,
+        long & 255
+    ].join('.');
+}
+
+function parseCidr(cidr: string): { startLong: number; endLong: number } | null {
+    try {
+        const [ip, bitsStr] = cidr.split('/');
+        const bits = parseInt(bitsStr, 10);
+        if (isNaN(bits) || bits < 0 || bits > 32) return null;
+        const maskLong = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
+        const ipLong = ipToLong(ip);
+        const networkLong = (ipLong & maskLong) >>> 0;
+        const broadcastLong = (networkLong | (~maskLong >>> 0)) >>> 0;
+        return {
+            startLong: networkLong + 1,
+            endLong: broadcastLong - 1
+        };
+    } catch {
+        return null;
+    }
+}
+
+function getLocalNetworkRange(): { startLong: number; endLong: number } | null {
+    const scanCidr = Deno.env.get("SCAN_CIDR");
+    if (scanCidr) {
+        const range = parseCidr(scanCidr);
+        if (range) return range;
+    }
+
     try {
         const interfaces = Deno.networkInterfaces();
         for (const netInfo of interfaces) {
-            if (netInfo.family === "IPv4" && !netInfo.address.startsWith("127.")) {
+            if (
+                netInfo.family === "IPv4" &&
+                !netInfo.address.startsWith("127.") &&
+                !netInfo.name.startsWith("docker") &&
+                !netInfo.name.startsWith("veth")
+            ) {
+                const ipLong = ipToLong(netInfo.address);
+                const mask = netInfo.netmask || "255.255.255.0";
+                const maskLong = ipToLong(mask);
+                const networkLong = (ipLong & maskLong) >>> 0;
+                const broadcastLong = (networkLong | (~maskLong >>> 0)) >>> 0;
                 return {
-                    address: netInfo.address,
-                    netmask: netInfo.netmask || "255.255.255.0"
+                    startLong: networkLong + 1,
+                    endLong: broadcastLong - 1
                 };
             }
         }
@@ -42,14 +90,19 @@ function getLocalNetworkDetails(): { address: string; netmask: string } | null {
     return null;
 }
 
+function ipToInAddrArpa(ip: string): string {
+    return ip.split('.').reverse().join('.') + '.in-addr.arpa';
+}
+
 async function reverseDns(ip: string): Promise<string | undefined> {
     try {
-        const hostnames = await Deno.resolveDns(ip, "PTR");
+        const arpa = ipToInAddrArpa(ip);
+        const hostnames = await Deno.resolveDns(arpa, "PTR");
         if (hostnames && hostnames.length > 0) {
             return hostnames[0].replace(/\.$/, "");
         }
     } catch {
-        // Reverse DNS lookup failed or not found
+        // PTR record not found or DNS lookup failed
     }
     return undefined;
 }
@@ -78,30 +131,15 @@ async function scanDevice(ip: string): Promise<Device | null> {
 }
 
 async function runNetworkScan(): Promise<Device[]> {
-    let subnet;
-    const scanCidr = Deno.env.get("SCAN_CIDR");
-    if (scanCidr) {
-        try {
-            subnet = ipLib.cidrSubnet(scanCidr);
-        } catch (err) {
-            console.error("Invalid SCAN_CIDR provided:", scanCidr);
-            return [];
-        }
-    } else {
-        const netDetails = getLocalNetworkDetails();
-        if (!netDetails) {
-            console.error("Could not automatically detect local network interfaces.");
-            return [];
-        }
-        subnet = ipLib.subnet(netDetails.address, netDetails.netmask);
+    const range = getLocalNetworkRange();
+    if (!range || range.startLong > range.endLong) {
+        console.error("Could not determine network range to scan.");
+        return [];
     }
 
-    const startLong = ipLib.toLong(subnet.firstAddress);
-    const endLong = ipLib.toLong(subnet.lastAddress);
-
     const ips: string[] = [];
-    for (let currentLong = startLong; currentLong <= endLong; currentLong++) {
-        ips.push(ipLib.fromLong(currentLong));
+    for (let currentLong = range.startLong; currentLong <= range.endLong; currentLong++) {
+        ips.push(longToIp(currentLong));
     }
 
     const CONCURRENCY_LIMIT = 20;
@@ -124,7 +162,7 @@ async function runNetworkScan(): Promise<Device[]> {
     const workers = Array.from({ length: numWorkers }, () => worker());
     await Promise.all(workers);
 
-    foundDevices.sort((a, b) => ipLib.toLong(a.ip) - ipLib.toLong(b.ip));
+    foundDevices.sort((a, b) => ipToLong(a.ip) - ipToLong(b.ip));
     return foundDevices;
 }
 
