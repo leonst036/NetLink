@@ -21,7 +21,7 @@ export default function App() {
   const fetchServers = async () => {
     setIsScanning(true);
     try {
-        const res = await fetch(`/api/servers`, {
+        const res = await fetch(`/api/net-graph/scan`, {
             headers: {
                 'Authorization': `Ticket ${ticket}`
             }

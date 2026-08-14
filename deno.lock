@@ -3,6 +3,7 @@
   "specifiers": {
     "npm:@types/react-dom@^18.2.0": "18.3.7_@types+react@18.3.31",
     "npm:@types/react@^18.2.0": "18.3.31",
+    "npm:ip@*": "2.0.1",
     "npm:react-dom@^18.2.0": "18.3.1_react@18.3.1",
     "npm:react@^18.2.0": "18.3.1"
   },
@@ -25,6 +26,9 @@
     },
     "csstype@3.2.3": {
       "integrity": "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="
+    },
+    "ip@2.0.1": {
+      "integrity": "sha512-lJUL9imLTNi1ZfXT+DU6rBBdbiKGBuay9B6xGSPVjUeQwaH1RIGqef8RZkUtHioLmSNpPR5M4HVKJGm1j8FWVQ=="
     },
     "js-tokens@4.0.0": {
       "integrity": "sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ=="
