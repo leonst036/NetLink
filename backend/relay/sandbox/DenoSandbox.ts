@@ -61,7 +61,10 @@ export class DenoSandbox {
         denoProcess.stderr.on('data', (data: any) => console.error(`[App ${appId} Error]: ${data}`));
         denoProcess.on('close', (code: any) => {
             console.log(`App ${appId} exited with code ${code}`);
-            this.activeApps.delete(appId);
+            const currentApp = this.activeApps.get(appId);
+            if (currentApp && currentApp.process === denoProcess) {
+                this.activeApps.delete(appId);
+            }
         });
 
         const appProcess: AppProcess = { appId, port, process: denoProcess };

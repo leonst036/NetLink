@@ -71,7 +71,8 @@ function startViteProcess() {
         viteProcess = null;
     }
     const viteBin = path.join(__dirname, 'backend/relay/frontend/node_modules/vite/bin/vite.js');
-    viteProcess = spawn('node', [viteBin], {
+
+    viteProcess = spawn('node', [viteBin, '--host', '0.0.0.0'], {
         cwd: path.join(__dirname, 'backend/relay/frontend'),
         env: process.env,
         stdio: ['ignore', 'pipe', 'pipe']

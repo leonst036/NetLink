@@ -86,8 +86,6 @@ export default function Dock() {
         (dyn) => !pinnedApps.some((p) => p.appId === dyn.appId)
     );
 
-    const hasExtraItems = pinnedApps.length > 0 || unpinnedRunningApps.length > 0;
-
     return (
         <>
             {hasMaximized && (
@@ -109,8 +107,6 @@ export default function Dock() {
                 isMinimized={storeWindow.isOpen && storeWindow.isMinimized}
                 onClick={handleStoreClick}
             />
-
-            {hasExtraItems && <Box className="dock-divider" />}
 
             {/* Pinned Apps */}
             {pinnedApps.map((pinned: PinnedApp) => {
@@ -142,6 +138,7 @@ export default function Dock() {
             })}
 
             {/* Unpinned Running Dynamic Apps */}
+            {unpinnedRunningApps.length > 0 && <Box className="dock-divider" />}
             {unpinnedRunningApps.map((dyn: DynamicAppInstance) => (
                 <DockIcon
                     key={dyn.id}

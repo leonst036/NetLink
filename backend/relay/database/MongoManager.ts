@@ -140,17 +140,6 @@ export async function DeleteUser(client: mongoDB.MongoClient, username: string) 
     return client.db("NetLink").collection("users").deleteOne({ username });
 }
 
-export async function GetTopology(client: mongoDB.MongoClient, username: string, target: string) {
-    return client.db("NetLink").collection("network_data").findOne({ username, target });
-}
-
-export async function SaveTopology(client: mongoDB.MongoClient, username: string, target: string, nodes: any, edges: any, nicknames: any) {
-    return client.db("NetLink").collection("network_data").updateOne(
-        { username, target },
-        { $set: { nodes, edges, nicknames, updatedAt: new Date() } },
-        { upsert: true }
-    );
-}
 
 export async function GetServerLogins(client: mongoDB.MongoClient, username: string) {
     return client.db("NetLink").collection("server_logins").find({ username }).toArray();
@@ -179,21 +168,4 @@ export async function SaveDockConfig(client: mongoDB.MongoClient, username: stri
         { $set: { pinnedApps, updatedAt: new Date() } },
         { upsert: true }
     );
-}
-
-export async function GetStoredSshSessions(client: mongoDB.MongoClient, username: string) {
-    return client.db("NetLink").collection("ssh_sessions").find({ username }).toArray();
-}
-
-export async function SaveStoredSshSession(client: mongoDB.MongoClient, username: string, sessionData: any) {
-    const { sessionId, name, target, ip, sshUsername } = sessionData;
-    return client.db("NetLink").collection("ssh_sessions").updateOne(
-        { username, sessionId },
-        { $set: { name, target, ip, sshUsername, updatedAt: new Date() } },
-        { upsert: true }
-    );
-}
-
-export async function DeleteStoredSshSession(client: mongoDB.MongoClient, username: string, sessionId: string) {
-    return client.db("NetLink").collection("ssh_sessions").deleteOne({ username, sessionId });
 }
