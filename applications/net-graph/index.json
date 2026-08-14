@@ -9,6 +9,6 @@
     "allowWrite": true,
     "allowNet": true,
     "allowRun": true,
-    "allowRunCommands": ["ping", "sh"]
+    "allowRunCommands": ["ping", "sh", "ip", "hostname"]
   }
 }

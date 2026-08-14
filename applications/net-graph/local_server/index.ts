@@ -68,36 +68,70 @@ function parseCidr(cidr: string): { startLong: number; endLong: number } | null 
     }
 }
 
-function getLocalNetworkRange(): { startLong: number; endLong: number } | null {
+async function getNetworkViaShell(): Promise<string | null> {
+    try {
+        const cmd = new Deno.Command("sh", {
+            args: ["-c", "ip -4 -o addr show scope global || ip route show default"],
+            stdout: "piped",
+            stderr: "null",
+        });
+        const { stdout, code } = await cmd.output();
+        if (code === 0) {
+            const output = new TextDecoder().decode(stdout);
+            for (const line of output.split("\n")) {
+                if (line.includes("docker") || line.includes("veth") || line.includes("br-") || line.includes("virbr")) continue;
+                const match = line.match(/inet\s+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\/[0-9]+)/);
+                if (match) return match[1];
+            }
+        }
+    } catch {
+        // Ignored
+    }
+    return null;
+}
+
+async function getLocalNetworkRange(): Promise<{ startLong: number; endLong: number } | null> {
     const scanCidr = getEnvSafe("SCAN_CIDR");
     if (scanCidr) {
         const range = parseCidr(scanCidr);
         if (range) return range;
     }
 
+    // 1. Detect network range using shell command (works seamlessly with --allow-run=sh,ping)
+    const shellCidr = await getNetworkViaShell();
+    if (shellCidr) {
+        const range = parseCidr(shellCidr);
+        if (range) return range;
+    }
+
+    // 2. Fallback to Deno.networkInterfaces if sys permission is granted
     try {
-        const interfaces = Deno.networkInterfaces();
-        for (const netInfo of interfaces) {
-            if (
-                netInfo.family === "IPv4" &&
-                !netInfo.address.startsWith("127.") &&
-                !netInfo.name.startsWith("docker") &&
-                !netInfo.name.startsWith("veth")
-            ) {
-                const ipLong = ipToLong(netInfo.address);
-                const mask = netInfo.netmask || "255.255.255.0";
-                const maskLong = ipToLong(mask);
-                const networkLong = (ipLong & maskLong) >>> 0;
-                const broadcastLong = (networkLong | (~maskLong >>> 0)) >>> 0;
-                return {
-                    startLong: networkLong + 1,
-                    endLong: broadcastLong - 1
-                };
+        const interfaces = (Deno as any).networkInterfaces?.();
+        if (Array.isArray(interfaces)) {
+            for (const netInfo of interfaces) {
+                if (
+                    netInfo.family === "IPv4" &&
+                    !netInfo.address.startsWith("127.") &&
+                    !netInfo.name.startsWith("docker") &&
+                    !netInfo.name.startsWith("veth") &&
+                    !netInfo.name.startsWith("br-")
+                ) {
+                    const ipLong = ipToLong(netInfo.address);
+                    const mask = netInfo.netmask || "255.255.255.0";
+                    const maskLong = ipToLong(mask);
+                    const networkLong = (ipLong & maskLong) >>> 0;
+                    const broadcastLong = (networkLong | (~maskLong >>> 0)) >>> 0;
+                    return {
+                        startLong: networkLong + 1,
+                        endLong: broadcastLong - 1
+                    };
+                }
             }
         }
-    } catch (e) {
-        console.error("Error detecting network interfaces:", e);
+    } catch {
+        // Ignored if sys permission is not available
     }
+
     return null;
 }
 
@@ -142,7 +176,7 @@ async function scanDevice(ip: string): Promise<Device | null> {
 }
 
 async function runNetworkScan(): Promise<Device[]> {
-    const range = getLocalNetworkRange();
+    const range = await getLocalNetworkRange();
     if (!range || range.startLong > range.endLong) {
         console.error("Could not determine network range to scan.");
         return [];
