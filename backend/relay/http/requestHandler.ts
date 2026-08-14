@@ -4,7 +4,7 @@ import { handleLogin } from '../auth/login.js';
 import { getMongoClient } from '../database/MongoManager.js';
 import { handleRegisterRoute, handleValidateTargetRoute, handleTicketRoute } from './routes/authRoutes.js';
 import { handleUsersRoute } from './routes/userRoutes.js';
-import { handleGetServersRoute, handleServerLoginsRoute } from './routes/serverRoutes.js';
+import { handleServerLoginsRoute } from './routes/serverRoutes.js';
 import { handleInstallScriptRoute, handleDemoScriptRoute, handleDemoSetupRoute } from './routes/scriptRoutes.js';
 import { handleFaviconRoute, handleStaticFileRoute, handleAppFrontendRoute } from './routes/staticRoutes.js';
 import { handleNetStoreApplicationsRoute, handleInstallApplicationRoute, handleUninstallApplicationRoute } from './routes/netStoreRoutes.js';
@@ -61,13 +61,17 @@ appRouter.get('/api/demo.sh', handleDemoScriptRoute);
 appRouter.get('/api/demo-setup', handleDemoSetupRoute);
 
 // Server & Devices routes
-appRouter.get('/api/servers', (req, res, parsedUrl) => handleGetServersRoute(parsedUrl, req, res));
 appRouter.get('/api/server-logins', (req, res, parsedUrl) => handleServerLoginsRoute(parsedUrl, req, res));
+appRouter.post('/api/server-logins', (req, res, parsedUrl) => handleServerLoginsRoute(parsedUrl, req, res));
+appRouter.delete('/api/server-logins', (req, res, parsedUrl) => handleServerLoginsRoute(parsedUrl, req, res));
 
 // Topology routes
 
 // User management routes
 appRouter.get('/api/users', (req, res, parsedUrl) => handleUsersRoute(parsedUrl, req, res));
+appRouter.post('/api/users', (req, res, parsedUrl) => handleUsersRoute(parsedUrl, req, res));
+appRouter.put('/api/users', (req, res, parsedUrl) => handleUsersRoute(parsedUrl, req, res));
+appRouter.delete('/api/users', (req, res, parsedUrl) => handleUsersRoute(parsedUrl, req, res));
 
 // NetStore application catalog route
 appRouter.get('/api/applications', (req, res, parsedUrl) => handleNetStoreApplicationsRoute(parsedUrl, req, res));
@@ -91,7 +95,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     if (match) {
         const appId = match[1] as string;
         // Exclude system api routes like login, register, servers etc.
-        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth'];
+        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth'];
         if (!systemRoutes.includes(appId)) {
             let userId = 'unknown';
             try {

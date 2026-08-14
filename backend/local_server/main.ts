@@ -1,6 +1,4 @@
-import { WebSocketServer, WebSocket } from 'ws';
 import { createHttpsServer } from './httpServer.js';
-import { handleWebSocketConnection } from './protocols/router.js';
 import { handleRelayConnection } from './services/relayConnector.js';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -17,13 +15,6 @@ InitNetStore();
 
 // 2. Create HTTPS Server
 const server = createHttpsServer();
-
-// 3. Attach WebSocket Server to the same HTTPS Server (for direct local connections)
-const wss = new WebSocketServer({ server });
-
-wss.on('connection', (ws: WebSocket) => {
-    handleWebSocketConnection(ws);
-});
 
 // 4. Start local HTTPS server
 server.listen(8080, () => {

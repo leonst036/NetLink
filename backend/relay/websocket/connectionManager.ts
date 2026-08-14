@@ -3,7 +3,6 @@ import { WebSocket } from 'ws';
 // Maps to manage active connections and routing
 export const controlConnections = new Map<string, WebSocket>();
 export const pendingSessions = new Map<string, WebSocket>(); // Key: sessionId, Value: Client WebSocket
-export const serverDevices = new Map<string, any[]>(); // Key: identifier, Value: Array of devices
 export const serverApplications = new Map<string, any[]>(); // Key: identifier, Value: Array of applications
 export const frontendClients = new Map<string, Set<WebSocket>>(); // Key: identifier, Value: Set of frontend desktop WebSockets
 

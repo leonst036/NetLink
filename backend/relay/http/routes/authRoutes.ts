@@ -109,7 +109,7 @@ export async function handleTicketRoute(req: http.IncomingMessage, res: http.Ser
                 const parsedBody = body ? JSON.parse(body) : {};
                 const target = parsedBody.target || parsedUrl.searchParams.get('target') || '';
                 
-                const ticket = generateTicket(decoded.userId, target);
+                const ticket = generateTicket(decoded.userId, target, decoded.role, decoded.permissions);
                 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true, ticket }));

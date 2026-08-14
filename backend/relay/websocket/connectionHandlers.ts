@@ -2,8 +2,7 @@ import { WebSocket } from 'ws';
 import crypto from 'crypto';
 import { 
     controlConnections, 
-    pendingSessions, 
-    serverDevices,
+    pendingSessions,
     serverApplications,
     bridgeSockets,
     frontendClients
@@ -78,10 +77,6 @@ export function handleLocalServerConnection(
         ws.on('message', async (data: any) => {
             try {
                 const message = JSON.parse(data.toString());
-                if (message.type === 'server_list' && Array.isArray(message.devices)) {
-                    console.log(`Received ${message.devices.length} devices from local server: ${identifier}`);
-                    serverDevices.set(identifier, message.devices);
-                }
 
                 if ((message.type === 'applications' || message.type === 'application_json') && Array.isArray(message.applications)) {
                     console.log(`Received ${message.applications.length} applications from local server: ${identifier}`);
@@ -244,7 +239,6 @@ export function handleLocalServerConnection(
             console.log(`Local server disconnected: ${identifier}`);
             if (controlConnections.get(identifier) === ws) {
                 controlConnections.delete(identifier);
-                serverDevices.delete(identifier);
                 serverApplications.delete(identifier);
             }
         });
@@ -304,12 +298,6 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
         frontendClients.set(targetId, clients);
     }
     clients.add(ws);
-
-    // Send the current list immediately if available
-    const devices = serverDevices.get(targetId);
-    if (devices) {
-        ws.send(JSON.stringify({ type: 'server_list', devices }));
-    }
     
     ws.on('message', async (data: any) => {
         try {

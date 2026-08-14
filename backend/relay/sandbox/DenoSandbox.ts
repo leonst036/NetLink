@@ -40,8 +40,8 @@ export class DenoSandbox {
             '--allow-net',
             `--allow-read=${appDir}`,
             `--allow-write=${appDir}`,
-            '--allow-env=PORT',
-            ...extraFlags,
+            '--allow-env',
+            ...extraFlags.filter(f => !f.startsWith('--allow-env') && !f.startsWith('--allow-net')),
             entryFile
         ];
 

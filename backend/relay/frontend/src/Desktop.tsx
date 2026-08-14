@@ -67,6 +67,20 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                 if (appId) {
                     useWindowStore.getState().openDynamicApp(appId, title || appId, extraParams);
                 }
+            } else if (e.data && e.data.type === 'netlink_setting_changed') {
+                const { key, value } = e.data;
+                if (key) {
+                    try {
+                        localStorage.setItem(key, value);
+                        setSettings({
+                            username: localStorage.getItem('netlink_username') || 'Admin',
+                            wallpaper: localStorage.getItem('netlink_wallpaper') || 'default',
+                            theme: localStorage.getItem('netlink_theme') || 'Dark',
+                        });
+                    } catch (err) {
+                        console.error('Failed to sync settings from iframe', err);
+                    }
+                }
             }
         };
         window.addEventListener('message', handleIframeMessage);

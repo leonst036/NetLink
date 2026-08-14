@@ -61,8 +61,9 @@ export const handleMainConnection = async (
             const match = pathname.match(/^\/api\/([^\/]+)(?:\/|$)/);
             if (match) {
                 const appId = match[1] as string;
-                const app = denoSandbox.getApp(appId);
-                const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'servers', 'server-logins', 'topology', 'users', 'applications', 'netstore'];
+                const userId = decodedPayload?.userId || decodedPayload?.sub || identifier || 'admin';
+                const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId);
+                const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore'];
                 if (app && !systemRoutes.includes(appId)) {
                     // Bridge websocket to Deno
                     const targetUrl = `ws://localhost:${app.port}${req.url}`;

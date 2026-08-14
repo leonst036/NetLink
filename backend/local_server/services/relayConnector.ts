@@ -1,6 +1,4 @@
 import { WebSocket } from 'ws';
-import { handleWebSocketConnection } from '../protocols/router.js';
-import { runNetworkScan } from './scanner.js';
 import { sendApplicationJson } from '../NetStore/NetStore.js';
 
 /**
@@ -52,16 +50,6 @@ export function handleRelayConnection(token: string): void {
                 controlWs.ping();
             }
         }, 30000);
-        // Run network scan and send the results
-        try {
-            controlWs.send(JSON.stringify({ type: 'scanning' }));
-            const devices = await runNetworkScan();
-            if (controlWs.readyState === WebSocket.OPEN) {
-                controlWs.send(JSON.stringify({ type: 'server_list', devices }));
-            }
-        } catch (err) {
-            console.error('Error running network scan:', err);
-        }
 
         // Send applications JSON from NetStore
         try {
@@ -74,31 +62,7 @@ export function handleRelayConnection(token: string): void {
     controlWs.on('message', (data: any) => {
         try {
             const message = JSON.parse(data.toString());
-            if (message.type === 'init_session' && message.sessionId) {
-                console.log(`Relay requested new SSH data session: ${message.sessionId}`);
-
-                const relayUrl = getRelayUrl();
-                const sessionWs = new WebSocket(`${relayUrl}/connect?token=${token}&sessionId=${message.sessionId}`, {
-                    rejectUnauthorized: process.env.REJECT_UNAUTHORIZED?.trim().toLowerCase() !== 'false'
-                });
-
-                sessionWs.on('open', () => {
-                    console.log(`Data connection established for session: ${message.sessionId}`);
-                    handleWebSocketConnection(sessionWs, message.sessionId);
-
-                    if (message.userId) {
-                        import('../NetStore/NetStore.js').then((ns) => {
-                            if (ns.StartLocalApps) {
-                                ns.StartLocalApps(message.userId).catch(err => console.error('Failed to start user apps:', err));
-                            }
-                        }).catch(err => console.error('Failed to import NetStore.js:', err));
-                    }
-                });
-
-                sessionWs.on('error', (err) => {
-                    console.error(`Data session socket error (${message.sessionId}):`, err);
-                });
-            } else if (message.type === 'install_application' && message.appId) {
+            if (message.type === 'install_application' && message.appId) {
                 console.log(`Relay requested installation of app: ${message.appId} for user: ${message.userId}`);
                 import('../NetStore/NetStore.js').then((ns) => {
                     if (ns.installApplication) {

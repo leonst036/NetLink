@@ -69,7 +69,7 @@ export async function authenticateToken(
         const { consumeTicket } = await import('./ticketManager.js');
         const ticketData = consumeTicket(token);
         if (!ticketData) throw new Error('Invalid or expired ticket');
-        return { userId: ticketData.userId, deviceId: ticketData.target || ticketData.userId };
+        return { userId: ticketData.userId, deviceId: ticketData.target || ticketData.userId, role: ticketData.role || (ticketData.userId === 'admin' ? 'admin' : 'user'), permissions: ticketData.permissions || [] };
     }
 
     const secretKey = process.env.JWT_SECRET || 'default_secret';

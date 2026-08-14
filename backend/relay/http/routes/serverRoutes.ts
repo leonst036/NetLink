@@ -1,36 +1,15 @@
-import http from 'http';
-import { URL } from 'url';
-import { serverDevices } from '../../websocket/connectionManager.js';
-import { getMongoClient, GetServerLogins, SaveServerLogin, DeleteServerLogin } from '../../database/MongoManager.js';
-import { authenticateToken, extractTokenFromRequest } from '../../auth/authenticator.js';
-
-export async function handleGetServersRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    try {
-        const token = extractTokenFromRequest(req, parsedUrl);
-        const decoded = await authenticateToken(token || null, getMongoClient());
-        const target = parsedUrl.searchParams.get('target') || decoded.deviceId;
-
-        if (!target) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'target parameter required' }));
-            return;
-        }
-        const devices = serverDevices.get(target) || [];
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(devices));
-    } catch (err: any) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unauthorized', details: err.message }));
-    }
-}
+import http from "http";
+import { URL } from "url";
+import { getMongoClient, GetServerLogins, SaveServerLogin, DeleteServerLogin } from "../../database/MongoManager.js";
+import { authenticateToken, extractTokenFromRequest } from "../../auth/authenticator.js";
 
 export async function handleServerLoginsRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     const token = extractTokenFromRequest(req, parsedUrl);
 
     const mongoClient = getMongoClient();
     if (!mongoClient) {
-        res.writeHead(503, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Database not available' }));
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Database not available" }));
         return;
     }
 
@@ -38,42 +17,42 @@ export async function handleServerLoginsRoute(parsedUrl: URL, req: http.Incoming
         const decoded = await authenticateToken(token || null, mongoClient);
         const username = decoded.userId || decoded.username || decoded.sub;
 
-        if (req.method === 'GET') {
+        if (req.method === "GET") {
             const logins = await GetServerLogins(mongoClient, username);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ logins }));
-        } else if (req.method === 'POST') {
-            let body = '';
-            req.on('data', chunk => { body += chunk.toString(); });
-            req.on('end', async () => {
+        } else if (req.method === "POST") {
+            let body = "";
+            req.on("data", chunk => { body += chunk.toString(); });
+            req.on("end", async () => {
                 try {
                     const parsedBody = JSON.parse(body);
                     if (!parsedBody.id) parsedBody.id = Date.now().toString();
 
                     await SaveServerLogin(mongoClient, username, parsedBody);
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.writeHead(200, { "Content-Type": "application/json" });
                     res.end(JSON.stringify({ success: true, id: parsedBody.id }));
                 } catch (e) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                    res.writeHead(400, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ error: "Invalid JSON" }));
                 }
             });
-        } else if (req.method === 'DELETE') {
-            const id = parsedUrl.searchParams.get('id');
+        } else if (req.method === "DELETE") {
+            const id = parsedUrl.searchParams.get("id");
             if (!id) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'id parameter required for deletion' }));
+                res.writeHead(400, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "id parameter required for deletion" }));
                 return;
             }
             await DeleteServerLogin(mongoClient, username, id);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: true }));
         } else {
-            res.writeHead(405, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Method not allowed' }));
+            res.writeHead(405, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Method not allowed" }));
         }
     } catch (err: any) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unauthorized', details: err.message }));
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized", details: err.message }));
     }
 }
