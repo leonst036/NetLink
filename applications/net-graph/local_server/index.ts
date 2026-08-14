@@ -1,4 +1,12 @@
-const port = parseInt(Deno.env.get("PORT") || "8000");
+function getEnvSafe(key: string): string | undefined {
+    try {
+        return Deno.env.get(key);
+    } catch {
+        return undefined;
+    }
+}
+
+const port = parseInt(getEnvSafe("PORT") || "8000");
 const dataFile = new URL('./topology.json', import.meta.url).pathname;
 
 export interface Device {
@@ -61,7 +69,7 @@ function parseCidr(cidr: string): { startLong: number; endLong: number } | null 
 }
 
 function getLocalNetworkRange(): { startLong: number; endLong: number } | null {
-    const scanCidr = Deno.env.get("SCAN_CIDR");
+    const scanCidr = getEnvSafe("SCAN_CIDR");
     if (scanCidr) {
         const range = parseCidr(scanCidr);
         if (range) return range;
