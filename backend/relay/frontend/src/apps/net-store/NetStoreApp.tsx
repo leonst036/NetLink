@@ -36,11 +36,6 @@ import {
   ExternalLink,
   X,
   Sparkles,
-  Network,
-  Terminal,
-  Monitor,
-  Folder,
-  ShieldAlert,
   Key,
   Trash2,
   Pin,
@@ -48,6 +43,7 @@ import {
 } from 'lucide-react';
 import './NetStoreApp.css';
 import { useWindowStore } from '../../store/useWindowStore';
+import AppIcon from '../../components/AppIcon';
 
 interface AppItem {
   id: string;
@@ -61,6 +57,7 @@ interface AppItem {
   nativeKey?: 'graph' | 'terminal' | 'vnc' | 'sftp' | 'settings';
   color: string;
   icon: React.ReactNode;
+  rawIcon?: string;
   shortDesc: string;
   fullDesc: string;
   features: string[];
@@ -82,14 +79,8 @@ function getAppIcon(app: any) {
   if (typeof app.icon === 'object' && app.icon !== null) {
     return app.icon;
   }
-  const iconStr = typeof app.icon === 'string' ? app.icon : '';
-  const color = app.color || '#38bdf8';
-  if (iconStr === 'Network' || app.id === 'net-graph') return <Network size={22} color={color} />;
-  if (iconStr === 'ShieldAlert' || app.id === 'port-sentinel') return <ShieldAlert size={22} color={color} />;
-  if (iconStr === 'Terminal' || app.id === 'net-terminal') return <Terminal size={22} color={color} />;
-  if (iconStr === 'Monitor' || app.id === 'vnc-viewer') return <Monitor size={22} color={color} />;
-  if (iconStr === 'Folder' || app.id === 'sftp-client') return <Folder size={22} color={color} />;
-  return <Store size={22} color={color} />;
+  const iconStr = typeof app.icon === 'string' ? app.icon : undefined;
+  return <AppIcon appId={app.id} icon={iconStr} color={app.color} size={22} />;
 }
 
 export default function NetStoreApp(props: NetStoreAppProps) {
@@ -187,23 +178,34 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         
         const finalData = Array.from(mergedMap.values());
 
-        const parsedCatalog: AppItem[] = finalData.map((item: any) => ({
-            id: item.id || `app-${Math.random()}`,
-            name: item.name || 'Unnamed App',
-            author: item.author || 'Community',
-            category: item.category || 'Utilities',
-            rating: item.rating || 5.0,
-            downloads: item.downloads || '1.0k',
-            size: item.size || '1 MB',
-            version: item.version || 'v1.0.0',
-            nativeKey: item.nativeKey,
-            color: item.color || '#38bdf8',
-            icon: getAppIcon(item),
-            shortDesc: item.shortDesc || item.shortDescription || '',
-            fullDesc: item.fullDesc || item.fullDescription || '',
-            features: item.features || [],
-            isFeatured: item.isFeatured
-        }));
+        useWindowStore.getState().registerAppMetadata(finalData.map((item: any) => ({
+            id: item.id,
+            title: item.name,
+            icon: typeof item.icon === 'string' ? item.icon : undefined,
+            color: item.color
+        })));
+
+        const parsedCatalog: AppItem[] = finalData.map((item: any) => {
+            const rawIcon = typeof item.icon === 'string' ? item.icon : undefined;
+            return {
+                id: item.id || `app-${Math.random()}`,
+                name: item.name || 'Unnamed App',
+                author: item.author || 'Community',
+                category: item.category || 'Utilities',
+                rating: item.rating || 5.0,
+                downloads: item.downloads || '1.0k',
+                size: item.size || '1 MB',
+                version: item.version || 'v1.0.0',
+                nativeKey: item.nativeKey,
+                color: item.color || '#38bdf8',
+                icon: getAppIcon(item),
+                rawIcon: rawIcon,
+                shortDesc: item.shortDesc || item.shortDescription || '',
+                fullDesc: item.fullDesc || item.fullDescription || '',
+                features: item.features || [],
+                isFeatured: item.isFeatured
+            };
+        });
         
         setStoreCatalog(parsedCatalog);
         setInstalledVersions(versionsMap);
@@ -263,6 +265,12 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       });
       setInstalledAppIds((prev) => Array.from(new Set([...prev, app.id])));
       setInstalledVersions((prev) => ({ ...prev, [app.id]: app.version || 'v1.0.0' }));
+      windowStore.registerAppMetadata([{
+        id: app.id,
+        title: app.name,
+        icon: app.rawIcon,
+        color: app.color
+      }]);
       notifyUser(`${app.name} installed / updated successfully!`, 'success');
       window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
     })
@@ -321,7 +329,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     if (e) e.stopPropagation();
     notifyUser(`Opening ${app.name}...`, 'success');
     const entry = app.entrypoint || ((app as any).main ? ((app as any).main.startsWith('frontend/') ? (app as any).main : `frontend/${(app as any).main}`) : undefined);
-    windowStore.openDynamicApp(app.id, app.name, entry ? { entrypoint: entry } : undefined);
+    windowStore.openDynamicApp(app.id, app.name, entry ? { entrypoint: entry } : undefined, app.rawIcon, app.color);
   };
 
   const installedCount = storeCatalog.filter(app => installedAppIds.includes(app.id)).length;
@@ -678,7 +686,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                                   color={windowStore.isPinned(app.id) ? "secondary" : "default"}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    windowStore.togglePinApp({ appId: app.id, title: app.name, color: app.color });
+                                    windowStore.togglePinApp({ appId: app.id, title: app.name, icon: app.rawIcon, color: app.color });
                                   }}
                                   sx={{ padding: '4px' }}
                                 >
@@ -844,7 +852,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                 startIcon={windowStore.isPinned(selectedApp.id) ? <PinOff size={16} /> : <Pin size={16} />}
                 onClick={(e) => {
                   e.stopPropagation();
-                  windowStore.togglePinApp({ appId: selectedApp.id, title: selectedApp.name, color: selectedApp.color });
+                  windowStore.togglePinApp({ appId: selectedApp.id, title: selectedApp.name, icon: selectedApp.rawIcon, color: selectedApp.color });
                 }}
                 sx={{ whiteSpace: 'nowrap' }}
               >

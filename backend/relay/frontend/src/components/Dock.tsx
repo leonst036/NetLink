@@ -4,6 +4,7 @@ import { Box, Paper, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText } from 
 import './Dock.css';
 import { useWindowStore } from '../store/useWindowStore';
 import type { PinnedApp, DynamicAppInstance } from '../types';
+import AppIcon from './AppIcon';
 
 export default function Dock() {
     const {
@@ -24,6 +25,7 @@ export default function Dock() {
         mouseY: number;
         appId: string;
         title: string;
+        icon?: string;
         color?: string;
         instanceId?: string;
         isPinned: boolean;
@@ -34,6 +36,7 @@ export default function Dock() {
         e: React.MouseEvent,
         appId: string,
         title: string,
+        icon?: string,
         color?: string,
         instanceId?: string
     ) => {
@@ -45,6 +48,7 @@ export default function Dock() {
             mouseY: e.clientY - 4,
             appId,
             title,
+            icon,
             color,
             instanceId,
             isPinned: pinned,
@@ -89,139 +93,140 @@ export default function Dock() {
     return (
         <>
             {hasMaximized && (
-                <Box 
-                    className="dock-trigger" 
-                    onMouseEnter={() => setIsHovered(true)} 
+                <Box
+                    className="dock-trigger"
+                    onMouseEnter={() => setIsHovered(true)}
                 />
             )}
-            <Paper 
-                className={`dock-container ${isHidden ? 'dock-hidden' : ''}`} 
+            <Paper
+                className={`dock-container ${isHidden ? 'dock-hidden' : ''}`}
                 elevation={16}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-            <DockIcon
-                icon={<StoreIcon size={24} color="#ec4899" />}
-                label="NetStore"
-                isOpen={storeWindow.isOpen}
-                isMinimized={storeWindow.isOpen && storeWindow.isMinimized}
-                onClick={handleStoreClick}
-            />
+                <DockIcon
+                    icon={<StoreIcon size={24} color="#ec4899" />}
+                    label="NetStore"
+                    isOpen={storeWindow.isOpen}
+                    isMinimized={storeWindow.isOpen && storeWindow.isMinimized}
+                    onClick={handleStoreClick}
+                />
 
-            {/* Pinned Apps */}
-            {pinnedApps.map((pinned: PinnedApp) => {
-                const runningInstance = dynamicWindows.find(w => w.appId === pinned.appId);
-                const isRunning = Boolean(runningInstance);
-                const isOpen = isRunning && activeWindow === runningInstance!.id && !runningInstance!.isMinimized;
-                const isMinimized = isRunning ? runningInstance!.isMinimized : false;
+                {/* Pinned Apps */}
+                {pinnedApps.map((pinned: PinnedApp) => {
+                    const runningInstance = dynamicWindows.find(w => w.appId === pinned.appId);
+                    const isRunning = Boolean(runningInstance);
+                    const isOpen = isRunning && activeWindow === runningInstance!.id && !runningInstance!.isMinimized;
+                    const isMinimized = isRunning ? runningInstance!.isMinimized : false;
 
-                return (
-                    <DockIcon
-                        key={`pinned-${pinned.appId}`}
-                        icon={<StoreIcon size={24} color={pinned.color || "#a78bfa"} />}
-                        label={`${pinned.title}${isRunning ? '' : ' (Pinned)'}`}
-                        isOpen={isOpen}
-                        isMinimized={isMinimized}
-                        isPinned={true}
-                        onClick={() => {
-                            if (runningInstance) {
-                                handleDynamicDockClick(runningInstance);
-                            } else {
-                                openDynamicApp(pinned.appId, pinned.title);
+                    return (
+                        <DockIcon
+                            key={`pinned-${pinned.appId}`}
+                            icon={<AppIcon appId={pinned.appId} icon={pinned.icon} color={pinned.color} size={24} />}
+                            label={`${pinned.title}${isRunning ? '' : ' (Pinned)'}`}
+                            isOpen={isOpen}
+                            isMinimized={isMinimized}
+                            isPinned={true}
+                            onClick={() => {
+                                if (runningInstance) {
+                                    handleDynamicDockClick(runningInstance);
+                                } else {
+                                    openDynamicApp(pinned.appId, pinned.title, undefined, pinned.icon, pinned.color);
+                                }
+                            }}
+                            onContextMenu={(e) =>
+                                handleContextMenu(e, pinned.appId, pinned.title, pinned.icon, pinned.color, runningInstance?.id)
                             }
-                        }}
+                        />
+                    );
+                })}
+
+                {/* Unpinned Running Dynamic Apps */}
+                {unpinnedRunningApps.length > 0 && <Box className="dock-divider" />}
+                {unpinnedRunningApps.map((dyn: DynamicAppInstance) => (
+                    <DockIcon
+                        key={dyn.id}
+                        icon={<AppIcon appId={dyn.appId} icon={dyn.icon} color={dyn.color} size={24} />}
+                        label={dyn.title}
+                        isOpen={activeWindow === dyn.id && !dyn.isMinimized}
+                        isMinimized={dyn.isMinimized}
+                        onClick={() => handleDynamicDockClick(dyn)}
                         onContextMenu={(e) =>
-                            handleContextMenu(e, pinned.appId, pinned.title, pinned.color, runningInstance?.id)
+                            handleContextMenu(e, dyn.appId, dyn.title, dyn.icon, dyn.color, dyn.id)
                         }
                     />
-                );
-            })}
+                ))}
 
-            {/* Unpinned Running Dynamic Apps */}
-            {unpinnedRunningApps.length > 0 && <Box className="dock-divider" />}
-            {unpinnedRunningApps.map((dyn: DynamicAppInstance) => (
-                <DockIcon
-                    key={dyn.id}
-                    icon={<StoreIcon size={24} color="#a78bfa" />}
-                    label={dyn.title}
-                    isOpen={activeWindow === dyn.id && !dyn.isMinimized}
-                    isMinimized={dyn.isMinimized}
-                    onClick={() => handleDynamicDockClick(dyn)}
-                    onContextMenu={(e) =>
-                        handleContextMenu(e, dyn.appId, dyn.title, undefined, dyn.id)
+                {/* Right Click Context Menu */}
+                <Menu
+                    open={contextMenu !== null}
+                    onClose={handleCloseContextMenu}
+                    anchorReference="anchorPosition"
+                    anchorPosition={
+                        contextMenu !== null
+                            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+                            : undefined
                     }
-                />
-            ))}
-
-            {/* Right Click Context Menu */}
-            <Menu
-                open={contextMenu !== null}
-                onClose={handleCloseContextMenu}
-                anchorReference="anchorPosition"
-                anchorPosition={
-                    contextMenu !== null
-                        ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-                        : undefined
-                }
-            >
-                {contextMenu && (
-                    <>
-                        <MenuItem
-                            onClick={() => {
-                                const instance = dynamicWindows.find(w => w.appId === contextMenu.appId);
-                                if (instance) {
-                                    handleDynamicDockClick(instance);
-                                } else {
-                                    openDynamicApp(contextMenu.appId, contextMenu.title);
-                                }
-                                handleCloseContextMenu();
-                            }}
-                        >
-                            <ListItemIcon><Play size={16} /></ListItemIcon>
-                            <ListItemText>{contextMenu.isRunning ? 'Focus' : 'Open'}</ListItemText>
-                        </MenuItem>
-
-                        {contextMenu.isPinned ? (
+                >
+                    {contextMenu && (
+                        <>
                             <MenuItem
                                 onClick={() => {
-                                    unpinApp(contextMenu.appId);
+                                    const instance = dynamicWindows.find(w => w.appId === contextMenu.appId);
+                                    if (instance) {
+                                        handleDynamicDockClick(instance);
+                                    } else {
+                                        openDynamicApp(contextMenu.appId, contextMenu.title, undefined, contextMenu.icon, contextMenu.color);
+                                    }
                                     handleCloseContextMenu();
                                 }}
                             >
-                                <ListItemIcon><PinOff size={16} /></ListItemIcon>
-                                <ListItemText>Unpin from Dock</ListItemText>
+                                <ListItemIcon><Play size={16} /></ListItemIcon>
+                                <ListItemText>{contextMenu.isRunning ? 'Focus' : 'Open'}</ListItemText>
                             </MenuItem>
-                        ) : (
-                            <MenuItem
-                                onClick={() => {
-                                    pinApp({
-                                        appId: contextMenu.appId,
-                                        title: contextMenu.title,
-                                        color: contextMenu.color
-                                    });
-                                    handleCloseContextMenu();
-                                }}
-                            >
-                                <ListItemIcon><Pin size={16} /></ListItemIcon>
-                                <ListItemText>Pin to Dock</ListItemText>
-                            </MenuItem>
-                        )}
 
-                        {contextMenu.isRunning && contextMenu.instanceId && (
-                            <MenuItem
-                                onClick={() => {
-                                    closeDynamicApp(contextMenu.instanceId!);
-                                    handleCloseContextMenu();
-                                }}
-                                sx={{ color: 'error.main' }}
-                            >
-                                <ListItemIcon><X size={16} color="red" /></ListItemIcon>
-                                <ListItemText>Close</ListItemText>
-                            </MenuItem>
-                        )}
-                    </>
-                )}
-            </Menu>
+                            {contextMenu.isPinned ? (
+                                <MenuItem
+                                    onClick={() => {
+                                        unpinApp(contextMenu.appId);
+                                        handleCloseContextMenu();
+                                    }}
+                                >
+                                    <ListItemIcon><PinOff size={16} /></ListItemIcon>
+                                    <ListItemText>Unpin from Dock</ListItemText>
+                                </MenuItem>
+                            ) : (
+                                <MenuItem
+                                    onClick={() => {
+                                        pinApp({
+                                            appId: contextMenu.appId,
+                                            title: contextMenu.title,
+                                            icon: contextMenu.icon,
+                                            color: contextMenu.color
+                                        });
+                                        handleCloseContextMenu();
+                                    }}
+                                >
+                                    <ListItemIcon><Pin size={16} /></ListItemIcon>
+                                    <ListItemText>Pin to Dock</ListItemText>
+                                </MenuItem>
+                            )}
+
+                            {contextMenu.isRunning && contextMenu.instanceId && (
+                                <MenuItem
+                                    onClick={() => {
+                                        closeDynamicApp(contextMenu.instanceId!);
+                                        handleCloseContextMenu();
+                                    }}
+                                    sx={{ color: 'error.main' }}
+                                >
+                                    <ListItemIcon><X size={16} color="red" /></ListItemIcon>
+                                    <ListItemText>Close</ListItemText>
+                                </MenuItem>
+                            )}
+                        </>
+                    )}
+                </Menu>
             </Paper>
         </>
     );

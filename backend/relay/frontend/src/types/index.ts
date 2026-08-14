@@ -28,6 +28,8 @@ export interface DynamicAppInstance {
     id: string; // The window ID
     appId: string; // The NetStore app ID
     title: string;
+    icon?: string;
+    color?: string;
     isMinimized: boolean;
     extraParams?: Record<string, string>;
 }

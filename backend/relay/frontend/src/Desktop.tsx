@@ -4,6 +4,7 @@ import TopBar from './components/TopBar';
 import Dock from './components/Dock';
 import GeminiLoader from './components/GeminiLoader';
 import DynamicAppLoader from './components/DynamicAppLoader';
+import AppIcon from './components/AppIcon';
 import { StoreIcon } from 'lucide-react';
 import { Box, Alert } from '@mui/material';
 import PermissionModal from './components/PermissionModal';
@@ -63,9 +64,9 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     useEffect(() => {
         const handleIframeMessage = (e: MessageEvent) => {
             if (e.data && e.data.type === 'open_app') {
-                const { appId, title, extraParams } = e.data;
+                const { appId, title, extraParams, icon, color } = e.data;
                 if (appId) {
-                    useWindowStore.getState().openDynamicApp(appId, title || appId, extraParams);
+                    useWindowStore.getState().openDynamicApp(appId, title || appId, extraParams, icon, color);
                 }
             } else if (e.data && e.data.type === 'netlink_setting_changed') {
                 const { key, value } = e.data;
@@ -98,11 +99,12 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     };
 
     // Window states
-    const { activeWindow, storeWindow, dynamicWindows, setStoreWindow, bringToFront, closeDynamicApp, minimizeDynamicApp, fetchDockConfig } = useWindowStore();
+    const { activeWindow, storeWindow, dynamicWindows, setStoreWindow, bringToFront, closeDynamicApp, minimizeDynamicApp, fetchDockConfig, fetchAppMetadata } = useWindowStore();
 
     useEffect(() => {
         fetchDockConfig();
-    }, [fetchDockConfig]);
+        fetchAppMetadata();
+    }, [fetchDockConfig, fetchAppMetadata]);
 
     useEffect(() => {
         const isSecure = window.location.protocol === 'https:';
@@ -225,7 +227,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         key={dyn.id}
                         id={dyn.id}
                         title={dyn.title}
-                        icon={<StoreIcon size={14} color="#a78bfa" />}
+                        icon={<AppIcon appId={dyn.appId} icon={dyn.icon} color={dyn.color} size={14} />}
                         isActive={activeWindow === dyn.id}
                         isMinimized={dyn.isMinimized}
                         onMinimize={() => minimizeDynamicApp(dyn.id, true)}
