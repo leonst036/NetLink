@@ -6,6 +6,9 @@ export interface Device {
     hostname?: string;
 }
 
+let cachedDevices: Device[] = [];
+let scanPromise: Promise<Device[]> | null = null;
+
 async function readTopology() {
     try {
         const text = await Deno.readTextFile(dataFile);
@@ -166,6 +169,30 @@ async function runNetworkScan(): Promise<Device[]> {
     return foundDevices;
 }
 
+function triggerScan(force: boolean = false): Promise<Device[]> {
+    if (scanPromise && !force) {
+        return scanPromise;
+    }
+    scanPromise = (async () => {
+        try {
+            console.log("[net-graph] Performing automatic network scan...");
+            const devices = await runNetworkScan();
+            cachedDevices = devices;
+            console.log(`[net-graph] Scan completed. Discovered ${devices.length} devices.`);
+            return devices;
+        } catch (err) {
+            console.error("[net-graph] Error during network scan:", err);
+            return cachedDevices;
+        } finally {
+            scanPromise = null;
+        }
+    })();
+    return scanPromise;
+}
+
+// Run initial scan immediately on app install/startup
+triggerScan();
+
 Deno.serve({ port }, async (req) => {
     const url = new URL(req.url);
     const headers = new Headers({
@@ -180,7 +207,13 @@ Deno.serve({ port }, async (req) => {
     if (url.pathname === "/api/net-graph/scan" || url.pathname === "/api/net-graph/servers") {
         if (req.method === "GET") {
             try {
-                const devices = await runNetworkScan();
+                const force = url.searchParams.get("refresh") === "true" || url.searchParams.get("force") === "true";
+                let devices = cachedDevices;
+                if (force) {
+                    devices = await triggerScan(true);
+                } else if (cachedDevices.length === 0) {
+                    devices = scanPromise ? await scanPromise : await triggerScan();
+                }
                 return new Response(JSON.stringify(devices), { status: 200, headers });
             } catch (e: any) {
                 return new Response(JSON.stringify({ error: "Failed to scan network", details: e.message }), { status: 500, headers });

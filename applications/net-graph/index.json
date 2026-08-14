@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Network Topology Graph",
   "entrypoint": "frontend/dist/index.html",
+  "runInBackground": true,
   "requestedPermissions": {
     "allowRead": true,
     "allowWrite": true,

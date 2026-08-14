@@ -18,10 +18,11 @@ export default function App() {
     fetchServers();
   }, [ticket]);
 
-  const fetchServers = async () => {
+  const fetchServers = async (refresh: boolean = false) => {
     setIsScanning(true);
     try {
-        const res = await fetch(`/api/net-graph/scan`, {
+        const url = refresh ? `/api/net-graph/scan?refresh=true` : `/api/net-graph/scan`;
+        const res = await fetch(url, {
             headers: {
                 'Authorization': `Ticket ${ticket}`
             }
@@ -51,7 +52,7 @@ export default function App() {
           onVncClick={(ip: string) => openApp('vnc-viewer', `VNC: ${ip}`, { ip })}
           onSftpClick={(ip: string) => openApp('sftp-client', `SFTP: ${ip}`, { ip })}
           isScanning={isScanning}
-          onScanClick={fetchServers}
+          onScanClick={() => fetchServers(true)}
           ticket={ticket || ''}
         />
       </Box>
