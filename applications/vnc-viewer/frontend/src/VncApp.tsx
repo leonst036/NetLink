@@ -79,7 +79,7 @@ export default function VncApp({ ticket, target, initialIp }: VncAppProps) {
         const protocol = isSecure ? "wss:" : "ws:";
         let host = window.location.host;
         if (host.includes("localhost:5173")) host = import.meta.env.VITE_RELAY_HOST || "localhost:4535";
-        const socketUrl = `${protocol}//${host}/client?ticket=${encodeURIComponent(ticket)}&target=${encodeURIComponent(target)}`;
+        const socketUrl = `${protocol}//${host}/api/vnc-viewer/ws?ticket=${encodeURIComponent(ticket)}&target=${encodeURIComponent(target)}`;
         debugLog("Connecting web socket", { socketUrl });
 
         const ws = new window.WebSocket(socketUrl, ["binary"]);

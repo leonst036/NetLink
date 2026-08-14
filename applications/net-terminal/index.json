@@ -5,6 +5,7 @@
   "entrypoint": "frontend/dist/index.html",
   "requestedPermissions": {
     "allowRead": true,
-    "allowWrite": true
+    "allowWrite": true,
+    "allowNet": true
   }
 }

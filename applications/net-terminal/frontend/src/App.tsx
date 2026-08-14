@@ -128,7 +128,7 @@ export default function App() {
     const protocol = isSecure ? "wss:" : "ws:";
     const host = window.location.host;
 
-    const socketUrl = `${protocol}//${host}/client?ticket=${encodeURIComponent(ticket)}&target=${encodeURIComponent(target)}&sessionId=${encodeURIComponent(sessionId)}`;
+    const socketUrl = `${protocol}//${host}/api/net-terminal/ws?ticket=${encodeURIComponent(ticket)}&target=${encodeURIComponent(target)}&sessionId=${encodeURIComponent(sessionId)}`;
     const socket = new WebSocket(socketUrl);
     socket.binaryType = "arraybuffer";
     socketRef.current = socket;

@@ -199,7 +199,7 @@ export default function FileApp({ ticket, target, initialIp }: FileAppProps) {
     let host = window.location.host;
     if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535'; // Dev mode fallback
 
-    const socketUrl = `${protocol}//${host}/client?ticket=${encodeURIComponent(ticket)}&target=${encodeURIComponent(target)}`;
+    const socketUrl = `${protocol}//${host}/api/sftp-client/ws?ticket=${encodeURIComponent(ticket)}&target=${encodeURIComponent(target)}`;
     const socket = new WebSocket(socketUrl);
     socketRef.current = socket;
 
