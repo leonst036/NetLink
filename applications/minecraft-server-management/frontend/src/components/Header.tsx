@@ -12,13 +12,9 @@ import {
 import { Server, Plus, RefreshCw } from 'lucide-react';
 import { NodeInfo } from '../types';
 
-const spin = keyframes`
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+const spinAnimation = keyframes`
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 `;
 
 interface HeaderProps {
@@ -97,22 +93,26 @@ export const Header: React.FC<HeaderProps> = ({
         <Button
           variant="outlined"
           size="small"
-          disabled={refreshing}
+          onClick={onRefresh}
           startIcon={
             <Box
               component="span"
               sx={{
                 display: 'inline-flex',
-                animation: refreshing ? `${spin} 1s linear infinite` : 'none',
+                animation: refreshing ? `${spinAnimation} 0.8s linear infinite` : 'none',
+                transition: 'transform 0.2s ease',
               }}
             >
               <RefreshCw size={14} />
             </Box>
           }
-          onClick={onRefresh}
           sx={{
             color: '#94a3b8',
             borderColor: 'rgba(255, 255, 255, 0.15)',
+            '&:hover': {
+              borderColor: 'rgba(255, 255, 255, 0.3)',
+              backgroundColor: 'rgba(255, 255, 255, 0.04)',
+            },
           }}
         >
           Refresh

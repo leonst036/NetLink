@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -24,6 +24,7 @@ import {
   Alert,
   Card,
   CardContent,
+  keyframes,
 } from '@mui/material';
 import {
   Folder,
@@ -46,6 +47,11 @@ import {
   createNodeServerFolder,
 } from '../api';
 import { FileEditorModal } from './FileEditorModal';
+
+const spinAnimation = keyframes`
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+`;
 
 interface FileManagerProps {
   node: NodeInfo;
@@ -95,7 +101,11 @@ export const FileManager: React.FC<FileManagerProps> = ({ node, serverId }) => {
   const [currentPath, setCurrentPath] = useState('');
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const filesRef = useRef<FileItem[]>([]);
+  filesRef.current = files;
 
   // File Editor state
   const [editorOpen, setEditorOpen] = useState(false);
@@ -114,30 +124,41 @@ export const FileManager: React.FC<FileManagerProps> = ({ node, serverId }) => {
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<FileItem | null>(null);
 
-  // Load files
+  // Load files quietly without unmounting table
   const loadFiles = useCallback(
-    async (path = currentPath) => {
-      setLoading(true);
+    async (path = currentPath, isManualRefresh = false) => {
+      if (filesRef.current.length === 0 && !isManualRefresh) {
+        setLoading(true);
+      }
+      if (isManualRefresh) {
+        setRefreshing(true);
+      }
       setError(null);
       try {
         const res = await getNodeServerFiles(node, serverId, path);
-        setFiles(res.files || []);
+        setFiles((prev) => {
+          const next = res.files || [];
+          if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+          return next;
+        });
         setCurrentPath(res.currentPath ?? path);
       } catch (err: any) {
         setError(err.message || 'Failed to load directory contents.');
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
     },
-    [node, serverId, currentPath]
+    [node.id, serverId, currentPath]
   );
 
   useEffect(() => {
     loadFiles(currentPath);
-  }, [currentPath, node, serverId]);
+  }, [currentPath, node.id, serverId]);
 
   // Navigate folder
   const handleFolderClick = (folderPath: string) => {
+    setFiles([]);
     setCurrentPath(folderPath);
   };
 
@@ -166,7 +187,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ node, serverId }) => {
       const res = await saveNodeServerFile(node, serverId, editingFilePath, fileContent);
       if (res.success) {
         setEditorOpen(false);
-        loadFiles();
+        loadFiles(currentPath, true);
       } else {
         setError(res.error || 'Failed to save file.');
       }
@@ -186,7 +207,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ node, serverId }) => {
       await createNodeServerFolder(node, serverId, targetPath);
       setNewFolderOpen(false);
       setNewFolderName('');
-      loadFiles();
+      loadFiles(currentPath, true);
     } catch (err: any) {
       setError(err.message || 'Failed to create folder.');
     }
@@ -201,7 +222,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ node, serverId }) => {
       await saveNodeServerFile(node, serverId, targetPath, '');
       setNewFileOpen(false);
       setNewFileName('');
-      loadFiles();
+      loadFiles(currentPath, true);
       setEditingFilePath(targetPath);
       setEditingFileName(newFileName.trim());
       setFileContent('');
@@ -217,7 +238,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ node, serverId }) => {
     try {
       await deleteNodeServerFile(node, serverId, deleteTarget.path);
       setDeleteTarget(null);
-      loadFiles();
+      loadFiles(currentPath, true);
     } catch (err: any) {
       setError(err.message || 'Failed to delete.');
     }
@@ -264,7 +285,10 @@ export const FileManager: React.FC<FileManagerProps> = ({ node, serverId }) => {
               <Link
                 component="button"
                 underline="hover"
-                onClick={() => setCurrentPath('')}
+                onClick={() => {
+                  setFiles([]);
+                  setCurrentPath('');
+                }}
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
@@ -285,7 +309,10 @@ export const FileManager: React.FC<FileManagerProps> = ({ node, serverId }) => {
                     key={segPath}
                     component="button"
                     underline="hover"
-                    onClick={() => setCurrentPath(segPath)}
+                    onClick={() => {
+                      setFiles([]);
+                      setCurrentPath(segPath);
+                    }}
                     sx={{
                       color: isLast ? '#34d399' : '#94a3b8',
                       fontWeight: isLast ? 700 : 500,
@@ -303,9 +330,26 @@ export const FileManager: React.FC<FileManagerProps> = ({ node, serverId }) => {
               <Button
                 variant="outlined"
                 size="small"
-                startIcon={<RefreshCw size={14} />}
-                onClick={() => loadFiles()}
-                sx={{ color: '#94a3b8', borderColor: 'rgba(255, 255, 255, 0.15)' }}
+                onClick={() => loadFiles(currentPath, true)}
+                startIcon={
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'inline-flex',
+                      animation: refreshing ? `${spinAnimation} 0.8s linear infinite` : 'none',
+                    }}
+                  >
+                    <RefreshCw size={14} />
+                  </Box>
+                }
+                sx={{
+                  color: '#94a3b8',
+                  borderColor: 'rgba(255, 255, 255, 0.15)',
+                  '&:hover': {
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  },
+                }}
               >
                 Refresh
               </Button>
@@ -341,6 +385,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ node, serverId }) => {
               backgroundColor: 'rgba(3, 7, 18, 0.6)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: 2,
+              minHeight: 280,
             }}
           >
             <Table size="small">
