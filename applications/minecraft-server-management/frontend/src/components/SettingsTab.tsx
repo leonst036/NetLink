@@ -10,8 +10,9 @@ import {
   Chip,
   Alert,
   Box,
+  Divider,
 } from '@mui/material';
-import { Sliders, CheckCircle2 } from 'lucide-react';
+import { Sliders, CheckCircle2, Cpu, Activity } from 'lucide-react';
 import { NodeInfo, NodeServerItem } from '../types';
 import { getNodeServerStats, updateNodeServerResources } from '../api';
 
@@ -31,8 +32,19 @@ const RAM_PRESETS = [
   { label: '16 GB', value: 16384 },
 ];
 
+const CPU_PRESETS = [
+  { label: 'Unlimited', value: 0 },
+  { label: '1 Core (100%)', value: 100 },
+  { label: '2 Cores (200%)', value: 200 },
+  { label: '3 Cores (300%)', value: 300 },
+  { label: '4 Cores (400%)', value: 400 },
+  { label: '6 Cores (600%)', value: 600 },
+  { label: '8 Cores (800%)', value: 800 },
+];
+
 export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServer }) => {
   const [ramInput, setRamInput] = useState<string>('1024');
+  const [cpuInput, setCpuInput] = useState<string>('0');
   const [savingLimits, setSavingLimits] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -41,8 +53,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
     if (!activeNode || !activeServer) return;
     try {
       const data = await getNodeServerStats(activeNode, activeServer.id);
-      if (data && data.memoryLimitMb) {
-        setRamInput(data.memoryLimitMb.toString());
+      if (data) {
+        if (data.memoryLimitMb) {
+          setRamInput(data.memoryLimitMb.toString());
+        }
+        if (data.cpuLimitPercent !== undefined) {
+          setCpuInput(data.cpuLimitPercent.toString());
+        }
       }
     } catch {}
   }, [activeNode, activeServer.id]);
@@ -51,21 +68,33 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
     fetchSettings();
   }, [fetchSettings]);
 
-  // Handle saving custom RAM limit
+  // Handle saving custom RAM and CPU limits
   const handleSaveResources = async () => {
     if (!activeNode || !activeServer) return;
     const ramNumber = parseInt(ramInput, 10);
+    const cpuNumber = parseInt(cpuInput, 10);
+
     if (isNaN(ramNumber) || ramNumber < 256) {
       setFeedback({ type: 'error', message: 'Please enter a valid memory limit (at least 256 MB).' });
+      return;
+    }
+    if (isNaN(cpuNumber) || cpuNumber < 0) {
+      setFeedback({ type: 'error', message: 'Please enter a valid CPU limit (0% or higher).' });
       return;
     }
 
     setSavingLimits(true);
     setFeedback(null);
     try {
-      const res = await updateNodeServerResources(activeNode, activeServer.id, { ramMb: ramNumber });
+      const res = await updateNodeServerResources(activeNode, activeServer.id, {
+        ramMb: ramNumber,
+        cpuLimitPercent: cpuNumber,
+      });
       if (res.success) {
-        setFeedback({ type: 'success', message: `Memory allocation limit updated to ${ramNumber} MB.` });
+        setFeedback({
+          type: 'success',
+          message: `Resource limits updated: ${ramNumber} MB RAM, ${cpuNumber === 0 ? 'Unlimited' : `${cpuNumber}%`} CPU.`,
+        });
       } else {
         setFeedback({ type: 'error', message: res.error || 'Failed to update resource limits.' });
       }
@@ -77,6 +106,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
   };
 
   const parsedRam = parseInt(ramInput, 10);
+  const parsedCpu = parseInt(cpuInput, 10);
 
   return (
     <Stack spacing={3}>
@@ -110,78 +140,159 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
             </Typography>
           </Stack>
           <Typography variant="body2" sx={{ color: '#94a3b8', mb: 3 }}>
-            Configure maximum heap memory allocation (-Xmx) for this Minecraft instance. Enter any custom megabyte value or choose a preset.
+            Configure maximum heap memory (-Xmx) and CPU execution limits for this Minecraft instance.
           </Typography>
 
-          {/* Custom Numeric Input Field */}
-          <Stack spacing={2} sx={{ maxWidth: 480 }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
-              <TextField
-                fullWidth
-                size="small"
-                type="number"
-                label="Custom Memory Limit"
-                placeholder="2048"
-                value={ramInput}
-                onChange={(e) => setRamInput(e.target.value)}
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">MB</InputAdornment>,
-                }}
-                inputProps={{
-                  min: 256,
-                  max: 65536,
-                  step: 128,
-                }}
-              />
+          <Stack spacing={4}>
+            {/* 1. Memory Limit Section */}
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
+                <Activity size={17} color="#10b981" />
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#f8fafc' }}>
+                  Memory Allocation (-Xmx)
+                </Typography>
+              </Stack>
 
+              <Stack spacing={2} sx={{ maxWidth: 520 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  label="Memory Limit (MB)"
+                  placeholder="2048"
+                  value={ramInput}
+                  onChange={(e) => setRamInput(e.target.value)}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">MB</InputAdornment>,
+                  }}
+                  inputProps={{
+                    min: 256,
+                    max: 65536,
+                    step: 128,
+                  }}
+                />
+
+                {/* RAM Quick Presets */}
+                <Box>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1 }}>
+                    Quick RAM Presets:
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {RAM_PRESETS.map((preset) => {
+                      const isSelected = parsedRam === preset.value;
+                      return (
+                        <Chip
+                          key={preset.value}
+                          label={`${preset.label} (${preset.value} MB)`}
+                          size="small"
+                          clickable
+                          onClick={() => setRamInput(preset.value.toString())}
+                          sx={{
+                            backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                            color: isSelected ? '#34d399' : '#cbd5e1',
+                            border: isSelected ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
+                            fontWeight: isSelected ? 700 : 400,
+                            '&:hover': {
+                              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                              borderColor: '#34d399',
+                            },
+                          }}
+                        />
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              </Stack>
+            </Box>
+
+            <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.06)' }} />
+
+            {/* 2. CPU Limit Section */}
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
+                <Cpu size={17} color="#38bdf8" />
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#f8fafc' }}>
+                  CPU Execution Limit
+                </Typography>
+              </Stack>
+
+              <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 2 }}>
+                0% means unlimited CPU usage. 100% corresponds to 1 dedicated CPU core, 200% to 2 CPU cores, etc.
+              </Typography>
+
+              <Stack spacing={2} sx={{ maxWidth: 520 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  label="CPU Limit (%)"
+                  placeholder="0 (Unlimited)"
+                  value={cpuInput}
+                  onChange={(e) => setCpuInput(e.target.value)}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                  }}
+                  inputProps={{
+                    min: 0,
+                    max: 3200,
+                    step: 50,
+                  }}
+                />
+
+                {/* CPU Quick Presets */}
+                <Box>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1 }}>
+                    Quick CPU Presets:
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {CPU_PRESETS.map((preset) => {
+                      const isSelected = parsedCpu === preset.value;
+                      return (
+                        <Chip
+                          key={preset.value}
+                          label={preset.label}
+                          size="small"
+                          clickable
+                          onClick={() => setCpuInput(preset.value.toString())}
+                          sx={{
+                            backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                            color: isSelected ? '#38bdf8' : '#cbd5e1',
+                            border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
+                            fontWeight: isSelected ? 700 : 400,
+                            '&:hover': {
+                              backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                              borderColor: '#38bdf8',
+                            },
+                          }}
+                        />
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              </Stack>
+            </Box>
+
+            <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.06)' }} />
+
+            {/* Save Button */}
+            <Box>
               <Button
                 variant="contained"
-                disabled={savingLimits || !ramInput}
+                disabled={savingLimits || !ramInput || !cpuInput}
                 startIcon={<CheckCircle2 size={16} />}
                 onClick={handleSaveResources}
                 sx={{
                   backgroundColor: '#10b981',
                   color: '#ffffff',
-                  px: 3,
-                  py: 1,
-                  whiteSpace: 'nowrap',
+                  px: 4,
+                  py: 1.2,
                   borderRadius: 2,
+                  fontWeight: 600,
                   '&:hover': { backgroundColor: '#059669' },
                 }}
               >
-                {savingLimits ? 'Saving...' : 'Save Limits'}
+                {savingLimits ? 'Saving Changes...' : 'Save Resource Limits'}
               </Button>
-            </Stack>
-
-            {/* Quick Preset Chips */}
-            <Box>
-              <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1 }}>
-                Quick Presets:
-              </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {RAM_PRESETS.map((preset) => {
-                  const isSelected = parsedRam === preset.value;
-                  return (
-                    <Chip
-                      key={preset.value}
-                      label={`${preset.label} (${preset.value} MB)`}
-                      size="small"
-                      clickable
-                      onClick={() => setRamInput(preset.value.toString())}
-                      sx={{
-                        backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                        color: isSelected ? '#34d399' : '#cbd5e1',
-                        border: isSelected ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
-                        fontWeight: isSelected ? 700 : 400,
-                        '&:hover': {
-                          backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                          borderColor: '#34d399',
-                        },
-                      }}
-                    />
-                  );
-                })}
-              </Stack>
             </Box>
           </Stack>
         </CardContent>

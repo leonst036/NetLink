@@ -213,12 +213,12 @@ export async function getNodeServerStats(node: NodeInfo, serverId: string): Prom
   return null;
 }
 
-// Update server resource limits (RAM allocation)
+// Update server resource limits (RAM & CPU allocation)
 export async function updateNodeServerResources(
   node: NodeInfo,
   serverId: string,
-  limits: { ramMb: number }
-): Promise<{ success: boolean; ramMb?: number; error?: string }> {
+  limits: { ramMb?: number; cpuLimitPercent?: number }
+): Promise<{ success: boolean; ramMb?: number; cpuLimitPercent?: number; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/resources`, {
       method: 'POST',
@@ -239,6 +239,7 @@ export async function updateNodeServerResources(
     return { success: false, error: err.message };
   }
 }
+
 
 // File Management APIs
 

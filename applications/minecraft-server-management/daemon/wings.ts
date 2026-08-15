@@ -7,7 +7,7 @@ import {
   stopServerProcess,
   sendCommand,
   getServerProcessStats,
-  saveConfiguredRamMb,
+  saveConfiguredResources,
 } from "./process_manager.ts";
 import {
   listServerFiles,
@@ -140,14 +140,14 @@ Deno.serve({ port }, async (req) => {
       return jsonResponse(stats);
     }
 
-    // Configure resource allocation limits
+    // Configure resource allocation limits (RAM & CPU)
     if (action === "resources" && req.method === "POST") {
       const body = await req.json();
-      if (typeof body.ramMb === "number" && body.ramMb > 0) {
-        await saveConfiguredRamMb(serverPath, body.ramMb);
-        return jsonResponse({ success: true, ramMb: body.ramMb });
-      }
-      return jsonResponse({ error: "Invalid ramMb value" }, 400);
+      const updated = await saveConfiguredResources(serverPath, {
+        ramMb: body.ramMb,
+        cpuLimitPercent: body.cpuLimitPercent,
+      });
+      return jsonResponse({ success: true, ...updated });
     }
 
     if (action === "power" && req.method === "POST") {

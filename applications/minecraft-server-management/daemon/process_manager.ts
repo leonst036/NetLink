@@ -1,5 +1,5 @@
 // Process Manager Module for Minecraft Wings Daemon
-// Handles Java process spawning, stdin/stdout streaming, graceful shutdown, and real-time resource telemetry.
+// Handles Java process spawning, stdin/stdout streaming, graceful shutdown, and real-time resource telemetry (CPU, RAM, Disk).
 
 export interface RunningProcess {
   child: Deno.ChildProcess;
@@ -7,17 +7,24 @@ export interface RunningProcess {
   logs: string[];
   startedAt: number;
   ramLimitMb: number;
+  cpuLimitPercent: number;
   lastCpuTime?: number;
   lastSampleTime?: number;
 }
 
 export interface ServerStats {
   cpuPercent: number;
+  cpuLimitPercent: number;
   memoryMb: number;
   memoryLimitMb: number;
   diskMb: number;
   uptimeSeconds: number;
   status: "online" | "offline";
+}
+
+export interface ResourceConfig {
+  ramMb: number;
+  cpuLimitPercent: number;
 }
 
 export const activeServers = new Map<string, RunningProcess>();
@@ -58,38 +65,57 @@ async function getDirectorySizeMb(dirPath: string): Promise<number> {
   return Math.round((totalBytes / (1024 * 1024)) * 10) / 10;
 }
 
-// Get configured RAM limit for instance
-export async function getConfiguredRamMb(serverPath: string): Promise<number> {
+// Get configured resource limits for instance
+export async function getConfiguredResources(serverPath: string): Promise<ResourceConfig> {
   try {
     const raw = await Deno.readTextFile(`${serverPath}/instance_config.json`);
     const cfg = JSON.parse(raw);
-    if (typeof cfg.ramMb === "number" && cfg.ramMb > 0) return cfg.ramMb;
+    return {
+      ramMb: typeof cfg.ramMb === "number" && cfg.ramMb > 0 ? cfg.ramMb : 1024,
+      cpuLimitPercent: typeof cfg.cpuLimitPercent === "number" && cfg.cpuLimitPercent >= 0 ? cfg.cpuLimitPercent : 0,
+    };
   } catch {}
-  return 1024;
+  return { ramMb: 1024, cpuLimitPercent: 0 };
 }
 
-// Save configured RAM limit for instance
-export async function saveConfiguredRamMb(serverPath: string, ramMb: number): Promise<void> {
+// Save configured resource limits for instance
+export async function saveConfiguredResources(
+  serverPath: string,
+  limits: { ramMb?: number; cpuLimitPercent?: number }
+): Promise<ResourceConfig> {
   let cfg: Record<string, any> = {};
   try {
     const raw = await Deno.readTextFile(`${serverPath}/instance_config.json`);
     cfg = JSON.parse(raw);
   } catch {}
-  cfg.ramMb = ramMb;
+
+  if (typeof limits.ramMb === "number" && limits.ramMb > 0) {
+    cfg.ramMb = limits.ramMb;
+  }
+  if (typeof limits.cpuLimitPercent === "number" && limits.cpuLimitPercent >= 0) {
+    cfg.cpuLimitPercent = limits.cpuLimitPercent;
+  }
+
   await Deno.writeTextFile(`${serverPath}/instance_config.json`, JSON.stringify(cfg, null, 2));
+
+  return {
+    ramMb: cfg.ramMb || 1024,
+    cpuLimitPercent: cfg.cpuLimitPercent || 0,
+  };
 }
 
 // Sample real-time server process metrics (CPU, RAM, Disk, Uptime)
 export async function getServerProcessStats(serverId: string, serverPath: string): Promise<ServerStats> {
   const instance = activeServers.get(serverId);
   const diskMb = await getDirectorySizeMb(serverPath);
-  const configuredRam = await getConfiguredRamMb(serverPath);
+  const configured = await getConfiguredResources(serverPath);
 
   if (!instance) {
     return {
       cpuPercent: 0,
+      cpuLimitPercent: configured.cpuLimitPercent,
       memoryMb: 0,
-      memoryLimitMb: configuredRam,
+      memoryLimitMb: configured.ramMb,
       diskMb,
       uptimeSeconds: 0,
       status: "offline",
@@ -123,7 +149,7 @@ export async function getServerProcessStats(serverId: string, serverPath: string
         if (timeDiffSeconds > 0) {
           // Approx 100 ticks per second per core
           const calculatedPercent = (ticksDiff / 100 / timeDiffSeconds) * 100;
-          cpuPercent = Math.min(Math.round(Math.max(calculatedPercent, 0) * 10) / 10, 400);
+          cpuPercent = Math.min(Math.round(Math.max(calculatedPercent, 0) * 10) / 10, 800);
         }
       }
       instance.lastCpuTime = totalCpuTicks;
@@ -138,8 +164,9 @@ export async function getServerProcessStats(serverId: string, serverPath: string
 
   return {
     cpuPercent,
+    cpuLimitPercent: instance.cpuLimitPercent,
     memoryMb,
-    memoryLimitMb: instance.ramLimitMb || configuredRam,
+    memoryLimitMb: instance.ramLimitMb || configured.ramMb,
     diskMb,
     uptimeSeconds,
     status: "online",
@@ -157,7 +184,9 @@ export async function startServerProcess(
     return false;
   }
 
-  const ramMb = requestedRamMb || (await getConfiguredRamMb(serverPath));
+  const resources = await getConfiguredResources(serverPath);
+  const ramMb = requestedRamMb || resources.ramMb;
+  const cpuLimit = resources.cpuLimitPercent;
 
   // Ensure eula.txt exists
   try {
@@ -202,7 +231,9 @@ export async function startServerProcess(
 
   const child = cmd.spawn();
   const stdinWriter = child.stdin.getWriter();
-  const logs: string[] = [`[Wings] Instance starting with ${ramMb}MB RAM...`];
+  const logs: string[] = [
+    `[Wings] Instance starting with ${ramMb}MB RAM${cpuLimit > 0 ? ` (CPU Limit: ${cpuLimit}%)` : ""}...`,
+  ];
 
   const runningInstance: RunningProcess = {
     child,
@@ -210,9 +241,22 @@ export async function startServerProcess(
     logs,
     startedAt: Date.now(),
     ramLimitMb: ramMb,
+    cpuLimitPercent: cpuLimit,
   };
 
   activeServers.set(serverId, runningInstance);
+
+  // Apply cpulimit if configured
+  if (cpuLimit > 0) {
+    try {
+      const limitCmd = new Deno.Command("cpulimit", {
+        args: ["-p", child.pid.toString(), "-l", cpuLimit.toString(), "-b"],
+      });
+      limitCmd.spawn();
+    } catch {
+      // cpulimit binary optional
+    }
+  }
 
   // Pipe stdout
   (async () => {

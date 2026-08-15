@@ -15,6 +15,7 @@ export interface NodeServerItem {
 
 export interface ServerStats {
   cpuPercent: number;
+  cpuLimitPercent?: number;
   memoryMb: number;
   memoryLimitMb: number;
   diskMb: number;

@@ -96,11 +96,25 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ activeNode, activeServ
                 />
               </Stack>
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>
-                {isOnline ? `${cpuPercent}%` : '0.0%'}
+                {isOnline ? `${cpuPercent}%` : '0.0%'}{' '}
+                {stats?.cpuLimitPercent ? (
+                  <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
+                    / {stats.cpuLimitPercent}%
+                  </span>
+                ) : null}
               </Typography>
               <LinearProgress
                 variant="determinate"
-                value={isOnline ? Math.min(cpuPercent, 100) : 0}
+                value={
+                  isOnline
+                    ? Math.min(
+                        stats?.cpuLimitPercent && stats.cpuLimitPercent > 0
+                          ? (cpuPercent / stats.cpuLimitPercent) * 100
+                          : Math.min(cpuPercent, 100),
+                        100
+                      )
+                    : 0
+                }
                 sx={{
                   height: 6,
                   borderRadius: 3,
@@ -110,6 +124,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ activeNode, activeServ
                   },
                 }}
               />
+
             </CardContent>
           </Card>
         </Grid>
