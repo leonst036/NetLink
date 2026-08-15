@@ -118,5 +118,20 @@
     "shortDesc": "Real-time network traffic monitor for local server and relay.",
     "fullDesc": "Monitor incoming and outgoing bandwidth, packet rates, active connections, latency, and traffic distribution between the local server and cloud relay in real-time.",
     "isFeatured": true
+  },
+  {
+    "id": "minecraft-server-management",
+    "name": "Minecraft Server Management",
+    "author": "Leon",
+    "category": "Game",
+    "rating": 5,
+    "downloads": "New",
+    "size": "Unknown",
+    "version": "v1.0.0",
+    "icon": "Gamepad2",
+    "color": "#10b981",
+    "shortDesc": "Manage Minecraft servers in your network.",
+    "fullDesc": "Monitor and manage Minecraft servers in your network.",
+    "isFeatured": true
   }
 ]

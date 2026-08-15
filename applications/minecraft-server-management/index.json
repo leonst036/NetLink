@@ -1,0 +1,25 @@
+{
+  "name": "minecraft-server-management",
+  "version": "1.0.0",
+  "description": "Minecraft Server Management",
+  "entrypoint": "frontend/dist/index.html",
+  "runInBackground": true,
+  "backend": "index.ts",
+  "requestedPermissions": {
+    "allowRead": true,
+    "allowWrite": true,
+    "allowNet": true,
+    "allowRun": true,
+    "allowDatabase": true,
+    "allowRunCommands": [
+      "ping",
+      "sh",
+      "ip",
+      "hostname",
+      "java",
+      "docker",
+      "screen",
+      "systemctl"
+    ]
+  }
+}
