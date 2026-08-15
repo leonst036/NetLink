@@ -26,11 +26,13 @@ import {
 import { NodeInfo, NodeServerItem } from './types';
 import {
   getNodes,
+  saveLocalNodes,
   getNodeServers,
   powerNodeServer,
   sendNodeServerCommand,
   getNodeServerLogs,
 } from './api';
+
 import { Header } from './components/Header';
 import { InstanceControlBar } from './components/InstanceControlBar';
 import { OverviewTab } from './components/OverviewTab';
@@ -422,11 +424,14 @@ export default function App() {
           open={installModalOpen}
           onClose={() => setInstallModalOpen(false)}
           onNodeInstalled={(node) => {
-            setNodes((prev) => [...prev.filter((n) => n.id !== node.id), node]);
+            const nextNodes = [...nodes.filter((n) => n.id !== node.id), node];
+            setNodes(nextNodes);
+            saveLocalNodes(nextNodes);
             setActiveNodeId(node.id);
             setInstallModalOpen(false);
             setToast({ message: `Node "${node.name}" installed successfully!`, type: 'success' });
           }}
+
         />
 
         {activeNode && (

@@ -13,6 +13,15 @@ export interface NodeServerItem {
   path: string;
 }
 
+export interface ServerStats {
+  cpuPercent: number;
+  memoryMb: number;
+  memoryLimitMb: number;
+  diskMb: number;
+  uptimeSeconds: number;
+  status: 'online' | 'offline';
+}
+
 export interface FileItem {
   name: string;
   isDirectory: boolean;

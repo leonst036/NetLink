@@ -6,6 +6,8 @@ import {
   startServerProcess,
   stopServerProcess,
   sendCommand,
+  getServerProcessStats,
+  saveConfiguredRamMb,
 } from "./process_manager.ts";
 import {
   listServerFiles,
@@ -126,18 +128,34 @@ Deno.serve({ port }, async (req) => {
     }
   }
 
-  // 5. Server Lifecycle & Control routes: /api/servers/:id/power | command | logs
-  const serverPathMatch = url.pathname.match(/^\/api\/servers\/([^\/]+)\/(power|command|logs)$/);
+  // 5. Server Lifecycle, Metrics, & Control routes: /api/servers/:id/power | command | logs | stats | resources
+  const serverPathMatch = url.pathname.match(/^\/api\/servers\/([^\/]+)\/(power|command|logs|stats|resources)$/);
   if (serverPathMatch) {
     const [, serverId, action] = serverPathMatch;
     const serverPath = `${dataDir}/${serverId}`;
+
+    // Real-time telemetry stats
+    if (action === "stats" && req.method === "GET") {
+      const stats = await getServerProcessStats(serverId, serverPath);
+      return jsonResponse(stats);
+    }
+
+    // Configure resource allocation limits
+    if (action === "resources" && req.method === "POST") {
+      const body = await req.json();
+      if (typeof body.ramMb === "number" && body.ramMb > 0) {
+        await saveConfiguredRamMb(serverPath, body.ramMb);
+        return jsonResponse({ success: true, ramMb: body.ramMb });
+      }
+      return jsonResponse({ error: "Invalid ramMb value" }, 400);
+    }
 
     if (action === "power" && req.method === "POST") {
       const body = await req.json();
       const powerAction = body.action;
 
       if (powerAction === "start") {
-        const started = await startServerProcess(serverId, serverPath, body.ramMb || 1024, body.jarFile || "server.jar");
+        const started = await startServerProcess(serverId, serverPath, body.ramMb, body.jarFile || "server.jar");
         return jsonResponse({ success: started });
       } else if (powerAction === "stop") {
         const stopped = await stopServerProcess(serverId);
@@ -145,7 +163,7 @@ Deno.serve({ port }, async (req) => {
       } else if (powerAction === "restart") {
         await stopServerProcess(serverId);
         setTimeout(() => {
-          startServerProcess(serverId, serverPath, body.ramMb || 1024, body.jarFile || "server.jar");
+          startServerProcess(serverId, serverPath, body.ramMb, body.jarFile || "server.jar");
         }, 3000);
         return jsonResponse({ success: true, message: "Restarting" });
       } else if (powerAction === "kill") {

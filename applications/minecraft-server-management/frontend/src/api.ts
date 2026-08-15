@@ -1,115 +1,88 @@
-import { NodeInfo, NodeServerItem, FileItem, InstallNodeParams, CreateServerParams } from './types';
+import {
+  NodeInfo,
+  NodeServerItem,
+  FileItem,
+  InstallNodeParams,
+  CreateServerParams,
+  ServerStats,
+} from './types';
 
-const API_BASE = '/api/minecraft-server-management';
-const STORAGE_KEY = 'netlink_mc_nodes';
+const API_BASE = '/api/custom/minecraft-server-management';
 
-function getLocalNodes(): NodeInfo[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    // Ignore parse error
-  }
-  return [];
-}
-
-export function saveLocalNode(node: NodeInfo): void {
-  const nodes = getLocalNodes().filter((n) => n.id !== node.id && n.host !== node.host);
-  nodes.push(node);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes));
-}
-
-export function removeLocalNode(nodeId: string): void {
-  const nodes = getLocalNodes().filter((n) => n.id !== nodeId);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes));
-}
-
-// Fetch registered nodes
+// Get all connected Wings nodes
 export async function getNodes(): Promise<NodeInfo[]> {
   try {
     const res = await fetch(`${API_BASE}/nodes`);
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data.nodes) && data.nodes.length > 0) {
+      if (data.nodes && Array.isArray(data.nodes) && data.nodes.length > 0) {
         return data.nodes;
       }
     }
-  } catch {
-    // Backend offline
-  }
+  } catch {}
 
-  const localNodes = getLocalNodes();
-  if (localNodes.length > 0) {
-    return localNodes;
-  }
+  // Persistent browser fallback
+  try {
+    const saved = localStorage.getItem('netlink_wings_nodes');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
 
-  const defaultNode: NodeInfo = {
-    id: 'node-baddie',
-    name: 'Leon Server',
-    host: '192.168.55.127',
-    daemonPort: 9080,
-    installedAt: Date.now(),
-  };
-  saveLocalNode(defaultNode);
-  return [defaultNode];
+  return [];
 }
 
-// Provision new node via SSH
-export async function installNode(params: InstallNodeParams): Promise<{ success: boolean; nodeId?: string; output?: string; error?: string }> {
+// Save nodes persistently
+export function saveLocalNodes(nodes: NodeInfo[]): void {
+  try {
+    localStorage.setItem('netlink_wings_nodes', JSON.stringify(nodes));
+  } catch {}
+}
+
+// Install or connect daemon on node
+export async function installNodeOverSsh(params: InstallNodeParams): Promise<{ success: boolean; nodeId?: string; output?: string; error?: string }> {
+  const daemonPort = params.daemonPort || 9080;
+
+  // 1. Check if daemon is already running directly on the host
+  try {
+    const checkRes = await fetch(`http://${params.host}:${daemonPort}/api/status`);
+    if (checkRes.ok) {
+      const data = await checkRes.json();
+      if (data.status === 'online') {
+        const nodeId = `node-${Date.now()}`;
+        return {
+          success: true,
+          nodeId,
+          output: `Connected to active Wings daemon v${data.version || '1.0.1'} on ${params.host}:${daemonPort}.`,
+        };
+      }
+    }
+  } catch {
+    // Daemon not reachable directly
+  }
+
+  // 2. SSH install via edge backend
   try {
     const res = await fetch(`${API_BASE}/nodes/install`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-
     if (res.ok) {
-      const data = await res.json();
-      if (data.nodeId) {
-        saveLocalNode({
-          id: data.nodeId,
-          name: params.nodeName || params.host,
-          host: params.host,
-          daemonPort: params.daemonPort || 9080,
-          installedAt: Date.now(),
-        });
-      }
-      return data;
+      return await res.json();
     }
-  } catch {
-    // Fallback
-  }
-
-  const daemonPort = params.daemonPort || 9080;
-  try {
-    const directStatus = await fetch(`http://${params.host}:${daemonPort}/api/status`, { mode: 'cors' });
-    if (directStatus.ok) {
-      const nodeId = `node-${Date.now()}`;
-      const node: NodeInfo = {
-        id: nodeId,
-        name: params.nodeName || params.host,
-        host: params.host,
-        daemonPort,
-        installedAt: Date.now(),
-      };
-      saveLocalNode(node);
-      return {
-        success: true,
-        nodeId,
-        output: `Connected directly to Wings daemon running on ${params.host}:${daemonPort}.`,
-      };
-    }
-  } catch {
-    // Direct check failed
-  }
+  } catch {}
 
   return {
     success: false,
-    error: `Unable to reach Wings daemon on ${params.host}:${daemonPort}. Please verify SSH installer or port access.`,
+    error: `Could not connect to Wings daemon on http://${params.host}:${daemonPort}. Please ensure daemon is started.`,
   };
 }
 
-// Get servers on a specific node
+export const installNode = installNodeOverSsh;
+
+// Get all servers on a specific Wings node
 export async function getNodeServers(node: NodeInfo): Promise<NodeServerItem[]> {
   try {
     const res = await fetch(`${API_BASE}/node/${node.id}/servers`);
@@ -117,24 +90,21 @@ export async function getNodeServers(node: NodeInfo): Promise<NodeServerItem[]> 
       const data = await res.json();
       return data.servers || [];
     }
-  } catch {
-    // Fallback
-  }
+  } catch {}
 
+  // Direct fetch fallback to node daemon
   try {
-    const directRes = await fetch(`http://${node.host}:${node.daemonPort}/api/servers`);
-    if (directRes.ok) {
-      const data = await directRes.json();
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers`);
+    if (res.ok) {
+      const data = await res.json();
       return data.servers || [];
     }
-  } catch {
-    // Unreachable
-  }
+  } catch {}
 
   return [];
 }
 
-// Create new Minecraft server instance on a node
+// Create new Minecraft server instance on node
 export async function createNodeServer(node: NodeInfo, params: CreateServerParams): Promise<{ success: boolean; serverId?: string; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/node/${node.id}/servers/create`, {
@@ -143,9 +113,7 @@ export async function createNodeServer(node: NodeInfo, params: CreateServerParam
       body: JSON.stringify(params),
     });
     if (res.ok) return await res.json();
-  } catch {
-    // Fallback
-  }
+  } catch {}
 
   try {
     const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/create`, {
@@ -159,7 +127,7 @@ export async function createNodeServer(node: NodeInfo, params: CreateServerParam
   }
 }
 
-// Power action on server (start | stop | restart | kill)
+// Power action: start, stop, restart, kill
 export async function powerNodeServer(node: NodeInfo, serverId: string, action: 'start' | 'stop' | 'restart' | 'kill'): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/power`, {
@@ -168,9 +136,7 @@ export async function powerNodeServer(node: NodeInfo, serverId: string, action: 
       body: JSON.stringify({ action }),
     });
     if (res.ok) return await res.json();
-  } catch {
-    // Fallback
-  }
+  } catch {}
 
   try {
     const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/power`, {
@@ -193,9 +159,7 @@ export async function sendNodeServerCommand(node: NodeInfo, serverId: string, co
       body: JSON.stringify({ command }),
     });
     if (res.ok) return await res.json();
-  } catch {
-    // Fallback
-  }
+  } catch {}
 
   try {
     const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/command`, {
@@ -217,9 +181,7 @@ export async function getNodeServerLogs(node: NodeInfo, serverId: string): Promi
       const data = await res.json();
       return data.logs || [];
     }
-  } catch {
-    // Fallback
-  }
+  } catch {}
 
   try {
     const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/logs`);
@@ -227,11 +189,55 @@ export async function getNodeServerLogs(node: NodeInfo, serverId: string): Promi
       const data = await res.json();
       return data.logs || [];
     }
-  } catch {
-    // Unreachable
-  }
+  } catch {}
 
   return [];
+}
+
+// Get real-time server telemetry stats (CPU, RAM, Disk, Uptime)
+export async function getNodeServerStats(node: NodeInfo, serverId: string): Promise<ServerStats | null> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/stats`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/stats`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+
+  return null;
+}
+
+// Update server resource limits (RAM allocation)
+export async function updateNodeServerResources(
+  node: NodeInfo,
+  serverId: string,
+  limits: { ramMb: number }
+): Promise<{ success: boolean; ramMb?: number; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/resources`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(limits),
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/resources`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(limits),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 }
 
 // File Management APIs
@@ -242,16 +248,12 @@ export async function getNodeServerFiles(node: NodeInfo, serverId: string, path:
   try {
     const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/files${query}`);
     if (res.ok) return await res.json();
-  } catch {
-    // Fallback
-  }
+  } catch {}
 
   try {
     const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/files${query}`);
     if (res.ok) return await res.json();
-  } catch {
-    // Unreachable
-  }
+  } catch {}
 
   return { files: [], currentPath: path };
 }
@@ -265,9 +267,7 @@ export async function getNodeServerFileContent(node: NodeInfo, serverId: string,
       const data = await res.json();
       return data.content || '';
     }
-  } catch {
-    // Fallback
-  }
+  } catch {}
 
   try {
     const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/files/content${query}`);
@@ -275,9 +275,7 @@ export async function getNodeServerFileContent(node: NodeInfo, serverId: string,
       const data = await res.json();
       return data.content || '';
     }
-  } catch {
-    // Unreachable
-  }
+  } catch {}
 
   return '';
 }
@@ -291,9 +289,7 @@ export async function saveNodeServerFile(node: NodeInfo, serverId: string, path:
       body: JSON.stringify({ path, content }),
     });
     if (res.ok) return await res.json();
-  } catch {
-    // Fallback
-  }
+  } catch {}
 
   try {
     const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/files/save`, {
@@ -316,9 +312,7 @@ export async function deleteNodeServerFile(node: NodeInfo, serverId: string, pat
       body: JSON.stringify({ path }),
     });
     if (res.ok) return await res.json();
-  } catch {
-    // Fallback
-  }
+  } catch {}
 
   try {
     const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/files/delete`, {
@@ -341,9 +335,7 @@ export async function createNodeServerFolder(node: NodeInfo, serverId: string, p
       body: JSON.stringify({ path }),
     });
     if (res.ok) return await res.json();
-  } catch {
-    // Fallback
-  }
+  } catch {}
 
   try {
     const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/files/create-folder`, {
