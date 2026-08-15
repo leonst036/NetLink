@@ -1,19 +1,17 @@
 import { installDaemonOverSsh, SshNodeConfig } from "../local_server/ssh_installer.ts";
 import { DEFAULT_INSTALLER_SCRIPT, DEFAULT_WINGS_SCRIPT } from "../local_server/daemon_payloads.ts";
+import {
+  saveNode,
+  getNode,
+  getAllNodes,
+  recordAuditEvent,
+  getAuditEvents,
+  NodeRecord,
+} from "./db.ts";
 
 const port = parseInt(Deno.env.get("PORT") || "8000");
 
-interface NodeRegistryEntry {
-  id: string;
-  name: string;
-  host: string;
-  daemonPort: number;
-  daemonToken?: string;
-  installedAt: number;
-}
-
-const registeredNodes = new Map<string, NodeRegistryEntry>();
-
+// Read installer and wings scripts from daemon/ folder with embedded fallback
 async function getDaemonScripts() {
   let installerScript = DEFAULT_INSTALLER_SCRIPT;
   let wingsScript = DEFAULT_WINGS_SCRIPT;
@@ -67,7 +65,7 @@ Deno.serve({ port }, async (req) => {
         username,
         password,
         privateKey,
-        daemonPort: daemonPort || 8080,
+        daemonPort: daemonPort || 9080,
         daemonToken: daemonToken || "netlink-secret-token",
       };
 
@@ -75,16 +73,20 @@ Deno.serve({ port }, async (req) => {
 
       if (result.success) {
         const nodeId = `node-${Date.now()}`;
-        registeredNodes.set(nodeId, {
+        const nodeRecord: NodeRecord = {
           id: nodeId,
           name: nodeName || host,
           host,
-          daemonPort: daemonPort || 8080,
+          daemonPort: daemonPort || 9080,
           daemonToken: daemonToken || "netlink-secret-token",
           installedAt: Date.now(),
-        });
+        };
 
-        console.log(`[SSH Installer Relay] Successfully registered node ${nodeId} (${host})`);
+        // Persist node in database
+        await saveNode(nodeRecord);
+        await recordAuditEvent("NODE_INSTALLED", { nodeId, details: { host, username } });
+
+        console.log(`[SSH Installer Relay] Successfully registered and persisted node ${nodeId} (${host})`);
         return jsonResponse({
           success: true,
           nodeId,
@@ -104,16 +106,23 @@ Deno.serve({ port }, async (req) => {
     }
   }
 
-  // GET .../nodes
+  // GET .../nodes - List all persistent nodes
   if (req.method === "GET" && (url.pathname.endsWith("/nodes") || url.pathname.endsWith("/nodes/"))) {
-    return jsonResponse({ nodes: Array.from(registeredNodes.values()) });
+    const nodes = await getAllNodes();
+    return jsonResponse({ nodes });
   }
 
-  // Forward node proxy requests
+  // GET .../audit-logs - Query audit events
+  if (req.method === "GET" && url.pathname.includes("/audit-logs")) {
+    const logs = await getAuditEvents();
+    return jsonResponse({ logs });
+  }
+
+  // Forward node proxy requests: /node/:nodeId/...
   const proxyMatch = url.pathname.match(/\/node\/([^\/]+)\/(.+)$/);
   if (proxyMatch) {
     const [, nodeId, subPath] = proxyMatch;
-    const node = registeredNodes.get(nodeId);
+    const node = await getNode(nodeId);
 
     if (!node) {
       return jsonResponse({ error: "Node not found" }, 404);
@@ -134,6 +143,10 @@ Deno.serve({ port }, async (req) => {
         headers: forwardHeaders,
         body: req.method !== "GET" && req.method !== "HEAD" ? await req.text() : undefined,
       });
+
+      if (subPath.includes("/power") && req.method === "POST") {
+        await recordAuditEvent("SERVER_POWER_ACTION", { nodeId, details: { path: subPath } });
+      }
 
       const data = await forwardRes.json();
       return jsonResponse(data, forwardRes.status);

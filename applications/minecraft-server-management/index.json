@@ -13,6 +13,11 @@
     "allowNet": true,
     "allowRun": true,
     "allowDatabase": true,
+    "collections": [
+      "nodes",
+      "servers",
+      "audit_logs"
+    ],
     "allowRunCommands": [
       "ping",
       "sh",
