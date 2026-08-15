@@ -2,86 +2,141 @@
 
 NetStore is the built-in application ecosystem for NetLink. You can download existing apps or build your own to extend NetLink's capabilities.
 
-This guide explains how to build and structure a custom NetStore application.
+This guide explains how to build, structure, and test a custom NetStore application.
+
+---
 
 ## Application Architecture
 
 NetLink applications are separated by where their code runs. A typical application has three parts:
 
-1. **Frontend**: The React UI that runs in the browser.
-2. **Local Server**: Backend code that runs on the edge device (e.g., Raspberry Pi). Apps run securely in a Deno sandbox.
-3. **Relay Server**: Backend code that runs on the cloud relay server to handle global API requests, routing, and database interactions. Apps run securely in a Deno sandbox.
+1. **Frontend**: The UI that runs in the browser. NetLink supports both standalone Vite/HTML single-page applications (loaded securely inside sandboxed iframes) and single-file React component exports (transpiled dynamically via esbuild).
+2. **Local Server**: Backend code that runs on the edge device (e.g., Raspberry Pi or local server). Apps run securely in an isolated Deno sandbox.
+3. **Relay Server**: Backend code that runs on the cloud relay server to handle global API requests, routing, and database interactions. Apps run securely in an isolated Deno sandbox.
 
-When you install an application into the `Applications` folder on your local server, NetLink automatically synchronizes the `relay` backend code to the cloud relay server over a secure WebSocket connection. You don't have to manually deploy code to two different machines!
+When you install an application into the `Applications` folder on your local server, NetLink automatically synchronizes the `relay` backend and frontend code to the cloud relay server over a secure WebSocket connection. You don't have to manually deploy code to two different machines!
 
 ---
 
 ## Getting Started
 
-To create an app for local testing during development, make a new folder inside `backend/local_server/NetStore/Applications/<userId>/` (where `<userId>` is usually `admin`) with your app's ID (e.g., `my-cool-app`).
+### Standard Directory Structure
 
-Here is the standard folder structure you should use:
+An application package uses the following directory layout:
 
 ```text
 my-cool-app/
-├── index.json        (Required: The app manifest)
-├── frontend/
-│   └── main.tsx      (Required: The React entry point)
-├── local_server/
-│   └── index.ts      (Optional: Local edge logic)
-└── relay/
-    └── index.ts      (Optional: Cloud relay routes)
+├── index.json          (Required: App manifest, technical entrypoints & permissions)
+├── frontend/           (Required: Frontend UI)
+│   ├── index.html      (Standard HTML / Vite entrypoint)
+│   ├── main.tsx        (React entrypoint)
+│   ├── styles.css      (Optional: App stylesheet)
+│   └── src/            (Optional: React components & assets)
+├── local_server/       (Optional: Local edge backend logic)
+│   └── index.ts        (Deno HTTP server entrypoint)
+└── relay/              (Optional: Cloud relay backend logic)
+    └── index.ts        (Deno HTTP server entrypoint)
 ```
+
+---
 
 ### 1. The Manifest (`index.json`)
 
-Every application needs an `index.json` file in its root folder. This file defines the technical entry points and required system permissions for the app. 
+Every application must contain an `index.json` file in its root folder. This file defines technical entry points, backend runtime options, and requested system permissions.
 
-When you develop a **local application**, you should also include all store metadata (like `name`, `author`, `description`) directly in this file so that the NetStore catalog can display it.
+When developing a **local application**, you can also include store metadata directly in this file for testing in the NetStore UI.
 
 ```json
 {
-    "id": "my-cool-app",
-    "version": "1.0.0",
-    "main": "frontend/main.tsx",
-    "requiredExternalFolders": [
-      { "path": "/mnt/storage", "mode": "read", "reason": "Storage for media files" }
-    ],
-    "requestedPermissions": {
-      "allowRun": true,
-      "allowRunCommands": ["sh", "docker"],
-      "allowEnv": ["CUSTOM_API_KEY"],
-      "allowNet": true,
-      "allowDatabase": true
-    },
-    
-    // Store metadata (required for local apps to show in the store UI)
-    "name": "My Cool App",
-    "author": "Your Name",
-    "category": "Tools",
-    "color": "#10b981",
-    "icon": "icon.png",
-    "shortDescription": "A quick summary of what this app does.",
-    "fullDescription": "A longer description explaining the features and why users should install it."
+  "id": "my-cool-app",
+  "version": "1.0.0",
+  "main": "frontend/main.tsx",
+  "entrypoint": "frontend/index.html",
+  "backend": "index.ts",
+  "runInBackground": true,
+  "requiredExternalFolders": [
+    { "path": "/mnt/storage", "mode": "read", "reason": "Storage for media files" }
+  ],
+  "requestedPermissions": {
+    "allowRun": true,
+    "allowRunCommands": ["sh", "docker", "ping", "systemctl"],
+    "allowEnv": ["CUSTOM_API_KEY"],
+    "allowNet": true,
+    "allowDatabase": true,
+    "allowRead": true,
+    "allowWrite": true,
+    "collections": ["servers", "logs"]
+  },
+  
+  // Store metadata (used when developing locally before publishing)
+  "name": "My Cool App",
+  "author": "Your Name",
+  "category": "Tools",
+  "color": "#10b981",
+  "icon": "Box",
+  "shortDesc": "A quick summary of what this app does.",
+  "fullDesc": "A longer description explaining the features and why users should install it."
 }
 ```
-*(Make sure the `main` property points to your frontend React component).*
 
-**Optional Manifest Fields:**
-- `requiredExternalFolders`: List of host folder paths required by the backend (`path`, `mode`: `"read"` or `"write"`, optional `reason`).
-- `requestedPermissions`: Requested elevated capabilities:
-  - `allowRun`: `true` or `false` to request host command execution (`Deno.Command` / `Deno.run`).
-  - `allowRunCommands`: Optional list of allowed command binaries (e.g. `["sh", "docker"]`).
-  - `allowEnv`: List of custom environment variable keys to access (e.g. `["CUSTOM_API_KEY"]`).
-  - `allowNet`: `true` or list of allowed domains for outbound network access.
-  - `allowDatabase`: `true` or `false` to request a dedicated MongoDB database with unlimited collections (`app_<appId>`).
-- `nativeKey`: Key for built-in native applications integrated directly into the dashboard.
+#### Manifest Fields Reference
 
-> **Publishing to NetStore:** If you decide to officially publish your application to the NetLink-NetStore repository on GitHub, the store metadata (everything under the `// Store metadata` section) must be moved out of `index.json` and placed into the central `applications.json` file in the NetStore repository. Your app's `index.json` will then only contain the technical fields (e.g. `id`, `version`, `main`, permissions).
+* **`id`** (`string`, required): Unique identifier for the app (kebab-case, e.g., `"minecraft-server-management"`).
+* **`version`** (`string`, required): Semantic version (e.g., `"1.0.0"`).
+* **`main`** (`string`): Path to React entry component (e.g., `"frontend/main.tsx"`).
+* **`entrypoint`** (`string`): Path to HTML entrypoint (e.g., `"frontend/index.html"` or `"frontend/dist/index.html"`).
+* **`backend`** (`string`): Entrypoint filename inside `local_server/` or `relay/` (e.g., `"index.ts"`).
+* **`runInBackground`** (`boolean`): If `true`, the local server starts the app's backend daemon automatically on system boot without waiting for an active user login.
+* **`requiredExternalFolders`** (`array`): List of host folder paths required by the backend:
+  * `path`: Absolute host directory path.
+  * `mode`: `"read"` or `"write"`.
+  * `reason`: Explanation displayed to the administrator when requesting permission.
+* **`requestedPermissions`** (`object`): Elevated sandbox capabilities:
+  * `allowRun` (`boolean`): Request permission to execute shell commands (`Deno.Command`).
+  * `allowRunCommands` (`string[]`): Whitelist of allowed binaries (e.g., `["sh", "docker", "ping"]`).
+  * `allowEnv` (`string[]`): Whitelist of custom host environment variable keys to expose.
+  * `allowNet` (`boolean` or `string[]`): Outbound network access permission (`true` for all, or domain array).
+  * `allowDatabase` (`boolean`): Permission to use NetLink's managed MongoDB storage (`/api/db`).
+  * `collections` (`string[]`): Whitelist of specific MongoDB collections the app can access.
+  * `allowRead` / `allowWrite` (`boolean`): File system access within the app folder.
+* **`nativeKey`** (`string`): Identifier for built-in dashboard apps.
 
-### 2. The Frontend (`frontend/main.tsx`)
+> **Publishing to NetStore:** When publishing your application to the official [leonst036/NetLink-NetStore](https://github.com/leonst036/NetLink-NetStore) repository, store metadata is placed into the central `applications/applications.json` catalog file (using keys `id`, `name`, `author`, `category`, `icon`, `color`, `shortDesc`, `fullDesc`, `version`, `downloads`, `rating`, `isFeatured`). The app's `index.json` only contains the technical configuration.
 
-This is the UI of your application. It should export a default React component.
+---
+
+### 2. Frontend Development (`frontend/`)
+
+NetLink supports two frontend approaches:
+
+#### Option A: Standalone HTML / Vite App (Recommended for Complex Apps)
+
+You can create a full React + Vite, Vue, or Vanilla JS application inside the `frontend/` directory with `frontend/index.html`.
+
+NetLink's `DynamicAppLoader` loads your app inside a secure, sandboxed iframe:
+1. Obtains a short-lived single-use authentication ticket (`POST /api/auth/ticket?target=<target>`).
+2. Loads your app via `/apps/<userId>/<appId>/<entrypoint>?ticket=<ticket>&target=<target>&role=<role>`.
+3. NetLink automatically injects `/netlink.css` and subtle background glows, and dynamically rewrites relative/absolute asset paths.
+
+```html
+<!-- frontend/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Cool App</title>
+</head>
+<body class="bg-slate-950 text-slate-100">
+  <div id="root"></div>
+  <script type="module" src="/frontend/main.tsx"></script>
+</body>
+</html>
+```
+
+#### Option B: Dynamic React Component (`frontend/main.tsx`)
+
+For simple lightweight apps, export a default React component from `frontend/main.tsx`. The relay dynamically compiles TypeScript/JSX on-the-fly using esbuild and esm.sh importmaps.
 
 ```tsx
 import { useState } from 'react';
@@ -94,112 +149,120 @@ export default function App({ token }: AppProps) {
     const [message, setMessage] = useState('');
 
     const pingBackend = async () => {
-        // Example: Calling your custom Relay backend route
         const res = await fetch('/api/my-cool-app/ping', { method: 'POST' });
         const data = await res.json();
         setMessage(data.message);
     };
 
     return (
-        <div>
-            <h1>My Cool App</h1>
-            <button onClick={pingBackend}>Ping Backend</button>
-            <p>{message}</p>
+        <div className="p-6 text-slate-100">
+            <h1 className="text-xl font-bold mb-4">My Cool App</h1>
+            <button 
+                onClick={pingBackend}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors font-medium text-sm"
+            >
+                Ping Backend
+            </button>
+            {message && <p className="mt-4 text-emerald-400">{message}</p>}
         </div>
     );
 }
 ```
 
-### 3. Registering Backend Routes (`relay/index.ts` & `local_server/index.ts`)
+---
 
-If your app needs a custom backend API, you can write Deno-compatible code in `relay/index.ts` or `local_server/index.ts`. 
+### 3. Backend Routes (`relay/index.ts` & `local_server/index.ts`)
 
-NetLink runs these files in an isolated **Deno Sandbox** for security. Your code runs as a standard HTTP server. NetLink will assign an available port via the `PORT` environment variable and automatically proxy requests to it.
+Backend code runs in an isolated **Deno Sandbox**. NetLink passes a random available port via the `PORT` environment variable and automatically proxies HTTP and WebSocket requests matching `/api/<appId>/...` to your sandbox.
 
 ```typescript
-// Example: A Deno app server
+// Example Deno app server (relay/index.ts or local_server/index.ts)
 const port = parseInt(Deno.env.get("PORT") || "8000");
 
 Deno.serve({ port }, (req) => {
     const url = new URL(req.url);
     
-    // Check if it's a websocket request
+    // Handle WebSocket upgrade
     if (req.headers.get("upgrade") === "websocket") {
         const { socket, response } = Deno.upgradeWebSocket(req);
-        socket.onopen = () => console.log("WS client connected!");
+        socket.onopen = () => console.log("WebSocket client connected!");
         socket.onmessage = (e) => {
-            console.log("WS received:", e.data);
+            console.log("Received:", e.data);
             socket.send("Echo: " + e.data);
         };
         return response;
     }
 
+    // REST endpoints
     if (req.method === "GET" && url.pathname.endsWith("/status")) {
-        return new Response(JSON.stringify({ status: 'running' }), {
-            headers: { 'Content-Type': 'application/json' }
+        return new Response(JSON.stringify({ status: "running" }), {
+            headers: { "Content-Type": "application/json" }
         });
     }
 
     if (req.method === "POST" && url.pathname.endsWith("/ping")) {
-        return new Response(JSON.stringify({ message: 'Pong from Deno Sandbox!' }), {
-            headers: { 'Content-Type': 'application/json' }
+        return new Response(JSON.stringify({ message: "Pong from Deno Sandbox!" }), {
+            headers: { "Content-Type": "application/json" }
         });
     }
     
-    return new Response("Not Found", { status: 404 });
+    return new Response(JSON.stringify({ error: "Not Found" }), { 
+        status: 404, 
+        headers: { "Content-Type": "application/json" } 
+    });
 });
 ```
 
-When the local server connects to the relay, it will automatically send this file to the cloud, and the relay server will launch it securely.
+* **Relay Backend (`relay/index.ts`)**: Proxied by the cloud relay server for requests sent to `/api/<appId>/...`.
+* **Local Backend (`local_server/index.ts`)**: Runs on the edge device, handling local hardware, command execution, or local network scans.
+
+---
 
 ### 4. Sandbox Permissions & Security
 
-For security, your Deno apps run in an isolated and hardened Deno sandbox:
+Deno sandboxes operate under the principle of least privilege:
 
 - **Strict Default Isolation**:
-  - File system access is restricted strictly to the application's own directory (`--allow-read=<appDir>` and `--allow-write=<appDir>`).
-  - Environment variable access is restricted to `PORT` (`--allow-env=PORT`). Sensitive host variables (such as `MONGO_URI`, `JWT_SECRET`, or `GITHUB_TOKEN`) are hidden and never exposed to the sandbox process.
-  - Direct shell command execution (`--allow-run`) and OS system telemetry (`--allow-sys`) are disabled by default.
+  - File system access is restricted to the app directory (`--allow-read=<appDir>` and `--allow-write=<appDir>`).
+  - Environment variables are restricted to `PORT` (`--allow-env=PORT`). Sensitive host variables (`MONGO_URI`, `JWT_SECRET`, `GITHUB_TOKEN`) are never exposed to sandboxes.
+  - Direct shell execution (`--allow-run`) and host system access (`--allow-sys`) are disabled by default.
 
-- **Dynamic Permission Requests & Admin Authorization**:
-  - If an app requires elevated capabilities (host folders, command execution, custom environment variables, network endpoints), it must declare them in `index.json` under `requiredExternalFolders` or `requestedPermissions`.
-  - When the app is initialized or installed, NetLink checks `permissions.json`. If ungranted permissions are requested, startup is paused and an interactive **Permission Request Modal** is presented to the administrator.
-  - Once approved by the administrator, the permissions are saved in `permissions.json` and NetLink passes the corresponding flags (`--allow-run`, `--allow-read=<path>`, `--allow-write=<path>`, `--allow-env=PORT,<var>`) to the Deno sandbox upon startup.
+- **Admin Permission Approval**:
+  - If an app declares elevated permissions in `index.json` (`requiredExternalFolders`, `requestedPermissions`), NetLink checks `permissions.json`.
+  - If unapproved permissions exist, startup is paused and an interactive **Permission Request Modal** is sent to the admin via WebSocket.
+  - Once approved, permissions are saved in `permissions.json` and NetLink starts the Deno process with the corresponding security flags (`--allow-run`, `--allow-net`, `--allow-env`, etc.).
 
-### 5. Multi-User Isolation & Routing (Backwards Compatibility)
+---
 
-NetLink supports true multi-user isolation. Apps are installed in isolated directories on a per-user basis (`Applications/<userId>/<appId>`), and each user runs their own isolated Deno sandbox backend (`<userId>_<appId>`).
+### 5. Multi-User Isolation & Routing
 
-**As an app developer, you do NOT need to write your app differently.** The NetLink relay server automatically handles all user-specific routing seamlessly:
+NetLink provides multi-user isolation. Apps are installed in isolated directories per user (`Applications/<userId>/<appId>`), and each user runs their own sandbox process (`<userId>_<appId>`):
 
-1. **Frontend Assets:** If you hardcode absolute paths in your `index.html` (e.g., `<link href="/apps/my-cool-app/frontend/styles.css">`), the backend will dynamically rewrite these paths on-the-fly to `/apps/<userId>/my-cool-app/...` before serving the files to the user's browser.
-2. **API Requests:** When your app fetches `/api/my-cool-app/execute`, the relay server automatically inspects the user's authentication cookie, identifies the active user, and transparently proxies the request to the correct user-specific Deno sandbox.
-   
-*(Best Practice: While the system is fully backwards-compatible, it is recommended to use relative paths for new frontend applications (e.g., `./styles.css` and base paths of `./` in Vite) to keep your code clean.)*
+1. **Frontend Rewriting:** Asset paths like `/apps/my-cool-app/...` are dynamically rewritten on-the-fly to `/apps/<userId>/my-cool-app/...`.
+2. **API Routing:** Requests to `/api/my-cool-app/...` authenticate the user's session and proxy transparently to the corresponding user's sandbox instance.
+
+---
 
 ### 6. App Database API (`POST /api/db`)
 
-NetLink provides an isolated, managed MongoDB storage endpoint for NetStore apps. Apps do not need database drivers or credentials; all operations are routed through a single command-based endpoint:
+NetLink provides an isolated, managed MongoDB endpoint for apps. Apps do not need database drivers or credentials:
 
-- **Endpoint**: `POST /api/db` (or `/api/apps/db`)
-- **Headers**: `Authorization: Bearer <token>` (or authenticated session cookie)
-- **JSON Body**:
-  ```json
-  {
-    "appId": "minecraft-server-management",
-    "collection": "servers",
-    "action": "find" | "findOne" | "insert" | "update" | "delete" | "count",
-    "query": { "status": "running" },
-    "data": { "name": "Survival 1.20", "port": 25565 },
-    "id": "optional-doc-id",
-    "options": { "limit": 20, "sort": { "createdAt": -1 } }
-  }
-  ```
+- **Endpoint**: `POST /api/db` (or `POST /api/apps/db`)
+- **Headers**: `Authorization: Bearer <token>` or session cookie
+- **Supported Actions**:
+  - `find`: Query documents (`query`, `options: { limit, skip, sort, projection }`).
+  - `findOne`: Fetch a single document by query or `id`.
+  - `insert`: Insert one document (`data: { ... }`) or multiple documents (`data: [ ... ]`).
+  - `update`: Update documents (`query` or `id`, `data`).
+  - `delete`: Remove documents matching `query` or `id`.
+  - `count`: Count matching documents.
+  - `listCollections`: List all collections belonging to the app.
+  - `dropCollection`: Drop a specific collection.
 
-#### Example Usage (Frontend React or Deno Backend):
+#### Example Usage
 
 ```typescript
-// Insert a new server
+// Insert a document
 const insertRes = await fetch('/api/db', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -207,12 +270,12 @@ const insertRes = await fetch('/api/db', {
         appId: 'minecraft-server-management',
         collection: 'servers',
         action: 'insert',
-        data: { name: 'Skyblock Server', memory: '4G', status: 'online' }
+        data: { name: 'Survival 1.20', port: 25565, status: 'online' }
     })
 });
 const { data: newDoc } = await insertRes.json();
 
-// Query all online servers
+// Query documents
 const queryRes = await fetch('/api/db', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -227,65 +290,62 @@ const queryRes = await fetch('/api/db', {
 const { data: servers } = await queryRes.json();
 ```
 
-*All queries and documents are automatically namespaced (`app_<appId>_<collection>`) and scoped to the active user (`_userId`), preventing cross-user and cross-app data leaks.*
+*All collections and documents are automatically namespaced (`app_<appId>_<collection>`) and scoped to the active user (`_userId`).*
 
 ---
 
-## Remote Application Store & GitHub Integration
+## Local Development & Testing Workflows
 
-NetLink includes an online catalog and dynamic installation mechanism:
-1. **Catalog Sync**: NetLink queries remote application lists from GitHub (`leonst036/NetLink` branch `NetStore`).
-2. **App Installation**: When installing an app from the catalog, NetLink downloads the tree of app files directly into `backend/local_server/NetStore/Applications/<appId>/`.
-3. **Automatic Size Calculation**: On-disk application directory size is automatically computed by NetLink (`calculateDirectorySize`) and formatted in human-readable units (`B`, `KB`, `MB`, `GB`) for display in the NetStore UI and card badges.
-4. **Resynchronization**: Local server automatically updates `index.json`, registers backend relay syncs, checks required permissions, and starts local sandboxes.
+You have three convenient ways to test your applications locally:
+
+### Method 1: Local Workspace Detection (Fastest)
+
+Place your app inside the neighbouring `NetLink-NetStore/applications/<appId>/` directory in your workspace. NetLink's local server and relay automatically detect and resolve your local files during development without needing to download anything.
+
+### Method 2: Docker Debug Server (Simulating Remote NetStore)
+
+You can run the official Docker Debug Server from the `NetLink-NetStore` repository:
+
+```bash
+# In the NetLink-NetStore repository
+./start-debug.sh
+# Or with docker compose:
+docker compose up -d
+```
+
+* Runs on `http://localhost:4540`.
+* Simulates GitHub REST trees and raw file endpoints with live hot-reloading from your local `applications/` folder.
+* In NetLink's NetStore app, select **🛠️ Local Debug (Docker)** from the channel selector to test installation and updates directly.
+
+### Method 3: Direct User Folder
+
+Place your application folder directly into `backend/local_server/NetStore/Applications/<userId>/<appId>/` (e.g. `admin/my-cool-app`). Start NetLink (`npm run dev`) and your app will be initialized automatically.
 
 ---
 
 ## Design Guidelines & UI/UX Standards
 
-To ensure all NetStore applications feel cohesive, modern, and integrated seamlessly within the NetLink ecosystem, developers must adhere to the following design standards and guidelines:
+To ensure all NetStore apps look premium and feel native within NetLink, follow these design rules:
 
 ### 1. Visual Aesthetics & Theme Integration
-- **Dark Mode & Color Palette**: NetLink uses a modern dark theme with deep slate backgrounds (`slate-950` / `#020617` base). Avoid using plain light backgrounds or harsh high-contrast white boxes.
-- **Glassmorphism**: Utilize semi-transparent dark containers (`bg-slate-900/60` or `bg-slate-800/40`), subtle background blurs (`backdrop-blur-md`), and thin translucent borders (`border border-white/10` or `border-slate-700/50`).
-- **Curated Accent Colors**: Use specific color accents for visual hierarchy and action semantics:
-  - **Primary Actions / Highlights**: Indigo (`#6366f1` / `indigo-500`)
-  - **Success / Online Status**: Emerald (`#10b981` / `emerald-500`)
-  - **Warnings / Caution**: Amber (`#f59e0b` / `amber-500`)
-  - **Destructive Actions / Errors**: Rose (`#f43f5e` / `rose-500`)
-  - **Utilities / System**: Blue (`#2496ed`) or Cyan (`#06b6d4`)
-  - *Avoid unstyled, raw primary colors (e.g. pure `#ff0000` or `#0000ff`).*
+* **Dark Mode Base**: Deep slate backgrounds (`slate-950` / `#020617`).
+* **Glassmorphism**: Semi-transparent containers (`bg-slate-900/60`, `bg-slate-800/40`), background blurs (`backdrop-blur-md`), and translucent borders (`border border-white/10` or `border-slate-700/50`).
+* **Accent Colors**:
+  * **Primary / Highlight**: Indigo (`#6366f1` / `indigo-500`)
+  * **Success / Online**: Emerald (`#10b981` / `emerald-500`)
+  * **Warning / Caution**: Amber (`#f59e0b` / `amber-500`)
+  * **Destructive / Error**: Rose (`#f43f5e` / `rose-500`)
+  * **System / Info**: Blue (`#2496ed`) or Cyan (`#06b6d4`)
 
 ### 2. Typography & Hierarchy
-- **Font Selection**: Use sans-serif fonts matching NetLink's UI (`Outfit`, `Inter`, or system sans-serif) for titles and body text. Use monospaced fonts (`Fira Code`, `JetBrains Mono`) for logs, code snippets, IP addresses, and terminal output.
-- **Contrast & Text Muting**: Ensure high contrast for readability against dark backgrounds:
-  - Primary Titles & Headers: `text-slate-100` / `#f8fafc`
-  - Body Text: `text-slate-300` / `#cbd5e1`
-  - Secondary Metadata / Captions: `text-slate-400` or `text-slate-500`
+* **UI Text**: Sans-serif fonts (`Outfit`, `Inter`, or system sans-serif).
+* **Code & Logs**: Monospaced fonts (`Fira Code`, `JetBrains Mono`).
+* **Contrast**: High contrast text (`text-slate-100` for headings, `text-slate-300` for body, `text-slate-400`/`text-slate-500` for secondary metadata).
 
-### 3. Iconography & Badges
-- **Lucide Icons**: Use line icons from [Lucide React](https://lucide.dev/) (`lucide-react`) with a consistent stroke width (`1.5px` – `2px`).
-- **Store Metadata Icons**: In `index.json` or `applications.json`, assign a recognized Lucide icon name (e.g., `"icon": "Container"`, `"icon": "Terminal"`, `"icon": "Network"`) and matching HEX color (`"color": "#2496ed"`).
+### 3. Iconography
+* Use line icons from [Lucide React](https://lucide.dev/) (`lucide-react`) with a stroke width of `1.5px` – `2px`.
+* Specify a valid Lucide icon name (e.g. `"icon": "Container"`, `"icon": "Terminal"`, `"icon": "Folder"`) and HEX color (`"color": "#10b981"`) in your store catalog definition.
 
-### 4. Layout, Sizing & Responsiveness
-- **Window & Container Fit**: Apps render inside NetLink dynamic windows, modals, or dashboard views. Root containers must use flexible height/width layout classes (e.g. `w-full h-full flex flex-col overflow-hidden` or `overflow-y-auto`) to scale properly across different window sizes.
-- **Spacing**: Maintain consistent padding (`p-4` to `p-6`) and component gaps (`gap-3` to `gap-6`) to ensure layouts feel clean and uncluttered.
-- **Custom Scrollbars**: Style scrollbars to match NetLink's subtle dark scrollbars (`::-webkit-scrollbar` with translucent white thumbs).
-
-### 5. Interaction & Feedback
-- **Hover & Active States**: Provide instant interactive feedback using subtle hover transitions (`transition-all duration-200 ease-in-out`, hover background shifts, or subtle scale/glow effects).
-- **Loading & State Communication**: Display clear visual indicators (spinners, skeleton loaders, progress indicators, or toast notifications) during background API calls, asynchronous file transfers, or backend sync operations. Never leave the user on a blank or un-responsive screen.
-
-### 6. Permissions & Security Clarity
-- **Principle of Least Privilege**: Only request the specific host permissions (`allowRunCommands`, `allowEnv`, `requiredExternalFolders`) strictly needed for the app to function.
-- **Clear Guidance**: If a feature requires administrative privileges or specific external folder access, display helpful inline explanations or tooltips guiding the user.
-
----
-
-## Deployment & Testing
-
-To test your application locally:
-1. Place your application folder inside `backend/local_server/NetStore/Applications/`.
-2. Start the local server and the relay server (`npm run dev`).
-3. Your local server will detect the new application, sync the `relay/` folder to the cloud, and register your routes automatically.
-4. Open your NetLink dashboard, navigate to NetStore, approve any requested permissions if prompted, and your app will be ready to use!
+### 4. Layout & Responsiveness
+* Apps render inside dynamic windows and tabs. Root containers must use flexible sizing classes (e.g. `w-full h-full flex flex-col overflow-hidden` or `overflow-y-auto`).
+* Provide visual feedback for all interactive states (`transition-all duration-200 ease-in-out`, spinners, skeleton loaders).
