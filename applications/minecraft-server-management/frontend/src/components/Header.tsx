@@ -7,13 +7,24 @@ import {
   Select,
   MenuItem,
   FormControl,
+  keyframes,
 } from '@mui/material';
 import { Server, Plus, RefreshCw } from 'lucide-react';
 import { NodeInfo } from '../types';
 
+const spin = keyframes`
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
 interface HeaderProps {
   nodes: NodeInfo[];
   activeNode: NodeInfo | null;
+  refreshing?: boolean;
   onSelectNode: (nodeId: string) => void;
   onRefresh: () => void;
   onOpenInstallModal: () => void;
@@ -22,6 +33,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   nodes,
   activeNode,
+  refreshing = false,
   onSelectNode,
   onRefresh,
   onOpenInstallModal,
@@ -85,7 +97,18 @@ export const Header: React.FC<HeaderProps> = ({
         <Button
           variant="outlined"
           size="small"
-          startIcon={<RefreshCw size={14} />}
+          disabled={refreshing}
+          startIcon={
+            <Box
+              component="span"
+              sx={{
+                display: 'inline-flex',
+                animation: refreshing ? `${spin} 1s linear infinite` : 'none',
+              }}
+            >
+              <RefreshCw size={14} />
+            </Box>
+          }
           onClick={onRefresh}
           sx={{
             color: '#94a3b8',

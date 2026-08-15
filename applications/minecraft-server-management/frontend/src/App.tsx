@@ -127,33 +127,39 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'files'>('overview');
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
   const [installModalOpen, setInstallModalOpen] = useState(false);
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Load registered nodes
-  const loadNodes = useCallback(async () => {
+  // Load registered nodes without unmounting UI
+  const loadNodes = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
       const data = await getNodes();
       setNodes(data);
       if (data.length > 0) {
         setActiveNodeId((current) => current || data[0].id);
       }
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    loadNodes();
+    loadNodes(true);
   }, [loadNodes]);
 
   const activeNode = nodes.find((n) => n.id === activeNodeId) || nodes[0] || null;
 
-  // Load server instances
+  // Load server instances quietly in background
   const loadServers = useCallback(async () => {
     if (!activeNode) {
       setServers([]);
@@ -228,6 +234,13 @@ export default function App() {
     }
   };
 
+  // Smooth refresh without flicker
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadNodes(false), loadServers(), fetchLogs()]);
+    setRefreshing(false);
+  };
+
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
@@ -246,11 +259,9 @@ export default function App() {
             <Header
               nodes={nodes}
               activeNode={activeNode}
+              refreshing={refreshing}
               onSelectNode={setActiveNodeId}
-              onRefresh={() => {
-                loadNodes();
-                loadServers();
-              }}
+              onRefresh={handleRefresh}
               onOpenInstallModal={() => setInstallModalOpen(true)}
             />
 
