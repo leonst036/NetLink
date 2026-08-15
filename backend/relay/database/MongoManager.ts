@@ -200,10 +200,14 @@ function parseIdFilter(id?: string): Record<string, any> {
     return { $or: [{ id: id }, { _id: id }] };
 }
 
-export function getAppCollectionName(appId: string, collection: string): string {
+export function getAppDatabaseName(appId: string): string {
     const cleanAppId = appId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `app_${cleanAppId}`;
+}
+
+export function getAppCollectionName(appId: string, collection: string): string {
     const cleanCol = collection.replace(/[^a-zA-Z0-9_-]/g, '_');
-    return `app_${cleanAppId}_${cleanCol}`;
+    return cleanCol;
 }
 
 export interface AppDatabaseActionPayload {
@@ -218,7 +222,7 @@ export interface AppDatabaseActionPayload {
     };
 }
 
-// Execute scoped database action for an application
+// Execute scoped database action for an application inside its dedicated database
 export async function ExecuteAppDatabaseAction(
     client: mongoDB.MongoClient,
     appId: string,
@@ -227,9 +231,32 @@ export async function ExecuteAppDatabaseAction(
     action: string,
     payload: AppDatabaseActionPayload = {}
 ): Promise<any> {
-    const colName = getAppCollectionName(appId, collection);
-    const db = client.db("NetLink");
-    const col = db.collection(colName);
+    const dbName = getAppDatabaseName(appId);
+    const db = client.db(dbName);
+
+    // Actions that operate on database level
+    if (action === 'listCollections') {
+        const collections = await db.listCollections().toArray();
+        return collections.map(c => ({ name: c.name, type: c.type }));
+    }
+
+    if (!collection) {
+        throw new Error("Missing 'collection' parameter for action: " + action);
+    }
+
+    const col = db.collection(collection);
+
+    if (action === 'dropCollection' || action === 'drop') {
+        try {
+            const dropped = await col.drop();
+            return { dropped };
+        } catch (e: any) {
+            if (e.codeName === 'NamespaceNotFound' || e.message?.includes('ns not found')) {
+                return { dropped: false, message: 'Collection does not exist' };
+            }
+            throw e;
+        }
+    }
 
     const userScope = { _userId: userId };
     const safeQuery = { ...sanitizeQuery(payload.query), ...userScope };
@@ -316,7 +343,7 @@ export async function ExecuteAppDatabaseAction(
         }
 
         default:
-            throw new Error(`Unsupported action: ${action}. Supported actions: find, findOne, insert, update, delete, count`);
+            throw new Error(`Unsupported action: ${action}. Supported actions: find, findOne, insert, update, delete, count, listCollections, dropCollection`);
     }
 }
 

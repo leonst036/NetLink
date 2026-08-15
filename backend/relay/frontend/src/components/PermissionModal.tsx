@@ -12,6 +12,8 @@ interface RequestedPermissions {
     allowRunCommands?: string[];
     allowEnv?: string[];
     allowNet?: boolean | string[];
+    allowDatabase?: boolean;
+    database?: boolean;
     collections?: string[];
 }
 
@@ -22,13 +24,29 @@ interface PermissionModalProps {
     folders?: FolderRequest[];
     requestedPermissions?: RequestedPermissions;
     requestedCollections?: string[];
+    allowDatabase?: boolean;
     onRespond: (appId: string, granted: boolean, permissions: any) => void;
 }
 
-export default function PermissionModal({ open, appId, appName, folders = [], requestedPermissions, requestedCollections = [], onRespond }: PermissionModalProps) {
+export default function PermissionModal({ 
+    open, 
+    appId, 
+    appName, 
+    folders = [], 
+    requestedPermissions, 
+    requestedCollections = [], 
+    allowDatabase = false,
+    onRespond 
+}: PermissionModalProps) {
     if (!open) return null;
 
     const allCollections = requestedCollections.length > 0 ? requestedCollections : (requestedPermissions?.collections || []);
+    const hasDatabase = Boolean(
+        allowDatabase || 
+        requestedPermissions?.allowDatabase || 
+        requestedPermissions?.database || 
+        allCollections.length > 0
+    );
 
     const handleGrant = () => {
         const perms = {
@@ -36,6 +54,7 @@ export default function PermissionModal({ open, appId, appName, folders = [], re
             allowRun: Boolean(requestedPermissions?.allowRun),
             allowEnv: requestedPermissions?.allowEnv || [],
             allowNet: Boolean(requestedPermissions?.allowNet),
+            allowDatabase: hasDatabase,
             collections: allCollections
         };
         onRespond(appId, true, perms);
@@ -49,7 +68,6 @@ export default function PermissionModal({ open, appId, appName, folders = [], re
     const hasEnv = Array.isArray(requestedPermissions?.allowEnv) && requestedPermissions.allowEnv.length > 0;
     const hasNet = Boolean(requestedPermissions?.allowNet);
     const hasFolders = folders.length > 0;
-    const hasCollections = allCollections.length > 0;
 
     return (
         <Dialog open={open} maxWidth="sm" fullWidth slotProps={{ paper: { style: { backgroundColor: '#1e293b', color: '#fff' } } }}>
@@ -127,27 +145,29 @@ export default function PermissionModal({ open, appId, appName, folders = [], re
                         </Box>
                     )}
 
-                    {hasCollections && (
+                    {hasDatabase && (
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
                             <Database size={20} color="#6366f1" style={{ marginTop: 2 }} />
                             <Box sx={{ flex: 1 }}>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#6366f1' }}>
-                                    Database Storage Collections
+                                    Dedicated MongoDB Database (--allow-database)
                                 </Typography>
-                                <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5 }}>
-                                    Allows isolated persistent database access to the following collections:
+                                <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: allCollections.length > 0 ? 0.5 : 0 }}>
+                                    Allows the application to create and manage its own isolated database with unlimited collections.
                                 </Typography>
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {allCollections.map((col, i) => (
-                                        <Chip 
-                                            key={i} 
-                                            label={col} 
-                                            size="small" 
-                                            variant="outlined" 
-                                            sx={{ height: 20, fontSize: '0.7rem', borderColor: 'rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }} 
-                                        />
-                                    ))}
-                                </Box>
+                                {allCollections.length > 0 && (
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                        {allCollections.map((col, i) => (
+                                            <Chip 
+                                                key={i} 
+                                                label={col} 
+                                                size="small" 
+                                                variant="outlined" 
+                                                sx={{ height: 20, fontSize: '0.7rem', borderColor: 'rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }} 
+                                            />
+                                        ))}
+                                    </Box>
+                                )}
                             </Box>
                         </Box>
                     )}

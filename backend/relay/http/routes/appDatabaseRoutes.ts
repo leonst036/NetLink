@@ -2,7 +2,7 @@ import http from 'http';
 import { URL } from 'url';
 import { getMongoClient, ExecuteAppDatabaseAction } from '../../database/MongoManager.js';
 import { authenticateToken, extractTokenFromRequest } from '../../auth/authenticator.js';
-import { isCollectionGranted } from '../../websocket/connectionHandlers.js';
+import { isDatabaseGranted } from '../../websocket/connectionHandlers.js';
 
 const MAX_PAYLOAD_SIZE = 5 * 1024 * 1024; // 5 MB max body size
 
@@ -84,23 +84,23 @@ export async function handleAppDatabaseRoute(parsedUrl: URL, req: http.IncomingM
             return;
         }
 
-        if (!collection || typeof collection !== 'string') {
-            res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-            res.end(JSON.stringify({ error: "Missing or invalid 'collection'" }));
-            return;
-        }
-
         if (!action || typeof action !== 'string') {
             res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
             res.end(JSON.stringify({ error: "Missing or invalid 'action'" }));
             return;
         }
 
-        // Check if collection is granted for appId in permissions.json
-        if (!isCollectionGranted(appId, collection)) {
+        if (action !== 'listCollections' && (!collection || typeof collection !== 'string')) {
+            res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ error: "Missing or invalid 'collection'" }));
+            return;
+        }
+
+        // Check if database or collection is granted for appId in permissions.json
+        if (!isDatabaseGranted(appId, collection)) {
             res.writeHead(403, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
             res.end(JSON.stringify({
-                error: `Permission denied: App '${appId}' is not authorized to access collection '${collection}'.`
+                error: `Permission denied: App '${appId}' is not authorized for database access.`
             }));
             return;
         }

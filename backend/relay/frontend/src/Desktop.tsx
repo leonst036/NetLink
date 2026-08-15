@@ -191,6 +191,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     folders={req.folders}
                     requestedPermissions={req.requestedPermissions}
                     requestedCollections={req.requestedCollections}
+                    allowDatabase={req.allowDatabase}
                     onRespond={handlePermissionResponse}
                 />
             ))}

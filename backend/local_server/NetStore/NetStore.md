@@ -51,12 +51,9 @@ When you develop a **local application**, you should also include all store meta
       "allowRun": true,
       "allowRunCommands": ["sh", "docker"],
       "allowEnv": ["CUSTOM_API_KEY"],
-      "allowNet": true
+      "allowNet": true,
+      "allowDatabase": true
     },
-    "requestedCollections": [
-      "servers",
-      "settings"
-    ],
     
     // Store metadata (required for local apps to show in the store UI)
     "name": "My Cool App",
@@ -77,7 +74,7 @@ When you develop a **local application**, you should also include all store meta
   - `allowRunCommands`: Optional list of allowed command binaries (e.g. `["sh", "docker"]`).
   - `allowEnv`: List of custom environment variable keys to access (e.g. `["CUSTOM_API_KEY"]`).
   - `allowNet`: `true` or list of allowed domains for outbound network access.
-- `requestedCollections`: List of isolated MongoDB collection names requested for persistent database storage (e.g. `["servers", "settings"]`).
+  - `allowDatabase`: `true` or `false` to request a dedicated MongoDB database with unlimited collections (`app_<appId>`).
 - `nativeKey`: Key for built-in native applications integrated directly into the dashboard.
 
 > **Publishing to NetStore:** If you decide to officially publish your application to the NetLink-NetStore repository on GitHub, the store metadata (everything under the `// Store metadata` section) must be moved out of `index.json` and placed into the central `applications.json` file in the NetStore repository. Your app's `index.json` will then only contain the technical fields (e.g. `id`, `version`, `main`, permissions).

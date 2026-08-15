@@ -29,23 +29,30 @@ export function getGrantedPermissions(): Record<string, any> {
 
 export function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
     const raw = grantedRecord[appId];
-    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false, collections: [] };
+    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [] };
     if (Array.isArray(raw)) {
-        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false, collections: [] };
+        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [] };
     }
     return {
         folders: Array.isArray(raw.folders) ? raw.folders : [],
         allowRun: Boolean(raw.allowRun),
         allowEnv: Array.isArray(raw.allowEnv) ? raw.allowEnv : [],
         allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet),
+        allowDatabase: Boolean(raw.allowDatabase || raw.database),
         collections: Array.isArray(raw.collections) ? raw.collections : []
     };
 }
 
-export function isCollectionGranted(appId: string, collection: string): boolean {
+export function isDatabaseGranted(appId: string, collection?: string): boolean {
     const perms = getGrantedPermissions();
     const appGranted = getAppGranted(perms, appId);
+    if (appGranted.allowDatabase) return true;
+    if (!collection) return appGranted.collections.length > 0;
     return appGranted.collections.includes(collection) || appGranted.collections.includes('*');
+}
+
+export function isCollectionGranted(appId: string, collection: string): boolean {
+    return isDatabaseGranted(appId, collection);
 }
 
 export function saveGrantedPermissions(perms: Record<string, any>) {
@@ -145,6 +152,7 @@ export function handleLocalServerConnection(
                             let requestedFolders: any[] = [];
                             let requestedPerms: any = {};
                             let requestedCollections: string[] = [];
+                            let requestedDb = false;
                             let appName = appId;
                             
                             if (fs.existsSync(indexJsonPath)) {
@@ -157,10 +165,18 @@ export function handleLocalServerConnection(
                                     if (indexData.requestedPermissions) {
                                         requestedPerms = indexData.requestedPermissions;
                                     }
+                                    requestedDb = Boolean(
+                                        requestedPerms.allowDatabase ||
+                                        requestedPerms.database ||
+                                        indexData.requestedDatabase
+                                    );
                                     if (Array.isArray(indexData.requestedCollections)) {
                                         requestedCollections = indexData.requestedCollections;
                                     } else if (Array.isArray(indexData.requestedPermissions?.collections)) {
                                         requestedCollections = indexData.requestedPermissions.collections;
+                                    }
+                                    if (requestedCollections.length > 0) {
+                                        requestedDb = true;
                                     }
                                 } catch {}
                             }
@@ -173,9 +189,9 @@ export function handleLocalServerConnection(
                             const envGranted = !requestedPerms.allowEnv || (
                                 Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.every((v: string) => appGranted.allowEnv.includes(v))
                             );
-                            const collectionsGranted = requestedCollections.every(c => appGranted.collections.includes(c) || appGranted.collections.includes('*'));
+                            const dbGranted = !requestedDb || appGranted.allowDatabase || (requestedCollections.length > 0 && requestedCollections.every(c => appGranted.collections.includes(c) || appGranted.collections.includes('*')));
 
-                            if (!foldersGranted || !runGranted || !envGranted || !collectionsGranted) {
+                            if (!foldersGranted || !runGranted || !envGranted || !dbGranted) {
                                 console.log(`App ${appId} requires permissions. Requesting from frontend...`);
                                 const clients = frontendClients.get(identifier);
                                 if (clients) {
@@ -187,7 +203,8 @@ export function handleLocalServerConnection(
                                                 appName,
                                                 folders: requestedFolders,
                                                 requestedPermissions: requestedPerms,
-                                                requestedCollections: requestedCollections
+                                                requestedCollections: requestedCollections,
+                                                allowDatabase: requestedDb
                                             }));
                                         }
                                     });
@@ -326,6 +343,7 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
                         allowRun: Boolean(message.allowRun),
                         allowEnv: message.allowEnv || [],
                         allowNet: Boolean(message.allowNet),
+                        allowDatabase: Boolean(message.allowDatabase || message.database || message.permissions?.allowDatabase || message.permissions?.database),
                         collections: Array.isArray(message.collections) ? message.collections : (message.permissions?.collections || [])
                     };
                     saveGrantedPermissions(perms);
