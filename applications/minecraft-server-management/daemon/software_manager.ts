@@ -48,6 +48,15 @@ export const SUPPORTED_SOFTWARES: SoftwareOption[] = [
     buildLabel: "Loader Version",
   },
   {
+    id: "forge",
+    name: "Forge",
+    description: "Classic modding platform supporting thousands of mods across all Minecraft versions.",
+    recommendedVersion: "1.20.1",
+    supportedVersions: ["1.20.4", "1.20.2", "1.20.1", "1.19.4", "1.19.2", "1.18.2", "1.16.5", "1.12.2", "1.7.10"],
+    supportsBuilds: true,
+    buildLabel: "Forge Version",
+  },
+  {
     id: "spigot",
     name: "Spigot",
     description: "Modified Minecraft server with Bukkit plugin compatibility.",
@@ -143,7 +152,33 @@ export async function getAvailableBuilds(
           }
         }
       } catch {}
-      return { builds: ["0.16.10", "0.16.9", "0.15.11"], latest: "0.16.10" };
+      return { builds: ["0.19.3", "0.16.10", "0.16.9", "0.15.11"], latest: "0.19.3" };
+    }
+
+    case "forge": {
+      try {
+        const res = await fetch("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json", {
+          headers: USER_AGENT_HEADER,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const promos = data.promos || {};
+          const builds: string[] = [];
+          const rec = promos[`${version}-recommended`];
+          const lat = promos[`${version}-latest`];
+          if (lat) builds.push(lat);
+          if (rec && !builds.includes(rec)) builds.push(rec);
+
+          for (const [k, v] of Object.entries(promos)) {
+            if (k.startsWith(version) && typeof v === "string" && !builds.includes(v)) {
+              builds.push(v);
+            }
+          }
+          const latest = lat || rec || (builds.length > 0 ? builds[0] : "latest");
+          return { builds, latest };
+        }
+      } catch {}
+      return { builds: [], latest: "latest" };
     }
 
     default:
@@ -199,6 +234,34 @@ export async function resolveJarDownloadUrl(
     case "fabric": {
       const loaderVersion = trimmedBuild !== "latest" ? trimmedBuild : "0.16.10";
       return `https://meta.fabricmc.net/v2/versions/loader/${version}/${loaderVersion}/1.0.1/server/jar`;
+    }
+
+    case "forge": {
+      try {
+        let forgeVersion = trimmedBuild;
+        if (forgeVersion === "latest") {
+          const res = await fetch("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json", {
+            headers: USER_AGENT_HEADER,
+          });
+          if (res.ok) {
+            const data = await res.json();
+            forgeVersion = data.promos?.[`${version}-recommended`] || data.promos?.[`${version}-latest`] || "";
+          }
+        }
+
+        if (forgeVersion && forgeVersion !== "latest") {
+          const installerUrl = `https://maven.minecraftforge.net/net/minecraftforge/forge/${version}-${forgeVersion}/forge-${version}-${forgeVersion}-installer.jar`;
+          const universalUrl = `https://maven.minecraftforge.net/net/minecraftforge/forge/${version}-${forgeVersion}/forge-${version}-${forgeVersion}-universal.jar`;
+
+          try {
+            const testRes = await fetch(installerUrl, { method: "HEAD", headers: USER_AGENT_HEADER });
+            if (testRes.ok) return installerUrl;
+          } catch {}
+
+          return universalUrl;
+        }
+      } catch {}
+      return "";
     }
 
     case "vanilla":

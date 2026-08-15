@@ -100,6 +100,15 @@ const FALLBACK_SOFTWARES: SoftwareOption[] = [
     buildLabel: 'Loader Version',
   },
   {
+    id: 'forge',
+    name: 'Forge',
+    description: 'Classic modding platform supporting thousands of mods across all Minecraft versions.',
+    recommendedVersion: '1.20.1',
+    supportedVersions: ['1.20.4', '1.20.2', '1.20.1', '1.19.4', '1.19.2', '1.18.2', '1.16.5', '1.12.2', '1.7.10'],
+    supportsBuilds: true,
+    buildLabel: 'Forge Version',
+  },
+  {
     id: 'spigot',
     name: 'Spigot',
     description: 'Modified Minecraft server with Bukkit plugin compatibility.',
