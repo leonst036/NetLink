@@ -296,7 +296,11 @@ export default function App() {
               nodes={nodes}
               activeNode={activeNode}
               refreshing={refreshing}
-              onSelectNode={setActiveNodeId}
+              onSelectNode={(nodeId) => {
+                setActiveNodeId(nodeId);
+                setViewMode('list');
+              }}
+              onGoToServerList={() => setViewMode('list')}
               onRefresh={handleRefresh}
               onOpenInstallModal={() => setInstallModalOpen(true)}
               onOpenNodeMetrics={() => setNodeMetricsOpen(true)}

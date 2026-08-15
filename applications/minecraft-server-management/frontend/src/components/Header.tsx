@@ -26,6 +26,7 @@ interface HeaderProps {
   onRefresh: () => void;
   onOpenInstallModal: () => void;
   onOpenNodeMetrics?: () => void;
+  onGoToServerList?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -36,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   onOpenInstallModal,
   onOpenNodeMetrics,
+  onGoToServerList,
 }) => {
   return (
     <Box
@@ -49,8 +51,34 @@ export const Header: React.FC<HeaderProps> = ({
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
       }}
     >
-      {/* App Branding */}
-      <Stack direction="row" spacing={2} alignItems="center">
+      {/* App Branding - Clickable to navigate to server selection */}
+      <Stack
+        direction="row"
+        spacing={2}
+        alignItems="center"
+        onClick={onGoToServerList}
+        role={onGoToServerList ? 'button' : undefined}
+        tabIndex={onGoToServerList ? 0 : undefined}
+        onKeyDown={(e) => {
+          if (onGoToServerList && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onGoToServerList();
+          }
+        }}
+        sx={{
+          cursor: onGoToServerList ? 'pointer' : 'default',
+          userSelect: 'none',
+          borderRadius: 2,
+          p: 0.5,
+          transition: 'opacity 0.2s, transform 0.2s',
+          '&:hover': onGoToServerList
+            ? {
+                opacity: 0.9,
+                transform: 'translateY(-1px)',
+              }
+            : undefined,
+        }}
+      >
         <Box
           sx={{
             display: 'flex',
@@ -62,6 +90,14 @@ export const Header: React.FC<HeaderProps> = ({
             backgroundColor: 'rgba(16, 185, 129, 0.15)',
             border: '1px solid rgba(16, 185, 129, 0.3)',
             color: '#10b981',
+            transition: 'background-color 0.2s, border-color 0.2s, box-shadow 0.2s',
+            '&:hover': onGoToServerList
+              ? {
+                  backgroundColor: 'rgba(16, 185, 129, 0.25)',
+                  borderColor: 'rgba(16, 185, 129, 0.6)',
+                  boxShadow: '0 0 12px rgba(16, 185, 129, 0.25)',
+                }
+              : undefined,
           }}
         >
           <Server size={24} />
