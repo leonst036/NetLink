@@ -181,8 +181,11 @@ export const ServerListView: React.FC<ServerListViewProps> = ({
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, 1fr)',
-            md: 'repeat(3, 1fr)',
+            md: 'repeat(2, 1fr)',
+            lg: 'repeat(3, 1fr)',
+            xl: 'repeat(4, 1fr)',
           },
+
           gap: 3,
           width: '100%',
         }}

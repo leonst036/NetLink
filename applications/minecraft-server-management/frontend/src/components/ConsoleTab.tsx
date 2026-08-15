@@ -236,8 +236,11 @@ export const ConsoleTab: React.FC<ConsoleTabProps> = ({
         <Box
           ref={logBoxRef}
           sx={{
-            height: 420,
+            minHeight: 420,
+            height: 'calc(100vh - 420px)',
+            maxHeight: 750,
             backgroundColor: '#030712',
+
             borderRadius: 2,
             p: 2,
             overflowY: 'auto',

@@ -284,7 +284,8 @@ export default function App() {
             boxSizing: 'border-box',
           }}
         >
-          <Container maxWidth="lg" disableGutters>
+          <Container maxWidth="xl" disableGutters sx={{ width: '100%', maxWidth: '1600px !important' }}>
+
             {/* Header Module */}
             <Header
               nodes={nodes}
