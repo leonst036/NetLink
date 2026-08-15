@@ -3,18 +3,12 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
   Stack,
   LinearProgress,
   Chip,
+  Box,
 } from '@mui/material';
-import {
-  Cpu,
-  Activity,
-  HardDrive,
-  Clock,
-  Server,
-} from 'lucide-react';
+import { Cpu, Activity, HardDrive, Clock, Server } from 'lucide-react';
 import { NodeInfo, NodeServerItem, ServerStats } from '../types';
 import { getNodeServerStats } from '../api';
 
@@ -23,27 +17,14 @@ interface OverviewTabProps {
   activeServer: NodeServerItem;
 }
 
-function formatUptime(seconds: number): string {
-  if (!seconds || seconds <= 0) return 'Offline';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) return `${h}h ${m}m ${s}s`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
-
 export const OverviewTab: React.FC<OverviewTabProps> = ({ activeNode, activeServer }) => {
   const [stats, setStats] = useState<ServerStats | null>(null);
 
-  // Poll server resource metrics
   const fetchStats = useCallback(async () => {
     if (!activeNode || !activeServer) return;
     try {
       const data = await getNodeServerStats(activeNode, activeServer.id);
-      if (data) {
-        setStats(data);
-      }
+      if (data) setStats(data);
     } catch {}
   }, [activeNode, activeServer.id]);
 
@@ -53,7 +34,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ activeNode, activeServ
     return () => clearInterval(interval);
   }, [fetchStats]);
 
-  // Calculations
   const isOnline = stats?.status === 'online';
   const memoryUsed = stats?.memoryMb || 0;
   const memoryLimit = stats?.memoryLimitMb || 1024;
@@ -61,195 +41,208 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ activeNode, activeServ
   const cpuPercent = stats?.cpuPercent || 0;
   const diskMb = stats?.diskMb || 0;
 
+  const formatUptime = (seconds: number) => {
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  };
+
   return (
-    <Stack spacing={3}>
-      {/* Live Resource Telemetry Grid */}
-      <Grid container spacing={2.5}>
+    <Stack spacing={3} sx={{ width: '100%' }}>
+      {/* Live Resource Telemetry Grid (CSS Grid ensures flush pixel alignment) */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+            md: 'repeat(4, 1fr)',
+          },
+          gap: 2.5,
+          width: '100%',
+        }}
+      >
         {/* 1. CPU Usage */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{
-              backgroundColor: 'rgba(15, 23, 42, 0.7)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 3,
-              height: '100%',
-            }}
-          >
-            <CardContent sx={{ p: 2.5 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Cpu size={18} color="#38bdf8" />
-                  <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 600 }}>
-                    CPU Load
-                  </Typography>
-                </Stack>
-                <Chip
-                  size="small"
-                  label={isOnline ? `${cpuPercent}%` : '0%'}
-                  sx={{
-                    height: 20,
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    backgroundColor: cpuPercent > 80 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(56, 189, 248, 0.15)',
-                    color: cpuPercent > 80 ? '#f87171' : '#38bdf8',
-                  }}
-                />
+        <Card
+          sx={{
+            backgroundColor: 'rgba(15, 23, 42, 0.7)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: 3,
+            height: '100%',
+          }}
+        >
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Cpu size={18} color="#38bdf8" />
+                <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 600 }}>
+                  CPU Load
+                </Typography>
               </Stack>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>
-                {isOnline ? `${cpuPercent}%` : '0.0%'}{' '}
-                {stats?.cpuLimitPercent ? (
-                  <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
-                    / {stats.cpuLimitPercent}%
-                  </span>
-                ) : null}
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={
-                  isOnline
-                    ? Math.min(
-                        stats?.cpuLimitPercent && stats.cpuLimitPercent > 0
-                          ? (cpuPercent / stats.cpuLimitPercent) * 100
-                          : Math.min(cpuPercent, 100),
-                        100
-                      )
-                    : 0
-                }
+              <Chip
+                size="small"
+                label={isOnline ? `${cpuPercent}%` : '0%'}
                 sx={{
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  '& .MuiLinearProgress-bar': {
-                    backgroundColor: cpuPercent > 80 ? '#ef4444' : cpuPercent > 50 ? '#f59e0b' : '#38bdf8',
-                  },
+                  height: 20,
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  backgroundColor: cpuPercent > 80 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(56, 189, 248, 0.15)',
+                  color: cpuPercent > 80 ? '#f87171' : '#38bdf8',
                 }}
               />
-
-            </CardContent>
-          </Card>
-        </Grid>
+            </Stack>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>
+              {isOnline ? `${cpuPercent}%` : '0.0%'}{' '}
+              {stats?.cpuLimitPercent ? (
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
+                  / {stats.cpuLimitPercent}%
+                </span>
+              ) : null}
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={
+                isOnline
+                  ? Math.min(
+                      stats?.cpuLimitPercent && stats.cpuLimitPercent > 0
+                        ? (cpuPercent / stats.cpuLimitPercent) * 100
+                        : Math.min(cpuPercent, 100),
+                      100
+                    )
+                  : 0
+              }
+              sx={{
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: cpuPercent > 80 ? '#ef4444' : cpuPercent > 50 ? '#f59e0b' : '#38bdf8',
+                },
+              }}
+            />
+          </CardContent>
+        </Card>
 
         {/* 2. Memory (RAM) Usage */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{
-              backgroundColor: 'rgba(15, 23, 42, 0.7)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 3,
-              height: '100%',
-            }}
-          >
-            <CardContent sx={{ p: 2.5 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Activity size={18} color="#10b981" />
-                  <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 600 }}>
-                    Memory (RAM)
-                  </Typography>
-                </Stack>
-                <Chip
-                  size="small"
-                  label={`${memPercent}%`}
-                  sx={{
-                    height: 20,
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    color: '#34d399',
-                  }}
-                />
+        <Card
+          sx={{
+            backgroundColor: 'rgba(15, 23, 42, 0.7)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: 3,
+            height: '100%',
+          }}
+        >
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Activity size={18} color="#10b981" />
+                <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 600 }}>
+                  Memory (RAM)
+                </Typography>
               </Stack>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>
-                {isOnline ? `${memoryUsed} MB` : '0 MB'}{' '}
-                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
-                  / {memoryLimit} MB
-                </span>
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={isOnline ? memPercent : 0}
+              <Chip
+                size="small"
+                label={`${memPercent}%`}
                 sx={{
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  '& .MuiLinearProgress-bar': {
-                    backgroundColor: memPercent > 85 ? '#ef4444' : '#10b981',
-                  },
+                  height: 20,
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  color: '#34d399',
                 }}
               />
-            </CardContent>
-          </Card>
-        </Grid>
+            </Stack>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>
+              {isOnline ? `${memoryUsed} MB` : '0 MB'}{' '}
+              <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
+                / {memoryLimit} MB
+              </span>
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={isOnline ? memPercent : 0}
+              sx={{
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: memPercent > 85 ? '#ef4444' : '#10b981',
+                },
+              }}
+            />
+          </CardContent>
+        </Card>
 
         {/* 3. Disk Footprint */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{
-              backgroundColor: 'rgba(15, 23, 42, 0.7)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 3,
-              height: '100%',
-            }}
-          >
-            <CardContent sx={{ p: 2.5 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <HardDrive size={18} color="#fbbf24" />
-                  <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 600 }}>
-                    Disk Storage
-                  </Typography>
-                </Stack>
+        <Card
+          sx={{
+            backgroundColor: 'rgba(15, 23, 42, 0.7)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: 3,
+            height: '100%',
+          }}
+        >
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <HardDrive size={18} color="#fbbf24" />
+                <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 600 }}>
+                  Disk Storage
+                </Typography>
               </Stack>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>
-                {diskMb} MB
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                Server files directory size
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+            </Stack>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>
+              {diskMb} MB
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+              Server files directory size
+            </Typography>
+          </CardContent>
+        </Card>
 
         {/* 4. Process Uptime */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{
-              backgroundColor: 'rgba(15, 23, 42, 0.7)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 3,
-              height: '100%',
-            }}
-          >
-            <CardContent sx={{ p: 2.5 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Clock size={18} color="#c084fc" />
-                  <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 600 }}>
-                    Uptime
-                  </Typography>
-                </Stack>
-                <Chip
-                  size="small"
-                  label={isOnline ? 'Active' : 'Stopped'}
-                  sx={{
-                    height: 20,
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    backgroundColor: isOnline ? 'rgba(74, 222, 128, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                    color: isOnline ? '#4ade80' : '#94a3b8',
-                  }}
-                />
+        <Card
+          sx={{
+            backgroundColor: 'rgba(15, 23, 42, 0.7)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: 3,
+            height: '100%',
+          }}
+        >
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Clock size={18} color="#c084fc" />
+                <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 600 }}>
+                  Uptime
+                </Typography>
               </Stack>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>
-                {formatUptime(stats?.uptimeSeconds || 0)}
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                {isOnline ? 'Process running' : 'Process offline'}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+              <Chip
+                size="small"
+                label={isOnline ? 'Active' : 'Stopped'}
+                sx={{
+                  height: 20,
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  backgroundColor: isOnline ? 'rgba(74, 222, 128, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                  color: isOnline ? '#4ade80' : '#94a3b8',
+                }}
+              />
+            </Stack>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>
+              {formatUptime(stats?.uptimeSeconds || 0)}
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+              {isOnline ? 'Process running' : 'Process offline'}
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
       {/* Instance Information Card */}
       <Card
@@ -257,6 +250,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ activeNode, activeServ
           backgroundColor: 'rgba(15, 23, 42, 0.7)',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: 3,
+          width: '100%',
         }}
       >
         <CardContent sx={{ p: 3 }}>
@@ -267,44 +261,52 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ activeNode, activeServ
             </Typography>
           </Stack>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+              gap: 2.5,
+              mb: 2,
+            }}
+          >
+            <Box>
               <Typography variant="caption" sx={{ color: '#94a3b8' }}>
                 Instance ID
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 600, color: '#f8fafc' }}>
                 {activeServer.id}
               </Typography>
-            </Grid>
+            </Box>
 
-            <Grid item xs={12} sm={6}>
+            <Box>
               <Typography variant="caption" sx={{ color: '#94a3b8' }}>
                 Active Node
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 600, color: '#f8fafc' }}>
                 {activeNode?.name} ({activeNode?.host}:{activeNode?.daemonPort})
               </Typography>
-            </Grid>
+            </Box>
+          </Box>
 
-            <Grid item xs={12}>
-              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                Node Storage Path
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontFamily: 'monospace',
-                  color: '#34d399',
-                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                  p: 1.5,
-                  borderRadius: 2,
-                  mt: 0.5,
-                }}
-              >
-                {activeServer.path}
-              </Typography>
-            </Grid>
-          </Grid>
+          <Box>
+            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+              Node Storage Path
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontFamily: 'monospace',
+                color: '#34d399',
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                p: 1.5,
+                borderRadius: 2,
+                mt: 0.5,
+                wordBreak: 'break-all',
+              }}
+            >
+              {activeServer.path}
+            </Typography>
+          </Box>
         </CardContent>
       </Card>
     </Stack>
