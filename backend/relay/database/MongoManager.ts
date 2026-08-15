@@ -169,3 +169,154 @@ export async function SaveDockConfig(client: mongoDB.MongoClient, username: stri
         { upsert: true }
     );
 }
+
+// Sanitize query to prevent malicious operator injection
+function sanitizeQuery(query: any): any {
+    if (!query || typeof query !== 'object') return {};
+    const safeQuery: Record<string, any> = {};
+    const bannedKeys = ['$where', '$function', '$accumulator', '__proto__', 'constructor', 'prototype'];
+
+    for (const [key, value] of Object.entries(query)) {
+        if (bannedKeys.includes(key.toLowerCase())) continue;
+        if (key === '_id' && typeof value === 'string' && mongoDB.ObjectId.isValid(value)) {
+            safeQuery[key] = new mongoDB.ObjectId(value);
+        } else if (Array.isArray(value)) {
+            safeQuery[key] = value.map(v => typeof v === 'object' && v !== null ? sanitizeQuery(v) : v);
+        } else if (typeof value === 'object' && value !== null) {
+            safeQuery[key] = sanitizeQuery(value);
+        } else {
+            safeQuery[key] = value;
+        }
+    }
+    return safeQuery;
+}
+
+// Convert string id to ObjectId if valid
+function parseIdFilter(id?: string): Record<string, any> {
+    if (!id) return {};
+    if (mongoDB.ObjectId.isValid(id)) {
+        return { $or: [{ _id: new mongoDB.ObjectId(id) }, { id: id }, { _id: id }] };
+    }
+    return { $or: [{ id: id }, { _id: id }] };
+}
+
+export function getAppCollectionName(appId: string, collection: string): string {
+    const cleanAppId = appId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const cleanCol = collection.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `app_${cleanAppId}_${cleanCol}`;
+}
+
+export interface AppDatabaseActionPayload {
+    query?: any;
+    data?: any;
+    id?: string;
+    options?: {
+        limit?: number;
+        skip?: number;
+        sort?: any;
+        projection?: any;
+    };
+}
+
+// Execute scoped database action for an application
+export async function ExecuteAppDatabaseAction(
+    client: mongoDB.MongoClient,
+    appId: string,
+    collection: string,
+    userId: string,
+    action: string,
+    payload: AppDatabaseActionPayload = {}
+): Promise<any> {
+    const colName = getAppCollectionName(appId, collection);
+    const db = client.db("NetLink");
+    const col = db.collection(colName);
+
+    const userScope = { _userId: userId };
+    const safeQuery = { ...sanitizeQuery(payload.query), ...userScope };
+
+    switch (action) {
+        case 'find': {
+            const limit = Math.min(Math.max(1, payload.options?.limit || 50), 500);
+            const skip = Math.max(0, payload.options?.skip || 0);
+            const sort = payload.options?.sort || { createdAt: -1 };
+            const projection = payload.options?.projection || {};
+
+            const cursor = col.find(safeQuery, { projection }).sort(sort).skip(skip).limit(limit);
+            return await cursor.toArray();
+        }
+
+        case 'findOne': {
+            let filter = safeQuery;
+            if (payload.id) {
+                filter = { ...parseIdFilter(payload.id), ...userScope };
+            }
+            const projection = payload.options?.projection || {};
+            return await col.findOne(filter, { projection });
+        }
+
+        case 'insert': {
+            if (!payload.data) {
+                throw new Error("Missing 'data' for insert action");
+            }
+            if (Array.isArray(payload.data)) {
+                const now = new Date();
+                const docs = payload.data.map(d => ({
+                    ...d,
+                    _userId: userId,
+                    createdAt: d.createdAt ? new Date(d.createdAt) : now,
+                    updatedAt: now
+                }));
+                const result = await col.insertMany(docs);
+                return { insertedCount: result.insertedCount, insertedIds: result.insertedIds };
+            } else {
+                const now = new Date();
+                const doc = {
+                    ...payload.data,
+                    _userId: userId,
+                    createdAt: payload.data.createdAt ? new Date(payload.data.createdAt) : now,
+                    updatedAt: now
+                };
+                const result = await col.insertOne(doc);
+                return { insertedId: result.insertedId, document: doc };
+            }
+        }
+
+        case 'update': {
+            if (!payload.data) {
+                throw new Error("Missing 'data' for update action");
+            }
+            let filter = safeQuery;
+            if (payload.id) {
+                filter = { ...parseIdFilter(payload.id), ...userScope };
+            }
+            const now = new Date();
+            const hasOperators = Object.keys(payload.data).some(k => k.startsWith('$'));
+            const updateDoc = hasOperators
+                ? { ...payload.data, $set: { ...(payload.data.$set || {}), updatedAt: now } }
+                : { $set: { ...payload.data, updatedAt: now } };
+
+            delete (updateDoc.$set as any)?._userId;
+            delete (updateDoc.$set as any)?._id;
+
+            const result = await col.updateMany(filter, updateDoc);
+            return { matchedCount: result.matchedCount, modifiedCount: result.modifiedCount };
+        }
+
+        case 'delete': {
+            let filter = safeQuery;
+            if (payload.id) {
+                filter = { ...parseIdFilter(payload.id), ...userScope };
+            }
+            const result = await col.deleteMany(filter);
+            return { deletedCount: result.deletedCount };
+        }
+
+        case 'count': {
+            return { count: await col.countDocuments(safeQuery) };
+        }
+
+        default:
+            throw new Error(`Unsupported action: ${action}. Supported actions: find, findOne, insert, update, delete, count`);
+    }
+}
+

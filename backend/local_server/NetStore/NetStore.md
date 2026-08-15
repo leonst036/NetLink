@@ -53,6 +53,10 @@ When you develop a **local application**, you should also include all store meta
       "allowEnv": ["CUSTOM_API_KEY"],
       "allowNet": true
     },
+    "requestedCollections": [
+      "servers",
+      "settings"
+    ],
     
     // Store metadata (required for local apps to show in the store UI)
     "name": "My Cool App",
@@ -73,6 +77,7 @@ When you develop a **local application**, you should also include all store meta
   - `allowRunCommands`: Optional list of allowed command binaries (e.g. `["sh", "docker"]`).
   - `allowEnv`: List of custom environment variable keys to access (e.g. `["CUSTOM_API_KEY"]`).
   - `allowNet`: `true` or list of allowed domains for outbound network access.
+- `requestedCollections`: List of isolated MongoDB collection names requested for persistent database storage (e.g. `["servers", "settings"]`).
 - `nativeKey`: Key for built-in native applications integrated directly into the dashboard.
 
 > **Publishing to NetStore:** If you decide to officially publish your application to the NetLink-NetStore repository on GitHub, the store metadata (everything under the `// Store metadata` section) must be moved out of `index.json` and placed into the central `applications.json` file in the NetStore repository. Your app's `index.json` will then only contain the technical fields (e.g. `id`, `version`, `main`, permissions).
@@ -174,6 +179,58 @@ NetLink supports true multi-user isolation. Apps are installed in isolated direc
 2. **API Requests:** When your app fetches `/api/my-cool-app/execute`, the relay server automatically inspects the user's authentication cookie, identifies the active user, and transparently proxies the request to the correct user-specific Deno sandbox.
    
 *(Best Practice: While the system is fully backwards-compatible, it is recommended to use relative paths for new frontend applications (e.g., `./styles.css` and base paths of `./` in Vite) to keep your code clean.)*
+
+### 6. App Database API (`POST /api/db`)
+
+NetLink provides an isolated, managed MongoDB storage endpoint for NetStore apps. Apps do not need database drivers or credentials; all operations are routed through a single command-based endpoint:
+
+- **Endpoint**: `POST /api/db` (or `/api/apps/db`)
+- **Headers**: `Authorization: Bearer <token>` (or authenticated session cookie)
+- **JSON Body**:
+  ```json
+  {
+    "appId": "minecraft-server-management",
+    "collection": "servers",
+    "action": "find" | "findOne" | "insert" | "update" | "delete" | "count",
+    "query": { "status": "running" },
+    "data": { "name": "Survival 1.20", "port": 25565 },
+    "id": "optional-doc-id",
+    "options": { "limit": 20, "sort": { "createdAt": -1 } }
+  }
+  ```
+
+#### Example Usage (Frontend React or Deno Backend):
+
+```typescript
+// Insert a new server
+const insertRes = await fetch('/api/db', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        appId: 'minecraft-server-management',
+        collection: 'servers',
+        action: 'insert',
+        data: { name: 'Skyblock Server', memory: '4G', status: 'online' }
+    })
+});
+const { data: newDoc } = await insertRes.json();
+
+// Query all online servers
+const queryRes = await fetch('/api/db', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        appId: 'minecraft-server-management',
+        collection: 'servers',
+        action: 'find',
+        query: { status: 'online' },
+        options: { limit: 10, sort: { createdAt: -1 } }
+    })
+});
+const { data: servers } = await queryRes.json();
+```
+
+*All queries and documents are automatically namespaced (`app_<appId>_<collection>`) and scoped to the active user (`_userId`), preventing cross-user and cross-app data leaks.*
 
 ---
 

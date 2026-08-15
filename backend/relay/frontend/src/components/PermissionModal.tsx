@@ -1,5 +1,5 @@
 import { Box, Typography, Button, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Chip } from '@mui/material';
-import { AlertTriangle, ShieldAlert, Terminal, Folder, Globe, Key } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, Terminal, Folder, Globe, Key, Database } from 'lucide-react';
 
 interface FolderRequest {
     path: string;
@@ -12,6 +12,7 @@ interface RequestedPermissions {
     allowRunCommands?: string[];
     allowEnv?: string[];
     allowNet?: boolean | string[];
+    collections?: string[];
 }
 
 interface PermissionModalProps {
@@ -20,18 +21,22 @@ interface PermissionModalProps {
     appName: string;
     folders?: FolderRequest[];
     requestedPermissions?: RequestedPermissions;
+    requestedCollections?: string[];
     onRespond: (appId: string, granted: boolean, permissions: any) => void;
 }
 
-export default function PermissionModal({ open, appId, appName, folders = [], requestedPermissions, onRespond }: PermissionModalProps) {
+export default function PermissionModal({ open, appId, appName, folders = [], requestedPermissions, requestedCollections = [], onRespond }: PermissionModalProps) {
     if (!open) return null;
+
+    const allCollections = requestedCollections.length > 0 ? requestedCollections : (requestedPermissions?.collections || []);
 
     const handleGrant = () => {
         const perms = {
             folders: folders.map(f => f.path),
             allowRun: Boolean(requestedPermissions?.allowRun),
             allowEnv: requestedPermissions?.allowEnv || [],
-            allowNet: Boolean(requestedPermissions?.allowNet)
+            allowNet: Boolean(requestedPermissions?.allowNet),
+            collections: allCollections
         };
         onRespond(appId, true, perms);
     };
@@ -44,6 +49,7 @@ export default function PermissionModal({ open, appId, appName, folders = [], re
     const hasEnv = Array.isArray(requestedPermissions?.allowEnv) && requestedPermissions.allowEnv.length > 0;
     const hasNet = Boolean(requestedPermissions?.allowNet);
     const hasFolders = folders.length > 0;
+    const hasCollections = allCollections.length > 0;
 
     return (
         <Dialog open={open} maxWidth="sm" fullWidth slotProps={{ paper: { style: { backgroundColor: '#1e293b', color: '#fff' } } }}>
@@ -117,6 +123,31 @@ export default function PermissionModal({ open, appId, appName, folders = [], re
                                 <Typography variant="caption" sx={{ color: '#94a3b8' }}>
                                     Allows external network requests from the Deno backend.
                                 </Typography>
+                            </Box>
+                        </Box>
+                    )}
+
+                    {hasCollections && (
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                            <Database size={20} color="#6366f1" style={{ marginTop: 2 }} />
+                            <Box sx={{ flex: 1 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#6366f1' }}>
+                                    Database Storage Collections
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5 }}>
+                                    Allows isolated persistent database access to the following collections:
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                    {allCollections.map((col, i) => (
+                                        <Chip 
+                                            key={i} 
+                                            label={col} 
+                                            size="small" 
+                                            variant="outlined" 
+                                            sx={{ height: 20, fontSize: '0.7rem', borderColor: 'rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }} 
+                                        />
+                                    ))}
+                                </Box>
                             </Box>
                         </Box>
                     )}

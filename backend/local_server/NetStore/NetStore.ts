@@ -25,15 +25,16 @@ function getGrantedPermissions(): Record<string, any> {
 
 function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
     const raw = grantedRecord[appId];
-    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false };
+    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false, collections: [] };
     if (Array.isArray(raw)) {
-        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false };
+        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false, collections: [] };
     }
     return {
         folders: Array.isArray(raw.folders) ? raw.folders : [],
         allowRun: Boolean(raw.allowRun),
         allowEnv: Array.isArray(raw.allowEnv) ? raw.allowEnv : [],
-        allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet)
+        allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet),
+        collections: Array.isArray(raw.collections) ? raw.collections : []
     };
 }
 
@@ -99,9 +100,15 @@ export async function StartLocalApps(targetUserId?: string, forceStart: boolean 
         if (entryFile) {
             let requestedFolders: any[] = [];
             let requestedPerms: any = app.requestedPermissions || {};
+            let requestedCollections: string[] = [];
 
             if (Array.isArray(app.requiredExternalFolders)) {
                 requestedFolders = app.requiredExternalFolders;
+            }
+            if (Array.isArray(app.requestedCollections)) {
+                requestedCollections = app.requestedCollections;
+            } else if (Array.isArray(app.requestedPermissions?.collections)) {
+                requestedCollections = app.requestedPermissions.collections;
             }
 
             const grantedAll = getGrantedPermissions();
@@ -112,8 +119,9 @@ export async function StartLocalApps(targetUserId?: string, forceStart: boolean 
             const envGranted = !requestedPerms.allowEnv || (
                 Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.every((v: string) => appGranted.allowEnv.includes(v))
             );
+            const collectionsGranted = requestedCollections.every(c => appGranted.collections.includes(c) || appGranted.collections.includes('*'));
 
-            if (!foldersGranted || !runGranted || !envGranted) {
+            if (!foldersGranted || !runGranted || !envGranted || !collectionsGranted) {
                 console.warn(`Local App ${app.id} requires permissions that are not granted. Waiting for admin approval...`);
                 continue;
             }

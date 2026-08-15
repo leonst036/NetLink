@@ -190,6 +190,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     appName={req.appName}
                     folders={req.folders}
                     requestedPermissions={req.requestedPermissions}
+                    requestedCollections={req.requestedCollections}
                     onRespond={handlePermissionResponse}
                 />
             ))}

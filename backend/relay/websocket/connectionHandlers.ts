@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 const RELAY_APPS_DIR = path.join(__dirname, '..', 'NetStore', 'Applications');
 const PERMISSIONS_FILE = path.join(RELAY_APPS_DIR, 'permissions.json');
 
-function getGrantedPermissions(): Record<string, any> {
+export function getGrantedPermissions(): Record<string, any> {
     if (!fs.existsSync(PERMISSIONS_FILE)) return {};
     try {
         return JSON.parse(fs.readFileSync(PERMISSIONS_FILE, 'utf-8'));
@@ -27,21 +27,28 @@ function getGrantedPermissions(): Record<string, any> {
     }
 }
 
-function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
+export function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
     const raw = grantedRecord[appId];
-    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false };
+    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false, collections: [] };
     if (Array.isArray(raw)) {
-        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false };
+        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false, collections: [] };
     }
     return {
         folders: Array.isArray(raw.folders) ? raw.folders : [],
         allowRun: Boolean(raw.allowRun),
         allowEnv: Array.isArray(raw.allowEnv) ? raw.allowEnv : [],
-        allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet)
+        allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet),
+        collections: Array.isArray(raw.collections) ? raw.collections : []
     };
 }
 
-function saveGrantedPermissions(perms: Record<string, any>) {
+export function isCollectionGranted(appId: string, collection: string): boolean {
+    const perms = getGrantedPermissions();
+    const appGranted = getAppGranted(perms, appId);
+    return appGranted.collections.includes(collection) || appGranted.collections.includes('*');
+}
+
+export function saveGrantedPermissions(perms: Record<string, any>) {
     fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
 }
 
@@ -137,6 +144,7 @@ export function handleLocalServerConnection(
                             const indexJsonPath = path.join(appDir, 'index.json');
                             let requestedFolders: any[] = [];
                             let requestedPerms: any = {};
+                            let requestedCollections: string[] = [];
                             let appName = appId;
                             
                             if (fs.existsSync(indexJsonPath)) {
@@ -149,6 +157,11 @@ export function handleLocalServerConnection(
                                     if (indexData.requestedPermissions) {
                                         requestedPerms = indexData.requestedPermissions;
                                     }
+                                    if (Array.isArray(indexData.requestedCollections)) {
+                                        requestedCollections = indexData.requestedCollections;
+                                    } else if (Array.isArray(indexData.requestedPermissions?.collections)) {
+                                        requestedCollections = indexData.requestedPermissions.collections;
+                                    }
                                 } catch {}
                             }
                             
@@ -160,8 +173,9 @@ export function handleLocalServerConnection(
                             const envGranted = !requestedPerms.allowEnv || (
                                 Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.every((v: string) => appGranted.allowEnv.includes(v))
                             );
+                            const collectionsGranted = requestedCollections.every(c => appGranted.collections.includes(c) || appGranted.collections.includes('*'));
 
-                            if (!foldersGranted || !runGranted || !envGranted) {
+                            if (!foldersGranted || !runGranted || !envGranted || !collectionsGranted) {
                                 console.log(`App ${appId} requires permissions. Requesting from frontend...`);
                                 const clients = frontendClients.get(identifier);
                                 if (clients) {
@@ -172,7 +186,8 @@ export function handleLocalServerConnection(
                                                 appId,
                                                 appName,
                                                 folders: requestedFolders,
-                                                requestedPermissions: requestedPerms
+                                                requestedPermissions: requestedPerms,
+                                                requestedCollections: requestedCollections
                                             }));
                                         }
                                     });
@@ -310,7 +325,8 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
                         folders: (message.folders || []).map((f: any) => typeof f === 'string' ? f : f.path),
                         allowRun: Boolean(message.allowRun),
                         allowEnv: message.allowEnv || [],
-                        allowNet: Boolean(message.allowNet)
+                        allowNet: Boolean(message.allowNet),
+                        collections: Array.isArray(message.collections) ? message.collections : (message.permissions?.collections || [])
                     };
                     saveGrantedPermissions(perms);
                     
