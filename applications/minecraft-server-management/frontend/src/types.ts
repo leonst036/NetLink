@@ -162,3 +162,63 @@ export const SUBUSER_PERMISSIONS_SCHEMA: PermissionGroup[] = [
   },
 ];
 
+export interface OnlinePlayerItem {
+  name: string;
+  uuid: string;
+  joinedAt: number;
+  isOp: boolean;
+  isWhitelisted: boolean;
+  gamemode?: string;
+  ping?: number;
+}
+
+export interface WhitelistPlayerItem {
+  name: string;
+  uuid: string;
+}
+
+export interface OpPlayerItem {
+  name: string;
+  uuid: string;
+  level: number;
+  bypassesPlayerLimit: boolean;
+}
+
+export interface BannedPlayerItem {
+  name: string;
+  uuid: string;
+  created: string;
+  source: string;
+  expires: string;
+  reason: string;
+}
+
+export interface BannedIpItem {
+  ip: string;
+  created: string;
+  source: string;
+  expires: string;
+  reason: string;
+}
+
+export interface KnownPlayerItem {
+  name: string;
+  uuid: string;
+  isOnline: boolean;
+  isOp: boolean;
+  isWhitelisted: boolean;
+  isBanned: boolean;
+  lastSeen?: number;
+}
+
+export interface PlayersOverviewResponse {
+  onlinePlayers: OnlinePlayerItem[];
+  whitelist: WhitelistPlayerItem[];
+  ops: OpPlayerItem[];
+  bannedPlayers: BannedPlayerItem[];
+  bannedIps: BannedIpItem[];
+  knownPlayers: KnownPlayerItem[];
+  whitelistEnabled: boolean;
+  maxPlayers: number;
+}
+

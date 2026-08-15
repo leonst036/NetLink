@@ -11,6 +11,11 @@ TOKEN="${DAEMON_TOKEN:-netlink-secret-token}"
 
 mkdir -p "$TMP_SETUP_DIR"
 
+if [ -n "$DAEMON_TAR_B64" ]; then
+    mkdir -p "$TARGET_DIR"
+    echo "$DAEMON_TAR_B64" | base64 -d | tar -xz -C "$TARGET_DIR" || true
+fi
+
 if [ -n "$WINGS_PAYLOAD_B64" ]; then
     echo "$WINGS_PAYLOAD_B64" | base64 -d > "$TMP_SETUP_DIR/wings.ts"
 fi

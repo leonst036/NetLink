@@ -11,6 +11,27 @@ export interface SshNodeConfig {
   daemonToken?: string;
 }
 
+async function createDaemonTarBase64(): Promise<string> {
+  try {
+    const daemonDir = new URL("../daemon", import.meta.url).pathname;
+    const cmd = new Deno.Command("tar", {
+      args: ["-czf", "-", "--exclude=./scripts", "-C", daemonDir, "."],
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const { code, stdout } = await cmd.output();
+    if (code === 0) {
+      let binary = "";
+      const bytes = new Uint8Array(stdout);
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    }
+  } catch {}
+  return "";
+}
+
 export async function installDaemonOverSsh(
   config: SshNodeConfig,
   installerScript: string,
@@ -18,6 +39,7 @@ export async function installDaemonOverSsh(
 ): Promise<{ success: boolean; output: string }> {
   // Load bootstrap script from daemon/scripts/ folder
   const bootstrapScript = (await readDaemonFile("bootstrap_remote.sh")) || DEFAULT_BOOTSTRAP_SCRIPT;
+  const daemonTarB64 = await createDaemonTarBase64();
 
   return new Promise((resolve) => {
     const conn = new Client();
@@ -36,7 +58,7 @@ export async function installDaemonOverSsh(
         const sudoPrefix = config.password ? `echo '${config.password.replace(/'/g, "'\\''")}' | sudo -S` : "sudo -n";
 
         // Execute bootstrap_remote.sh with payload environment variables
-        const commandWrapper = `WINGS_PAYLOAD_B64='${wingsB64}' INSTALLER_PAYLOAD_B64='${installerB64}' DAEMON_PORT='${daemonPort}' DAEMON_TOKEN='${daemonToken}' echo '${bootstrapB64}' | base64 -d | ${sudoPrefix} -E bash`;
+        const commandWrapper = `DAEMON_TAR_B64='${daemonTarB64}' WINGS_PAYLOAD_B64='${wingsB64}' INSTALLER_PAYLOAD_B64='${installerB64}' DAEMON_PORT='${daemonPort}' DAEMON_TOKEN='${daemonToken}' echo '${bootstrapB64}' | base64 -d | ${sudoPrefix} -E bash`;
 
         conn.exec(commandWrapper, (err: any, stream: any) => {
           if (err) {

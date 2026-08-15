@@ -30,6 +30,19 @@ import {
   deleteBackup,
   toggleLockBackup,
 } from "./backup_manager.ts";
+import {
+  getPlayersOverview,
+  executePlayerAction,
+  addToWhitelist,
+  removeFromWhitelist,
+  toggleWhitelistState,
+  addOrUpdateOp,
+  removeOp,
+  banPlayer,
+  unbanPlayer,
+  banIp,
+  unbanIp,
+} from "./player_manager.ts";
 
 const port = parseInt(Deno.env.get("PORT") || "9080");
 const dataDir = Deno.env.get("DATA_DIR") || "/var/lib/netlink-wings/servers";
@@ -252,6 +265,102 @@ Deno.serve({ port }, async (req) => {
         }
       }
       return jsonResponse({ logs });
+    }
+  }
+
+  // 8. Player Management routes: /api/servers/:id/players...
+  const playersPathMatch = url.pathname.match(/^\/api\/servers\/([^\/]+)\/players(\/action|\/whitelist(?:\/toggle|\/([^\/]+))?|\/ops(?:\/([^\/]+))?|\/bans(?:\/([^\/]+))?)?$/);
+  if (playersPathMatch) {
+    const [, serverId, subRoute, wlUser, opUser, banTarget] = playersPathMatch;
+    const serverPath = `${dataDir}/${serverId}`;
+
+    try {
+      // 8.1 GET /api/servers/:id/players - Get complete players overview
+      if (!subRoute && req.method === "GET") {
+        const overview = await getPlayersOverview(serverPath, serverId);
+        return jsonResponse(overview);
+      }
+
+      // 8.2 POST /api/servers/:id/players/action - Execute in-game action (kick, gamemode, tp, msg, kill, heal, give, etc.)
+      if (subRoute === "/action" && req.method === "POST") {
+        const body = await req.json();
+        const result = await executePlayerAction(serverId, body.action, body.player, body.params || {});
+        return jsonResponse(result);
+      }
+
+      // 8.3 Whitelist endpoints
+      if (subRoute && subRoute.startsWith("/whitelist")) {
+        // Toggle whitelist
+        if (subRoute === "/whitelist/toggle" && req.method === "POST") {
+          const body = await req.json();
+          const enabled = await toggleWhitelistState(serverPath, serverId, Boolean(body.enabled));
+          return jsonResponse({ success: true, enabled });
+        }
+
+        // Add to whitelist
+        if (subRoute === "/whitelist" && req.method === "POST") {
+          const body = await req.json();
+          if (!body.username) return jsonResponse({ error: "Username is required" }, 400);
+          const item = await addToWhitelist(serverPath, serverId, body.username);
+          return jsonResponse({ success: true, item });
+        }
+
+        // Remove from whitelist
+        if (wlUser && req.method === "DELETE") {
+          const decodedUser = decodeURIComponent(wlUser);
+          const success = await removeFromWhitelist(serverPath, serverId, decodedUser);
+          return jsonResponse({ success });
+        }
+      }
+
+      // 8.4 Operators endpoints
+      if (subRoute && subRoute.startsWith("/ops")) {
+        // Add or update OP
+        if (subRoute === "/ops" && req.method === "POST") {
+          const body = await req.json();
+          if (!body.username) return jsonResponse({ error: "Username is required" }, 400);
+          const item = await addOrUpdateOp(serverPath, serverId, body.username, body.level || 4, Boolean(body.bypassesPlayerLimit));
+          return jsonResponse({ success: true, item });
+        }
+
+        // Remove OP
+        if (opUser && req.method === "DELETE") {
+          const decodedUser = decodeURIComponent(opUser);
+          const success = await removeOp(serverPath, serverId, decodedUser);
+          return jsonResponse({ success });
+        }
+      }
+
+      // 8.5 Ban endpoints
+      if (subRoute && subRoute.startsWith("/bans")) {
+        // Add ban (player or IP)
+        if (subRoute === "/bans" && req.method === "POST") {
+          const body = await req.json();
+          if (!body.target) return jsonResponse({ error: "Target is required" }, 400);
+          if (body.isIp) {
+            const item = await banIp(serverPath, serverId, body.target, body.reason);
+            return jsonResponse({ success: true, item, isIp: true });
+          } else {
+            const item = await banPlayer(serverPath, serverId, body.target, body.reason);
+            return jsonResponse({ success: true, item, isIp: false });
+          }
+        }
+
+        // Unban (player or IP)
+        if (banTarget && req.method === "DELETE") {
+          const decodedTarget = decodeURIComponent(banTarget);
+          const isIp = url.searchParams.get("type") === "ip" || /^(\d{1,3}\.){3}\d{1,3}$/.test(decodedTarget);
+          if (isIp) {
+            const success = await unbanIp(serverPath, serverId, decodedTarget);
+            return jsonResponse({ success, isIp: true });
+          } else {
+            const success = await unbanPlayer(serverPath, serverId, decodedTarget);
+            return jsonResponse({ success, isIp: false });
+          }
+        }
+      }
+    } catch (err: any) {
+      return jsonResponse({ error: err.message }, 500);
     }
   }
 

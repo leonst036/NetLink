@@ -677,6 +677,245 @@ export async function deleteServerSubUser(
   return { success: true };
 }
 
+// 10. In-Game Minecraft Player Management APIs
+
+export async function getServerPlayers(node: NodeInfo, serverId: string): Promise<import('./types').PlayersOverviewResponse> {
+  const fallback: import('./types').PlayersOverviewResponse = {
+    onlinePlayers: [],
+    whitelist: [],
+    ops: [],
+    bannedPlayers: [],
+    bannedIps: [],
+    knownPlayers: [],
+    whitelistEnabled: false,
+    maxPlayers: 20,
+  };
+
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/players`);
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/players`);
+    if (res.ok) return await res.json();
+  } catch {}
+
+  return fallback;
+}
+
+export async function executePlayerAction(
+  node: NodeInfo,
+  serverId: string,
+  action: string,
+  player: string,
+  params: Record<string, any> = {}
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/players/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, player, params }),
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/players/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, player, params }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, message: err.message };
+  }
+}
+
+export async function addWhitelistPlayer(
+  node: NodeInfo,
+  serverId: string,
+  username: string
+): Promise<{ success: boolean; item?: import('./types').WhitelistPlayerItem; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/players/whitelist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username }),
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/players/whitelist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function removeWhitelistPlayer(
+  node: NodeInfo,
+  serverId: string,
+  username: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/players/whitelist/${encodeURIComponent(username)}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/players/whitelist/${encodeURIComponent(username)}`, {
+      method: 'DELETE',
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function toggleServerWhitelist(
+  node: NodeInfo,
+  serverId: string,
+  enabled: boolean
+): Promise<{ success: boolean; enabled?: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/players/whitelist/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/players/whitelist/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function addOpPlayer(
+  node: NodeInfo,
+  serverId: string,
+  username: string,
+  level: number = 4,
+  bypassesPlayerLimit: boolean = false
+): Promise<{ success: boolean; item?: import('./types').OpPlayerItem; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/players/ops`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, level, bypassesPlayerLimit }),
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/players/ops`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, level, bypassesPlayerLimit }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function removeOpPlayer(
+  node: NodeInfo,
+  serverId: string,
+  username: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/players/ops/${encodeURIComponent(username)}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/players/ops/${encodeURIComponent(username)}`, {
+      method: 'DELETE',
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function banPlayerOrIp(
+  node: NodeInfo,
+  serverId: string,
+  target: string,
+  reason: string = '',
+  isIp: boolean = false
+): Promise<{ success: boolean; item?: any; isIp?: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/players/bans`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target, reason, isIp }),
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/players/bans`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target, reason, isIp }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function unbanPlayerOrIp(
+  node: NodeInfo,
+  serverId: string,
+  target: string,
+  isIp: boolean = false
+): Promise<{ success: boolean; isIp?: boolean; error?: string }> {
+  const query = isIp ? '?type=ip' : '';
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/players/bans/${encodeURIComponent(target)}${query}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/players/bans/${encodeURIComponent(target)}${query}`, {
+      method: 'DELETE',
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function sendServerBroadcast(
+  node: NodeInfo,
+  serverId: string,
+  message: string
+): Promise<{ success: boolean; message?: string }> {
+  return executePlayerAction(node, serverId, 'broadcast', '', { message });
+}
+
 
 
 

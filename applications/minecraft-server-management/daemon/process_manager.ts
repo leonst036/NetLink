@@ -10,6 +10,8 @@ export interface RunningProcess {
   cpuLimitPercent: number;
   lastCpuTime?: number;
   lastSampleTime?: number;
+  overLimitSince?: number | null;
+  watchdogTimer?: any;
 }
 
 export interface ServerStats {
@@ -29,6 +31,19 @@ export interface ResourceConfig {
 
 export const activeServers = new Map<string, RunningProcess>();
 
+type LogListener = (serverId: string, line: string) => void;
+type ExitListener = (serverId: string) => void;
+const logListeners: LogListener[] = [];
+const exitListeners: ExitListener[] = [];
+
+export function registerLogListener(fn: LogListener): void {
+  logListeners.push(fn);
+}
+
+export function registerExitListener(fn: ExitListener): void {
+  exitListeners.push(fn);
+}
+
 // Helper to append log messages with max buffer of 500 lines
 export function appendLog(serverId: string, line: string): void {
   const instance = activeServers.get(serverId);
@@ -37,6 +52,11 @@ export function appendLog(serverId: string, line: string): void {
       instance.logs.shift();
     }
     instance.logs.push(line);
+  }
+  for (const listener of logListeners) {
+    try {
+      listener(serverId, line);
+    } catch {}
   }
 }
 
@@ -295,9 +315,108 @@ export async function startServerProcess(
     } catch {}
   })();
 
+  // Resource watchdog: continuously monitors RAM/CPU and kills the process if limits are exceeded for >10 seconds
+  const startResourceWatchdog = () => {
+    runningInstance.watchdogTimer = setInterval(async () => {
+      if (!activeServers.has(serverId)) {
+        if (runningInstance.watchdogTimer) clearInterval(runningInstance.watchdogTimer);
+        return;
+      }
+
+      const pid = child.pid;
+      let memoryMb = 0;
+      let cpuPercent = 0;
+
+      try {
+        // Read Linux /proc/<pid>/status for VmRSS
+        const statusText = await Deno.readTextFile(`/proc/${pid}/status`);
+        const rssMatch = statusText.match(/VmRSS:\s+(\d+)\s+kB/);
+        if (rssMatch) {
+          memoryMb = Math.round((parseInt(rssMatch[1], 10) / 1024) * 10) / 10;
+        }
+
+        // Read Linux /proc/<pid>/stat for CPU utime + stime
+        const statText = await Deno.readTextFile(`/proc/${pid}/stat`);
+        const statParts = statText.split(" ");
+        if (statParts.length > 14) {
+          const utime = parseInt(statParts[13], 10);
+          const stime = parseInt(statParts[14], 10);
+          const totalCpuTicks = utime + stime;
+          const now = performance.now();
+
+          if (runningInstance.lastCpuTime !== undefined && runningInstance.lastSampleTime !== undefined) {
+            const timeDiffSeconds = (now - runningInstance.lastSampleTime) / 1000;
+            const ticksDiff = totalCpuTicks - runningInstance.lastCpuTime;
+            if (timeDiffSeconds > 0) {
+              const calculatedPercent = (ticksDiff / 100 / timeDiffSeconds) * 100;
+              cpuPercent = Math.min(Math.round(Math.max(calculatedPercent, 0) * 10) / 10, 800);
+            }
+          }
+          runningInstance.lastCpuTime = totalCpuTicks;
+          runningInstance.lastSampleTime = now;
+        }
+      } catch {
+        return;
+      }
+
+      const isRamExceeded = runningInstance.ramLimitMb > 0 && memoryMb > runningInstance.ramLimitMb;
+      const isCpuExceeded = runningInstance.cpuLimitPercent > 0 && cpuPercent > runningInstance.cpuLimitPercent;
+
+      if (isRamExceeded || isCpuExceeded) {
+        if (!runningInstance.overLimitSince) {
+          runningInstance.overLimitSince = Date.now();
+          const reason = isRamExceeded
+            ? `RAM limit exceeded: ${memoryMb}MB / ${runningInstance.ramLimitMb}MB`
+            : `CPU limit exceeded: ${cpuPercent}% / ${runningInstance.cpuLimitPercent}%`;
+          appendLog(serverId, `[Wings/Watchdog] WARNING: ${reason}. Process will be terminated if limits remain exceeded for 10s.`);
+        } else {
+          const overLimitDurationMs = Date.now() - runningInstance.overLimitSince;
+          if (overLimitDurationMs >= 10000) {
+            const reason = isRamExceeded
+              ? `RAM usage ${memoryMb}MB / ${runningInstance.ramLimitMb}MB`
+              : `CPU usage ${cpuPercent}% / ${runningInstance.cpuLimitPercent}%`;
+            appendLog(
+              serverId,
+              `[Wings/Watchdog] KILL: Server exceeded resource limit (${reason}) for more than 10 seconds. Terminating process immediately.`
+            );
+
+            if (runningInstance.watchdogTimer) clearInterval(runningInstance.watchdogTimer);
+
+            try {
+              child.kill("SIGKILL");
+            } catch {}
+
+            activeServers.delete(serverId);
+
+            for (const listener of exitListeners) {
+              try {
+                listener(serverId);
+              } catch {}
+            }
+          }
+        }
+      } else {
+        if (runningInstance.overLimitSince) {
+          appendLog(serverId, `[Wings/Watchdog] Resource usage normalized (RAM: ${memoryMb}MB, CPU: ${cpuPercent}%).`);
+          runningInstance.overLimitSince = null;
+        }
+      }
+    }, 1000);
+  };
+
+  startResourceWatchdog();
+
   // Monitor process completion
   child.status.then(() => {
+    if (runningInstance.watchdogTimer) {
+      clearInterval(runningInstance.watchdogTimer);
+    }
     activeServers.delete(serverId);
+    for (const listener of exitListeners) {
+      try {
+        listener(serverId);
+      } catch {}
+    }
   });
 
   return true;
@@ -307,6 +426,10 @@ export async function startServerProcess(
 export async function stopServerProcess(serverId: string): Promise<boolean> {
   const instance = activeServers.get(serverId);
   if (!instance) return false;
+
+  if (instance.watchdogTimer) {
+    clearInterval(instance.watchdogTimer);
+  }
 
   const encoder = new TextEncoder();
   try {

@@ -25,6 +25,7 @@ import {
   Settings,
   Plus,
   Users,
+  Gamepad2,
 } from 'lucide-react';
 import { NodeInfo, NodeServerItem } from './types';
 import {
@@ -40,6 +41,7 @@ import { ServerListView } from './components/ServerListView';
 import { InstanceControlBar } from './components/InstanceControlBar';
 import { OverviewTab } from './components/OverviewTab';
 import { ConsoleTab } from './components/ConsoleTab';
+import { PlayersTab } from './components/PlayersTab';
 import { FileManager } from './components/FileManager';
 import { BackupsTab } from './components/BackupsTab';
 import { SettingsTab } from './components/SettingsTab';
@@ -137,7 +139,7 @@ export default function App() {
 
   // View state: 'list' (all servers grid) or 'detail' (selected server dashboard)
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
-  const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'files' | 'backups' | 'users' | 'settings'>('overview');
+  const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'players' | 'files' | 'backups' | 'users' | 'settings'>('overview');
 
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -399,6 +401,7 @@ export default function App() {
                     >
                       <Tab value="overview" icon={<LayoutDashboard size={18} />} iconPosition="start" label="Overview" />
                       <Tab value="console" icon={<Terminal size={18} />} iconPosition="start" label="Console" />
+                      <Tab value="players" icon={<Gamepad2 size={18} />} iconPosition="start" label="Players" />
                       <Tab value="files" icon={<Folder size={18} />} iconPosition="start" label="Files" />
                       <Tab value="backups" icon={<Archive size={18} />} iconPosition="start" label="Backups" />
                       <Tab value="users" icon={<Users size={18} />} iconPosition="start" label="Users" />
@@ -417,6 +420,10 @@ export default function App() {
                       onClearLogs={() => setLogs([])}
                       onSendCommand={handleSendCommand}
                     />
+                  )}
+
+                  {currentTab === 'players' && (
+                    <PlayersTab activeNode={activeNode} activeServer={activeServer} />
                   )}
 
                   {currentTab === 'files' && (
