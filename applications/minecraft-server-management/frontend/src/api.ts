@@ -1,4 +1,4 @@
-import { NodeInfo, NodeServerItem, InstallNodeParams, CreateServerParams } from './types';
+import { NodeInfo, NodeServerItem, FileItem, InstallNodeParams, CreateServerParams } from './types';
 
 const API_BASE = '/api/minecraft-server-management';
 const STORAGE_KEY = 'netlink_mc_nodes';
@@ -24,7 +24,7 @@ export function removeLocalNode(nodeId: string): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes));
 }
 
-// Fetch registered nodes (from backend with local storage fallback)
+// Fetch registered nodes
 export async function getNodes(): Promise<NodeInfo[]> {
   try {
     const res = await fetch(`${API_BASE}/nodes`);
@@ -35,7 +35,7 @@ export async function getNodes(): Promise<NodeInfo[]> {
       }
     }
   } catch {
-    // Backend offline or route 404
+    // Backend offline
   }
 
   const localNodes = getLocalNodes();
@@ -43,7 +43,6 @@ export async function getNodes(): Promise<NodeInfo[]> {
     return localNodes;
   }
 
-  // If Leon's server is known and accessible, provide it as default active node
   const defaultNode: NodeInfo = {
     id: 'node-baddie',
     name: 'Leon Server',
@@ -78,10 +77,9 @@ export async function installNode(params: InstallNodeParams): Promise<{ success:
       return data;
     }
   } catch {
-    // Backend router not reachable
+    // Fallback
   }
 
-  // Direct check if daemon is already responding on target host
   const daemonPort = params.daemonPort || 9080;
   try {
     const directStatus = await fetch(`http://${params.host}:${daemonPort}/api/status`, { mode: 'cors' });
@@ -113,7 +111,6 @@ export async function installNode(params: InstallNodeParams): Promise<{ success:
 
 // Get servers on a specific node
 export async function getNodeServers(node: NodeInfo): Promise<NodeServerItem[]> {
-  // Try proxy first
   try {
     const res = await fetch(`${API_BASE}/node/${node.id}/servers`);
     if (res.ok) {
@@ -121,10 +118,9 @@ export async function getNodeServers(node: NodeInfo): Promise<NodeServerItem[]> 
       return data.servers || [];
     }
   } catch {
-    // Fallback to direct daemon communication
+    // Fallback
   }
 
-  // Direct query to wings daemon
   try {
     const directRes = await fetch(`http://${node.host}:${node.daemonPort}/api/servers`);
     if (directRes.ok) {
@@ -132,7 +128,7 @@ export async function getNodeServers(node: NodeInfo): Promise<NodeServerItem[]> 
       return data.servers || [];
     }
   } catch {
-    // Daemon unreachable
+    // Unreachable
   }
 
   return [];
@@ -140,7 +136,6 @@ export async function getNodeServers(node: NodeInfo): Promise<NodeServerItem[]> 
 
 // Create new Minecraft server instance on a node
 export async function createNodeServer(node: NodeInfo, params: CreateServerParams): Promise<{ success: boolean; serverId?: string; error?: string }> {
-  // Try proxy first
   try {
     const res = await fetch(`${API_BASE}/node/${node.id}/servers/create`, {
       method: 'POST',
@@ -149,7 +144,7 @@ export async function createNodeServer(node: NodeInfo, params: CreateServerParam
     });
     if (res.ok) return await res.json();
   } catch {
-    // Fallback to direct
+    // Fallback
   }
 
   try {
@@ -174,7 +169,7 @@ export async function powerNodeServer(node: NodeInfo, serverId: string, action: 
     });
     if (res.ok) return await res.json();
   } catch {
-    // Fallback to direct
+    // Fallback
   }
 
   try {
@@ -199,7 +194,7 @@ export async function sendNodeServerCommand(node: NodeInfo, serverId: string, co
     });
     if (res.ok) return await res.json();
   } catch {
-    // Fallback to direct
+    // Fallback
   }
 
   try {
@@ -223,7 +218,7 @@ export async function getNodeServerLogs(node: NodeInfo, serverId: string): Promi
       return data.logs || [];
     }
   } catch {
-    // Fallback to direct
+    // Fallback
   }
 
   try {
@@ -237,4 +232,127 @@ export async function getNodeServerLogs(node: NodeInfo, serverId: string): Promi
   }
 
   return [];
+}
+
+// File Management APIs
+
+// 1. List files in directory
+export async function getNodeServerFiles(node: NodeInfo, serverId: string, path: string = ''): Promise<{ files: FileItem[]; currentPath: string }> {
+  const query = path ? `?path=${encodeURIComponent(path)}` : '';
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/files${query}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/files${query}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Unreachable
+  }
+
+  return { files: [], currentPath: path };
+}
+
+// 2. Read file content
+export async function getNodeServerFileContent(node: NodeInfo, serverId: string, path: string): Promise<string> {
+  const query = `?path=${encodeURIComponent(path)}`;
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/files/content${query}`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.content || '';
+    }
+  } catch {
+    // Fallback
+  }
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/files/content${query}`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.content || '';
+    }
+  } catch {
+    // Unreachable
+  }
+
+  return '';
+}
+
+// 3. Save file content
+export async function saveNodeServerFile(node: NodeInfo, serverId: string, path: string, content: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/files/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, content }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/files/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, content }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// 4. Delete file or directory
+export async function deleteNodeServerFile(node: NodeInfo, serverId: string, path: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/files/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/files/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// 5. Create folder
+export async function createNodeServerFolder(node: NodeInfo, serverId: string, path: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/files/create-folder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/files/create-folder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 }

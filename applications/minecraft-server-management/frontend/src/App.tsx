@@ -5,16 +5,9 @@ import {
   Typography,
   Card,
   CardContent,
-  Stack,
   Button,
-  Chip,
   Tabs,
   Tab,
-  TextField,
-  Grid,
-  Select,
-  MenuItem,
-  FormControl,
   Snackbar,
   Alert,
   CircularProgress,
@@ -25,15 +18,10 @@ import {
 import { WindowLayout } from '@netlink/ui';
 import {
   Server,
-  Play,
-  Square,
-  RotateCw,
   LayoutDashboard,
   Terminal,
+  Folder,
   Plus,
-  Send,
-  Trash2,
-  RefreshCw,
 } from 'lucide-react';
 import { NodeInfo, NodeServerItem } from './types';
 import {
@@ -43,6 +31,11 @@ import {
   sendNodeServerCommand,
   getNodeServerLogs,
 } from './api';
+import { Header } from './components/Header';
+import { InstanceControlBar } from './components/InstanceControlBar';
+import { OverviewTab } from './components/OverviewTab';
+import { ConsoleTab } from './components/ConsoleTab';
+import { FileManager } from './components/FileManager';
 import { InstallNodeModal } from './components/InstallNodeModal';
 import { CreateServerModal } from './components/CreateServerModal';
 
@@ -131,8 +124,7 @@ export default function App() {
   const [servers, setServers] = useState<NodeServerItem[]>([]);
   const [activeServerId, setActiveServerId] = useState<string | null>(null);
 
-  const [currentTab, setCurrentTab] = useState<'overview' | 'console'>('overview');
-  const [commandInput, setCommandInput] = useState('');
+  const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'files'>('overview');
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -141,7 +133,7 @@ export default function App() {
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Load registered nodes on mount
+  // Load registered nodes
   const loadNodes = useCallback(async () => {
     try {
       setLoading(true);
@@ -159,10 +151,9 @@ export default function App() {
     loadNodes();
   }, [loadNodes]);
 
-  // Active items
   const activeNode = nodes.find((n) => n.id === activeNodeId) || nodes[0] || null;
 
-  // Load servers when activeNode changes
+  // Load server instances
   const loadServers = useCallback(async () => {
     if (!activeNode) {
       setServers([]);
@@ -195,17 +186,17 @@ export default function App() {
       const latestLogs = await getNodeServerLogs(activeNode, activeServerId);
       setLogs(latestLogs);
     } catch {
-      // Ignore poll error
+      // Ignore
     }
   }, [activeNode, activeServerId]);
 
   useEffect(() => {
-    if (activeServer) {
+    if (activeServer && currentTab === 'console') {
       fetchLogs();
       const interval = setInterval(fetchLogs, 3000);
       return () => clearInterval(interval);
     }
-  }, [activeServer, fetchLogs]);
+  }, [activeServer, currentTab, fetchLogs]);
 
   // Power actions
   const handlePower = async (action: 'start' | 'stop' | 'restart' | 'kill') => {
@@ -227,12 +218,8 @@ export default function App() {
   };
 
   // Send command
-  const handleSendCommand = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeNode || !activeServerId || !commandInput.trim()) return;
-
-    const cmd = commandInput.trim();
-    setCommandInput('');
+  const handleSendCommand = async (cmd: string) => {
+    if (!activeNode || !activeServerId) return;
     try {
       await sendNodeServerCommand(activeNode, activeServerId, cmd);
       fetchLogs();
@@ -255,102 +242,24 @@ export default function App() {
           }}
         >
           <Container maxWidth="lg" disableGutters>
-            {/* Header */}
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                justifyContent: 'space-between',
-                alignItems: { xs: 'flex-start', md: 'center' },
-                gap: 2,
-                pb: 3,
-                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            {/* Header Module */}
+            <Header
+              nodes={nodes}
+              activeNode={activeNode}
+              onSelectNode={setActiveNodeId}
+              onRefresh={() => {
+                loadNodes();
+                loadServers();
               }}
-            >
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 44,
-                    height: 44,
-                    borderRadius: 2,
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    color: '#10b981',
-                  }}
-                >
-                  <Server size={24} />
-                </Box>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#f8fafc', lineHeight: 1.2 }}>
-                    Minecraft Wings Manager
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                    Remote Daemon Node Management
-                  </Typography>
-                </Box>
-              </Stack>
-
-              <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
-                {/* Node Selector */}
-                {nodes.length > 0 && (
-                  <FormControl size="small" sx={{ minWidth: 180 }}>
-                    <Select
-                      value={activeNode?.id || ''}
-                      onChange={(e) => setActiveNodeId(e.target.value)}
-                    >
-                      {nodes.map((node) => (
-                        <MenuItem key={node.id} value={node.id}>
-                          {node.name} ({node.host}:{node.daemonPort})
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
-
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<RefreshCw size={14} />}
-                  onClick={() => {
-                    loadNodes();
-                    loadServers();
-                  }}
-                  sx={{
-                    color: '#94a3b8',
-                    borderColor: 'rgba(255, 255, 255, 0.15)',
-                  }}
-                >
-                  Refresh
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Plus size={15} />}
-                  onClick={() => setInstallModalOpen(true)}
-                  sx={{
-                    color: '#34d399',
-                    borderColor: 'rgba(16, 185, 129, 0.3)',
-                    '&:hover': {
-                      borderColor: '#10b981',
-                      backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    },
-                  }}
-                >
-                  Connect Node (SSH)
-                </Button>
-              </Stack>
-            </Box>
+              onOpenInstallModal={() => setInstallModalOpen(true)}
+            />
 
             {loading ? (
               <Box sx={{ py: 10, textAlign: 'center' }}>
                 <CircularProgress size={32} sx={{ color: '#10b981' }} />
               </Box>
             ) : nodes.length === 0 ? (
-              /* Empty State: No Nodes */
+              /* Empty State */
               <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}>
                 <Card
                   sx={{
@@ -401,129 +310,22 @@ export default function App() {
                 </Card>
               </Box>
             ) : (
-              /* Nodes Exist */
+              /* Connected Node View */
               <Box sx={{ mt: 3 }}>
-                {/* Server Instance Header Bar */}
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: 2,
-                    mb: 3,
-                    p: 2,
-                    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-                    borderRadius: 2,
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                  }}
-                >
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 600 }}>
-                      Instance:
-                    </Typography>
-                    {servers.length > 0 ? (
-                      <FormControl size="small" sx={{ minWidth: 180 }}>
-                        <Select
-                          value={activeServerId || ''}
-                          onChange={(e) => setActiveServerId(e.target.value)}
-                        >
-                          {servers.map((s) => (
-                            <MenuItem key={s.id} value={s.id}>
-                              {s.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    ) : (
-                      <Typography variant="body2" sx={{ color: '#64748b', fontStyle: 'italic' }}>
-                        No servers on this node
-                      </Typography>
-                    )}
+                {/* Instance Control Bar Module */}
+                <InstanceControlBar
+                  activeNode={activeNode}
+                  servers={servers}
+                  activeServer={activeServer}
+                  actionLoading={actionLoading}
+                  onSelectServer={setActiveServerId}
+                  onPowerAction={handlePower}
+                  onOpenCreateModal={() => setCreateServerModalOpen(true)}
+                />
 
-                    {activeServer && (
-                      <Chip
-                        size="small"
-                        label={activeServer.status === 'online' ? 'Online' : 'Offline'}
-                        sx={{
-                          backgroundColor:
-                            activeServer.status === 'online'
-                              ? 'rgba(16, 185, 129, 0.15)'
-                              : 'rgba(148, 163, 184, 0.15)',
-                          color: activeServer.status === 'online' ? '#34d399' : '#94a3b8',
-                          fontWeight: 600,
-                        }}
-                      />
-                    )}
-                  </Stack>
-
-                  <Stack direction="row" spacing={1.5}>
-                    {activeNode && (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<Plus size={15} />}
-                        onClick={() => setCreateServerModalOpen(true)}
-                        sx={{
-                          color: '#34d399',
-                          borderColor: 'rgba(16, 185, 129, 0.3)',
-                        }}
-                      >
-                        New Instance
-                      </Button>
-                    )}
-
-                    {activeServer && (
-                      <>
-                        <Button
-                          variant="contained"
-                          size="small"
-                          disabled={actionLoading || activeServer.status === 'online'}
-                          startIcon={<Play size={15} />}
-                          onClick={() => handlePower('start')}
-                          sx={{
-                            backgroundColor: '#10b981',
-                            '&:hover': { backgroundColor: '#059669' },
-                          }}
-                        >
-                          Start
-                        </Button>
-
-                        <Button
-                          variant="contained"
-                          size="small"
-                          disabled={actionLoading || activeServer.status === 'offline'}
-                          startIcon={<Square size={15} />}
-                          onClick={() => handlePower('stop')}
-                          sx={{
-                            backgroundColor: '#ef4444',
-                            '&:hover': { backgroundColor: '#dc2626' },
-                          }}
-                        >
-                          Stop
-                        </Button>
-
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          disabled={actionLoading}
-                          startIcon={<RotateCw size={15} />}
-                          onClick={() => handlePower('restart')}
-                          sx={{
-                            color: '#fbbf24',
-                            borderColor: 'rgba(251, 191, 36, 0.3)',
-                          }}
-                        >
-                          Restart
-                        </Button>
-                      </>
-                    )}
-                  </Stack>
-                </Box>
-
-                {/* Navigation Tabs */}
                 {activeServer ? (
                   <>
+                    {/* Navigation Tabs */}
                     <Box sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', mb: 3 }}>
                       <Tabs
                         value={currentTab}
@@ -539,140 +341,25 @@ export default function App() {
                       >
                         <Tab value="overview" icon={<LayoutDashboard size={18} />} iconPosition="start" label="Overview" />
                         <Tab value="console" icon={<Terminal size={18} />} iconPosition="start" label="Console" />
+                        <Tab value="files" icon={<Folder size={18} />} iconPosition="start" label="Files" />
                       </Tabs>
                     </Box>
 
-                    {/* Overview Tab */}
+                    {/* Tab Views */}
                     {currentTab === 'overview' && (
-                      <Card
-                        sx={{
-                          backgroundColor: 'rgba(15, 23, 42, 0.7)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          borderRadius: 3,
-                        }}
-                      >
-                        <CardContent sx={{ p: 3 }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#f8fafc', mb: 2 }}>
-                            Server Instance Information
-                          </Typography>
-
-                          <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}>
-                              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                                Instance ID
-                              </Typography>
-                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                {activeServer.id}
-                              </Typography>
-                            </Grid>
-
-                            <Grid item xs={12} sm={6}>
-                              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                                Active Node
-                              </Typography>
-                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                {activeNode?.name} ({activeNode?.host}:{activeNode?.daemonPort})
-                              </Typography>
-                            </Grid>
-
-                            <Grid item xs={12}>
-                              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                                Node Storage Path
-                              </Typography>
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  fontFamily: 'monospace',
-                                  color: '#34d399',
-                                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                                  p: 1.5,
-                                  borderRadius: 2,
-                                  mt: 0.5,
-                                }}
-                              >
-                                {activeServer.path}
-                              </Typography>
-                            </Grid>
-                          </Grid>
-                        </CardContent>
-                      </Card>
+                      <OverviewTab activeNode={activeNode} activeServer={activeServer} />
                     )}
 
-                    {/* Console Tab */}
                     {currentTab === 'console' && (
-                      <Card
-                        sx={{
-                          backgroundColor: 'rgba(15, 23, 42, 0.7)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          borderRadius: 3,
-                        }}
-                      >
-                        <CardContent sx={{ p: 3 }}>
-                          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#f8fafc' }}>
-                              Wings Process Console
-                            </Typography>
-                            <Button
-                              size="small"
-                              startIcon={<Trash2 size={14} />}
-                              onClick={() => setLogs([])}
-                              sx={{ color: '#94a3b8' }}
-                            >
-                              Clear View
-                            </Button>
-                          </Stack>
+                      <ConsoleTab
+                        logs={logs}
+                        onClearLogs={() => setLogs([])}
+                        onSendCommand={handleSendCommand}
+                      />
+                    )}
 
-                          <Box
-                            sx={{
-                              height: 360,
-                              backgroundColor: '#030712',
-                              borderRadius: 2,
-                              p: 2,
-                              overflowY: 'auto',
-                              fontFamily: 'monospace',
-                              fontSize: '0.85rem',
-                              border: '1px solid rgba(255, 255, 255, 0.05)',
-                            }}
-                          >
-                            {logs.length === 0 ? (
-                              <Typography variant="body2" sx={{ color: '#475569', fontStyle: 'italic' }}>
-                                Waiting for Wings server process output...
-                              </Typography>
-                            ) : (
-                              logs.map((log, i) => (
-                                <Typography key={i} variant="body2" sx={{ color: '#cbd5e1', lineHeight: 1.5 }}>
-                                  {log}
-                                </Typography>
-                              ))
-                            )}
-                          </Box>
-
-                          <Box component="form" onSubmit={handleSendCommand} sx={{ mt: 2, display: 'flex', gap: 1.5 }}>
-                            <TextField
-                              fullWidth
-                              size="small"
-                              placeholder="Type command into server stdin..."
-                              value={commandInput}
-                              onChange={(e) => setCommandInput(e.target.value)}
-                            />
-                            <Button
-                              type="submit"
-                              variant="contained"
-                              disabled={!commandInput.trim()}
-                              startIcon={<Send size={16} />}
-                              sx={{
-                                backgroundColor: '#10b981',
-                                color: '#ffffff',
-                                px: 3,
-                                borderRadius: 2,
-                                '&:hover': { backgroundColor: '#059669' },
-                              }}
-                            >
-                              Send
-                            </Button>
-                          </Box>
-                        </CardContent>
-                      </Card>
+                    {currentTab === 'files' && (
+                      <FileManager node={activeNode} serverId={activeServer.id} />
                     )}
                   </>
                 ) : (
@@ -707,7 +394,7 @@ export default function App() {
           </Container>
         </Box>
 
-        {/* Install Node Modal */}
+        {/* Modals */}
         <InstallNodeModal
           open={installModalOpen}
           onClose={() => setInstallModalOpen(false)}
@@ -719,7 +406,6 @@ export default function App() {
           }}
         />
 
-        {/* Create Server Modal */}
         {activeNode && (
           <CreateServerModal
             open={createServerModalOpen}

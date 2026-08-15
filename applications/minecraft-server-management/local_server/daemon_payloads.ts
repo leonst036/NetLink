@@ -4,7 +4,7 @@ set -e
 INSTALL_DIR="/opt/netlink-wings"
 DATA_DIR="/var/lib/netlink-wings/servers"
 SERVICE_NAME="netlink-mc-wings"
-PORT="\${DAEMON_PORT:-8080}"
+PORT="\${DAEMON_PORT:-9080}"
 TOKEN="\${DAEMON_TOKEN:-netlink-secret-token}"
 
 echo "[1/5] Creating directories..."
@@ -15,11 +15,11 @@ echo "[2/5] Checking prerequisites..."
 if ! command -v java &> /dev/null; then
     echo "Java not found. Attempting to install OpenJDK..."
     if command -v apt-get &> /dev/null; then
-        apt-get update -y && apt-get install -y openjdk-17-jre-headless curl
+        apt-get update -y && apt-get install -y openjdk-17-jre-headless curl unzip
     elif command -v yum &> /dev/null; then
-        yum install -y java-17-openjdk-headless curl
+        yum install -y java-17-openjdk-headless curl unzip
     elif command -v apk &> /dev/null; then
-        apk add openjdk17-jre curl
+        apk add openjdk17-jre curl unzip
     else
         echo "Warning: Package manager not recognized. Please install Java 17+ manually."
     fi
@@ -27,17 +27,16 @@ fi
 
 if ! command -v deno &> /dev/null; then
     echo "Installing Deno runtime..."
-    curl -fsSL https://deno.land/install.sh | sh
+    curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh || curl -fsSL https://deno.land/install.sh | sh
     export DENO_INSTALL="$HOME/.deno"
-    export PATH="$DENO_INSTALL/bin:$PATH"
-    cp "$HOME/.deno/bin/deno" /usr/local/bin/deno 2>/dev/null || true
+    export PATH="$DENO_INSTALL/bin:$PATH:/usr/local/bin"
 fi
 
 echo "[3/5] Setting up Wings daemon environment..."
-cat << 'EOF' > "$INSTALL_DIR/wings.env"
-PORT=8080
+cat << EOF > "$INSTALL_DIR/wings.env"
+PORT=$PORT
 DATA_DIR=/var/lib/netlink-wings/servers
-AUTH_TOKEN=netlink-secret-token
+AUTH_TOKEN=$TOKEN
 EOF
 
 echo "[4/5] Creating systemd service..."
@@ -67,7 +66,7 @@ systemctl restart "$SERVICE_NAME"
 echo "NetLink Wings Daemon installed and running on port $PORT."
 `;
 
-export const DEFAULT_WINGS_SCRIPT = `const port = parseInt(Deno.env.get("PORT") || "8080");
+export const DEFAULT_WINGS_SCRIPT = `const port = parseInt(Deno.env.get("PORT") || "9080");
 const dataDir = Deno.env.get("DATA_DIR") || "/var/lib/netlink-wings/servers";
 const authToken = Deno.env.get("AUTH_TOKEN") || "";
 
@@ -96,6 +95,13 @@ function appendLog(serverId: string, line: string) {
   }
 }
 
+function resolveSafePath(baseDir: string, relPath: string = ""): string | null {
+  const normalized = relPath.replace(/^(\.\.(\/|\\|$))+/, "").replace(/^\\/+/, "");
+  const parts = normalized.split(/[\\/\\\\]/).filter((p) => p && p !== "." && p !== "..");
+  const safePath = parts.length > 0 ? \`\${baseDir}/\${parts.join("/")}\` : baseDir;
+  return safePath.startsWith(baseDir) ? safePath : null;
+}
+
 async function startServerProcess(
   serverId: string,
   serverPath: string,
@@ -108,6 +114,27 @@ async function startServerProcess(
     await Deno.writeTextFile(\`\${serverPath}/eula.txt\`, "eula=true\\n");
   } catch {
     // Ignore
+  }
+
+  try {
+    await Deno.stat(\`\${serverPath}/\${jarFile}\`);
+  } catch {
+    appendLog(serverId, \`[Wings] \${jarFile} not found. Downloading official Minecraft 1.20.4 server jar...\`);
+    try {
+      const jarUrl = "https://piston-data.mojang.com/v1/objects/8dd1a28015f51b1803213892b50b7b4fc76e594d/server.jar";
+      const jarRes = await fetch(jarUrl);
+      if (jarRes.ok) {
+        const buffer = await jarRes.arrayBuffer();
+        await Deno.writeFile(\`\${serverPath}/\${jarFile}\`, new Uint8Array(buffer));
+        appendLog(serverId, "[Wings] server.jar downloaded successfully.");
+      } else {
+        appendLog(serverId, \`[Wings] Failed to download server.jar (HTTP \${jarRes.status})\`);
+        return false;
+      }
+    } catch (e: any) {
+      appendLog(serverId, \`[Wings] Download error: \${e.message}\`);
+      return false;
+    }
   }
 
   const cmd = new Deno.Command("java", {
@@ -140,7 +167,7 @@ async function startServerProcess(
         }
       }
     } catch {
-      // Reader closed
+      // Closed
     }
   })();
 
@@ -160,7 +187,7 @@ async function startServerProcess(
         }
       }
     } catch {
-      // Reader closed
+      // Closed
     }
   })();
 
@@ -259,10 +286,81 @@ Deno.serve({ port }, async (req) => {
         \`online-mode=\${body.onlineMode !== false}\`,
       ].join("\\n");
 
-      await Deno.writeTextFile(\`\${serverPath}/server.properties\`, properties);
+      await Deno.writeTextFile(\`\${serverPath}/server.properties\", properties);
       return jsonResponse({ success: true, serverId, serverPath });
     } catch (e: any) {
       return jsonResponse({ error: e.message }, 500);
+    }
+  }
+
+  const filesPathMatch = url.pathname.match(/^\\/api\\/servers\\/([^\\/]+)\\/files(\\/content|\\/save|\\/delete|\\/create-folder)?$/);
+  if (filesPathMatch) {
+    const [, serverId, fileAction] = filesPathMatch;
+    const serverPath = \`\${dataDir}/\${serverId}\`;
+
+    try {
+      if (!fileAction && req.method === "GET") {
+        const subPath = url.searchParams.get("path") || "";
+        const targetDir = resolveSafePath(serverPath, subPath);
+        if (!targetDir) return jsonResponse({ error: "Invalid path" }, 400);
+
+        const files = [];
+        for await (const entry of Deno.readDir(targetDir)) {
+          let size = 0;
+          let modifiedTime = Date.now();
+          try {
+            const stat = await Deno.stat(\`\${targetDir}/\${entry.name}\`);
+            size = stat.size;
+            if (stat.mtime) modifiedTime = stat.mtime.getTime();
+          } catch {}
+
+          const relFilePath = subPath ? \`\${subPath}/\${entry.name}\` : entry.name;
+          files.push({
+            name: entry.name,
+            isDirectory: entry.isDirectory,
+            size,
+            modifiedTime,
+            path: relFilePath,
+          });
+        }
+
+        files.sort((a, b) => (a.isDirectory === b.isDirectory ? a.name.localeCompare(b.name) : a.isDirectory ? -1 : 1));
+        return jsonResponse({ files, currentPath: subPath });
+      }
+
+      if (fileAction === "/content" && req.method === "GET") {
+        const filePath = url.searchParams.get("path") || "";
+        const targetFile = resolveSafePath(serverPath, filePath);
+        if (!targetFile) return jsonResponse({ error: "Invalid file path" }, 400);
+        const content = await Deno.readTextFile(targetFile);
+        return jsonResponse({ content, path: filePath });
+      }
+
+      if (fileAction === "/save" && req.method === "POST") {
+        const body = await req.json();
+        const targetFile = resolveSafePath(serverPath, body.path || "");
+        if (!targetFile) return jsonResponse({ error: "Invalid file path" }, 400);
+        await Deno.writeTextFile(targetFile, body.content ?? "");
+        return jsonResponse({ success: true, path: body.path });
+      }
+
+      if (fileAction === "/delete" && req.method === "POST") {
+        const body = await req.json();
+        const target = resolveSafePath(serverPath, body.path || "");
+        if (!target || target === serverPath) return jsonResponse({ error: "Cannot delete server root" }, 400);
+        await Deno.remove(target, { recursive: true });
+        return jsonResponse({ success: true, path: body.path });
+      }
+
+      if (fileAction === "/create-folder" && req.method === "POST") {
+        const body = await req.json();
+        const target = resolveSafePath(serverPath, body.path || "");
+        if (!target) return jsonResponse({ error: "Invalid path" }, 400);
+        await Deno.mkdir(target, { recursive: true });
+        return jsonResponse({ success: true, path: body.path });
+      }
+    } catch (err: any) {
+      return jsonResponse({ error: err.message }, 500);
     }
   }
 
@@ -274,11 +372,17 @@ Deno.serve({ port }, async (req) => {
     if (action === "power" && req.method === "POST") {
       const body = await req.json();
       if (body.action === "start") {
-        const started = await startServerProcess(serverId, serverPath, body.ramMb || 2048, body.jarFile || "server.jar");
+        const started = await startServerProcess(serverId, serverPath, body.ramMb || 1024, body.jarFile || "server.jar");
         return jsonResponse({ success: started });
       } else if (body.action === "stop") {
         const stopped = await stopServerProcess(serverId);
         return jsonResponse({ success: stopped });
+      } else if (body.action === "restart") {
+        await stopServerProcess(serverId);
+        setTimeout(() => {
+          startServerProcess(serverId, serverPath, body.ramMb || 1024, body.jarFile || "server.jar");
+        }, 3000);
+        return jsonResponse({ success: true });
       } else if (body.action === "kill") {
         const instance = activeServers.get(serverId);
         if (instance) {
@@ -302,9 +406,7 @@ Deno.serve({ port }, async (req) => {
         try {
           const logContent = await Deno.readTextFile(\`\${serverPath}/logs/latest.log\`);
           logs = logContent.split("\\n").slice(-200);
-        } catch {
-          // No logs
-        }
+        } catch {}
       }
       return jsonResponse({ logs });
     }

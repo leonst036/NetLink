@@ -13,6 +13,14 @@ export interface NodeServerItem {
   path: string;
 }
 
+export interface FileItem {
+  name: string;
+  isDirectory: boolean;
+  size: number;
+  modifiedTime: number;
+  path: string;
+}
+
 export interface InstallNodeParams {
   host: string;
   port?: number;
