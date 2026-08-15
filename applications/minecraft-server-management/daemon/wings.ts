@@ -8,6 +8,7 @@ import {
   sendCommand,
   getServerProcessStats,
   saveConfiguredResources,
+  appendLog,
 } from "./process_manager.ts";
 import {
   listServerFiles,
@@ -43,6 +44,11 @@ import {
   banIp,
   unbanIp,
 } from "./player_manager.ts";
+import {
+  getInstanceSoftware,
+  installServerSoftware,
+  SUPPORTED_SOFTWARES,
+} from "./software_manager.ts";
 
 const port = parseInt(Deno.env.get("PORT") || "9080");
 const dataDir = Deno.env.get("DATA_DIR") || "/var/lib/netlink-wings/servers";
@@ -361,6 +367,36 @@ Deno.serve({ port }, async (req) => {
       }
     } catch (err: any) {
       return jsonResponse({ error: err.message }, 500);
+    }
+  }
+
+  // 9. Software Management Endpoints
+  const softwarePathMatch = url.pathname.match(/^\/api\/servers\/([^\/]+)\/software$/);
+  if (softwarePathMatch) {
+    const serverId = softwarePathMatch[1];
+    const serverPath = `${dataDir}/${serverId}`;
+
+    if (req.method === "GET") {
+      const current = await getInstanceSoftware(serverPath);
+      return jsonResponse({
+        current,
+        supportedSoftwares: SUPPORTED_SOFTWARES,
+      });
+    }
+
+    if (req.method === "POST") {
+      const body = await req.json();
+      const software = body.software || "vanilla";
+      const version = body.version || "1.20.4";
+      const jarFile = body.jarFile || "server.jar";
+
+      const res = await installServerSoftware(serverPath, software, version, jarFile);
+      if (res.success) {
+        appendLog(serverId, `[Wings] Server software switched to ${software} (${version}).`);
+        return jsonResponse({ success: true, software, version, jarPath: res.jarPath });
+      } else {
+        return jsonResponse({ success: false, error: res.error }, 500);
+      }
     }
   }
 

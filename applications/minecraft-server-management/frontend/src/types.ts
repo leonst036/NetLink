@@ -222,3 +222,30 @@ export interface PlayersOverviewResponse {
   maxPlayers: number;
 }
 
+export interface SoftwareOption {
+  id: string;
+  name: string;
+  description: string;
+  recommendedVersion: string;
+  supportedVersions: string[];
+}
+
+export interface InstanceSoftwareConfig {
+  software: string;
+  version: string;
+  jarFile: string;
+  updatedAt?: number;
+}
+
+export interface ServerSoftwareResponse {
+  current: InstanceSoftwareConfig;
+  supportedSoftwares: SoftwareOption[];
+}
+
+export interface ChangeSoftwarePayload {
+  software: string;
+  version: string;
+  jarFile?: string;
+}
+
+

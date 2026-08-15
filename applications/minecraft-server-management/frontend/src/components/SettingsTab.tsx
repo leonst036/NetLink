@@ -11,12 +11,29 @@ import {
   Alert,
   Box,
   Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
 } from '@mui/material';
-import { Sliders, CheckCircle2, Cpu, Activity } from 'lucide-react';
-import { NodeInfo, NodeServerItem } from '../types';
-import { getNodeServerStats, updateNodeServerResources } from '../api';
+import {
+  Sliders,
+  CheckCircle2,
+  Cpu,
+  Activity,
+  Layers,
+  DownloadCloud,
+  AlertTriangle,
+} from 'lucide-react';
+import { NodeInfo, NodeServerItem, SoftwareOption } from '../types';
+import {
+  getNodeServerStats,
+  updateNodeServerResources,
+  getServerSoftware,
+  updateServerSoftware,
+} from '../api';
 import { PortForwardCard } from './PortForwardCard';
-
 
 interface SettingsTabProps {
   activeNode: NodeInfo | null;
@@ -44,13 +61,58 @@ const CPU_PRESETS = [
   { label: '8 Cores (800%)', value: 800 },
 ];
 
+const FALLBACK_SOFTWARES: SoftwareOption[] = [
+  {
+    id: 'paper',
+    name: 'PaperMC',
+    description: 'High-performance Spigot fork with bug fixes and plugin support.',
+    recommendedVersion: '1.20.4',
+    supportedVersions: ['1.21.4', '1.21.3', '1.21.1', '1.20.6', '1.20.4', '1.20.2', '1.20.1', '1.19.4', '1.18.2', '1.16.5'],
+  },
+  {
+    id: 'purpur',
+    name: 'Purpur',
+    description: 'Drop-in replacement for Paper with extensive gameplay configuration.',
+    recommendedVersion: '1.20.4',
+    supportedVersions: ['1.21.4', '1.21.3', '1.21.1', '1.20.6', '1.20.4', '1.20.2', '1.20.1', '1.19.4', '1.18.2', '1.16.5'],
+  },
+  {
+    id: 'vanilla',
+    name: 'Vanilla (Mojang)',
+    description: 'Official, unmodded Minecraft server software directly from Mojang.',
+    recommendedVersion: '1.20.4',
+    supportedVersions: ['1.21.4', '1.21.3', '1.21.1', '1.20.6', '1.20.4', '1.20.2', '1.20.1', '1.19.4', '1.18.2', '1.16.5', '1.12.2'],
+  },
+  {
+    id: 'fabric',
+    name: 'Fabric',
+    description: 'Lightweight, highly-modular mod loader with fast startup and low overhead.',
+    recommendedVersion: '1.20.4',
+    supportedVersions: ['1.21.4', '1.21.3', '1.21.1', '1.20.6', '1.20.4', '1.20.2', '1.20.1', '1.19.4', '1.18.2', '1.16.5'],
+  },
+  {
+    id: 'spigot',
+    name: 'Spigot',
+    description: 'Modified Minecraft server with Bukkit plugin compatibility.',
+    recommendedVersion: '1.20.4',
+    supportedVersions: ['1.21.4', '1.21.1', '1.20.4', '1.20.1', '1.19.4', '1.18.2', '1.16.5', '1.12.2'],
+  },
+];
+
 export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServer }) => {
   const [ramInput, setRamInput] = useState<string>('1024');
   const [cpuInput, setCpuInput] = useState<string>('0');
   const [savingLimits, setSavingLimits] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Load current resource limits
+  // Software & Version state
+  const [software, setSoftware] = useState<string>('vanilla');
+  const [version, setVersion] = useState<string>('1.20.4');
+  const [supportedSoftwares, setSupportedSoftwares] = useState<SoftwareOption[]>(FALLBACK_SOFTWARES);
+  const [savingSoftware, setSavingSoftware] = useState(false);
+  const [softwareFeedback, setSoftwareFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Load current resource limits and software
   const fetchSettings = useCallback(async () => {
     if (!activeNode || !activeServer) return;
     try {
@@ -61,6 +123,19 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
         }
         if (data.cpuLimitPercent !== undefined) {
           setCpuInput(data.cpuLimitPercent.toString());
+        }
+      }
+    } catch {}
+
+    try {
+      const swData = await getServerSoftware(activeNode, activeServer.id);
+      if (swData) {
+        if (swData.current) {
+          setSoftware(swData.current.software || 'vanilla');
+          setVersion(swData.current.version || '1.20.4');
+        }
+        if (swData.supportedSoftwares && swData.supportedSoftwares.length > 0) {
+          setSupportedSoftwares(swData.supportedSoftwares);
         }
       }
     } catch {}
@@ -107,6 +182,55 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
     }
   };
 
+  // Handle installing/switching software and version
+  const handleSaveSoftware = async () => {
+    if (!activeNode || !activeServer) return;
+    setSavingSoftware(true);
+    setSoftwareFeedback(null);
+
+    try {
+      const res = await updateServerSoftware(activeNode, activeServer.id, {
+        software,
+        version,
+      });
+
+      if (res.success) {
+        const swOption = supportedSoftwares.find((s) => s.id === software);
+        const swName = swOption ? swOption.name : software;
+        setSoftwareFeedback({
+          type: 'success',
+          message: `Successfully installed and switched server software to ${swName} (${version}).`,
+        });
+      } else {
+        setSoftwareFeedback({
+          type: 'error',
+          message: res.error || 'Failed to install server software jar.',
+        });
+      }
+    } catch (err: any) {
+      setSoftwareFeedback({
+        type: 'error',
+        message: err.message || 'Error downloading and updating server software.',
+      });
+    } finally {
+      setSavingSoftware(false);
+    }
+  };
+
+  const currentSoftwareOption = supportedSoftwares.find((s) => s.id === software) || supportedSoftwares[0];
+  const versionList = currentSoftwareOption?.supportedVersions || [
+    '1.21.4',
+    '1.21.3',
+    '1.21.1',
+    '1.20.6',
+    '1.20.4',
+    '1.20.2',
+    '1.20.1',
+    '1.19.4',
+    '1.18.2',
+    '1.16.5',
+  ];
+
   const parsedRam = parseInt(ramInput, 10);
   const parsedCpu = parseInt(cpuInput, 10);
 
@@ -126,7 +250,171 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
         </Alert>
       )}
 
-      {/* Resource Allocation Tuning Card */}
+      {/* 1. Server Software & Version Tuning Card */}
+      <Card
+        sx={{
+          backgroundColor: 'rgba(15, 23, 42, 0.7)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: 3,
+        }}
+      >
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
+            <Layers size={20} color="#a855f7" />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#f8fafc' }}>
+              Server Software & Version
+            </Typography>
+          </Stack>
+          <Typography variant="body2" sx={{ color: '#94a3b8', mb: 3 }}>
+            Change the underlying Minecraft server engine (Paper, Purpur, Vanilla, Fabric, Spigot) and switch versions.
+          </Typography>
+
+          {softwareFeedback && (
+            <Alert
+              severity={softwareFeedback.type}
+              onClose={() => setSoftwareFeedback(null)}
+              sx={{
+                mb: 3,
+                backgroundColor: softwareFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                color: softwareFeedback.type === 'success' ? '#34d399' : '#fca5a5',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              {softwareFeedback.message}
+            </Alert>
+          )}
+
+          {activeServer.status === 'online' && (
+            <Alert
+              severity="warning"
+              icon={<AlertTriangle size={18} />}
+              sx={{
+                mb: 3,
+                backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                color: '#fbbf24',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+              }}
+            >
+              The server is currently running. Installing a new software jar will take effect after restarting the server.
+            </Alert>
+          )}
+
+          <Stack spacing={3} sx={{ maxWidth: 640 }}>
+            {/* Software Selector */}
+            <FormControl fullWidth size="small">
+              <InputLabel sx={{ color: '#94a3b8' }}>Server Engine / Software</InputLabel>
+              <Select
+                value={software}
+                label="Server Engine / Software"
+                onChange={(e) => {
+                  const newSw = e.target.value;
+                  setSoftware(newSw);
+                  const opt = supportedSoftwares.find((s) => s.id === newSw);
+                  if (opt && opt.supportedVersions.length > 0 && !opt.supportedVersions.includes(version)) {
+                    setVersion(opt.recommendedVersion || opt.supportedVersions[0]);
+                  }
+                }}
+                sx={{
+                  backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                  color: '#f8fafc',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.12)' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.25)' },
+                }}
+              >
+                {supportedSoftwares.map((sw) => (
+                  <MenuItem key={sw.id} value={sw.id}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Typography sx={{ fontWeight: 600, color: '#f8fafc' }}>{sw.name}</Typography>
+                      <Typography variant="caption" sx={{ color: '#94a3b8' }}>— {sw.description}</Typography>
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Version Selector */}
+            <FormControl fullWidth size="small">
+              <InputLabel sx={{ color: '#94a3b8' }}>Minecraft Version</InputLabel>
+              <Select
+                value={version}
+                label="Minecraft Version"
+                onChange={(e) => setVersion(e.target.value)}
+                sx={{
+                  backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                  color: '#f8fafc',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.12)' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.25)' },
+                }}
+              >
+                {versionList.map((ver) => (
+                  <MenuItem key={ver} value={ver}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography sx={{ color: '#f8fafc' }}>{ver}</Typography>
+                      {ver === currentSoftwareOption?.recommendedVersion && (
+                        <Chip label="Recommended" size="small" sx={{ height: 18, fontSize: '0.68rem', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399' }} />
+                      )}
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Quick Version Presets */}
+            <Box>
+              <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1 }}>
+                Popular Versions for {currentSoftwareOption?.name}:
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {versionList.slice(0, 6).map((ver) => {
+                  const isSelected = version === ver;
+                  return (
+                    <Chip
+                      key={ver}
+                      label={ver}
+                      size="small"
+                      clickable
+                      onClick={() => setVersion(ver)}
+                      sx={{
+                        backgroundColor: isSelected ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                        color: isSelected ? '#c084fc' : '#cbd5e1',
+                        border: isSelected ? '1px solid #a855f7' : '1px solid rgba(255, 255, 255, 0.08)',
+                        fontWeight: isSelected ? 700 : 400,
+                        '&:hover': {
+                          backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                          borderColor: '#a855f7',
+                        },
+                      }}
+                    />
+                  );
+                })}
+              </Stack>
+            </Box>
+
+            {/* Install Button */}
+            <Box pt={1}>
+              <Button
+                variant="contained"
+                disabled={savingSoftware || !software || !version}
+                startIcon={savingSoftware ? <CircularProgress size={16} color="inherit" /> : <DownloadCloud size={16} />}
+                onClick={handleSaveSoftware}
+                sx={{
+                  backgroundColor: '#a855f7',
+                  color: '#ffffff',
+                  px: 4,
+                  py: 1.2,
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  '&:hover': { backgroundColor: '#9333ea' },
+                }}
+              >
+                {savingSoftware ? 'Downloading & Installing...' : `Install & Switch to ${currentSoftwareOption?.name} ${version}`}
+              </Button>
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* 2. Resource Allocation Tuning Card */}
       <Card
         sx={{
           backgroundColor: 'rgba(15, 23, 42, 0.7)',
@@ -146,7 +434,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
           </Typography>
 
           <Stack spacing={4}>
-            {/* 1. Memory Limit Section */}
+            {/* Memory Limit Section */}
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
                 <Activity size={17} color="#10b981" />
@@ -209,7 +497,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
 
             <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.06)' }} />
 
-            {/* 2. CPU Limit Section */}
+            {/* CPU Limit Section */}
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
                 <Cpu size={17} color="#38bdf8" />
@@ -300,9 +588,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
         </CardContent>
       </Card>
 
-      {/* Relay Port Forwarding & Public Tunnel Card */}
+      {/* 3. Relay Port Forwarding & Public Tunnel Card */}
       <PortForwardCard activeNode={activeNode} activeServer={activeServer} />
     </Stack>
   );
 };
-

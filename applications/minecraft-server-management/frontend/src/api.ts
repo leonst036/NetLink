@@ -5,6 +5,8 @@ import {
   InstallNodeParams,
   CreateServerParams,
   ServerStats,
+  ServerSoftwareResponse,
+  ChangeSoftwarePayload,
 } from './types';
 
 const API_BASE = '/api/minecraft-server-management';
@@ -915,6 +917,56 @@ export async function sendServerBroadcast(
 ): Promise<{ success: boolean; message?: string }> {
   return executePlayerAction(node, serverId, 'broadcast', '', { message });
 }
+
+// Get server software information and available software options
+export async function getServerSoftware(
+  node: NodeInfo,
+  serverId: string
+): Promise<ServerSoftwareResponse | null> {
+  if (node.host && node.daemonPort) {
+    try {
+      const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/software`);
+      if (res.ok) return await res.json();
+    } catch {}
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/software`);
+    if (res.ok) return await res.json();
+  } catch {}
+
+  return null;
+}
+
+// Update server software and version
+export async function updateServerSoftware(
+  node: NodeInfo,
+  serverId: string,
+  payload: ChangeSoftwarePayload
+): Promise<{ success: boolean; software?: string; version?: string; error?: string }> {
+  if (node.host && node.daemonPort) {
+    try {
+      const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/software`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) return await res.json();
+    } catch {}
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/software`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to update server software' };
+  }
+}
+
 
 
 
