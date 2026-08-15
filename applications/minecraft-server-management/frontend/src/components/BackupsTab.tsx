@@ -6,33 +6,11 @@ import {
   CardContent,
   Stack,
   Button,
-  IconButton,
-  Tooltip,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   Alert,
   CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
 } from '@mui/material';
-import {
-  Archive,
-  Plus,
-  RotateCcw,
-  Trash2,
-  Lock,
-  Unlock,
-  AlertTriangle,
-  RefreshCw,
-} from 'lucide-react';
+import { Archive, Plus, RefreshCw } from 'lucide-react';
 import { NodeInfo, NodeServerItem, BackupItem } from '../types';
 import {
   getNodeServerBackups,
@@ -41,6 +19,10 @@ import {
   toggleLockNodeServerBackup,
   deleteNodeServerBackup,
 } from '../api';
+import { BackupListTable } from './backups/BackupListTable';
+import { CreateBackupModal } from './backups/CreateBackupModal';
+import { RestoreBackupModal } from './backups/RestoreBackupModal';
+import { DeleteBackupModal } from './backups/DeleteBackupModal';
 
 interface BackupsTabProps {
   activeNode: NodeInfo | null;
@@ -53,14 +35,11 @@ export const BackupsTab: React.FC<BackupsTabProps> = ({ activeNode, activeServer
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Modals
+  // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [backupNameInput, setBackupNameInput] = useState('');
   const [creatingBackup, setCreatingBackup] = useState(false);
-
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
   const [selectedBackupForRestore, setSelectedBackupForRestore] = useState<BackupItem | null>(null);
-
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedBackupForDelete, setSelectedBackupForDelete] = useState<BackupItem | null>(null);
 
@@ -89,28 +68,16 @@ export const BackupsTab: React.FC<BackupsTabProps> = ({ activeNode, activeServer
     return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
   };
 
-  const formatDate = (timestamp: number) => {
-    const d = new Date(timestamp);
-    return d.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  // Handle Create Backup
-  const handleCreateBackup = async () => {
+  // 1. Create Backup Action
+  const handleCreateBackup = async (name: string) => {
     if (!activeNode || !activeServer) return;
     setCreatingBackup(true);
     setFeedback(null);
     try {
-      const res = await createNodeServerBackup(activeNode, activeServer.id, backupNameInput);
+      const res = await createNodeServerBackup(activeNode, activeServer.id, name);
       if (res.success && res.backup) {
         setFeedback({ type: 'success', message: `Backup "${res.backup.name}" created successfully!` });
         setCreateModalOpen(false);
-        setBackupNameInput('');
         fetchBackups(false);
       } else {
         setFeedback({ type: 'error', message: res.error || 'Failed to create backup.' });
@@ -122,7 +89,7 @@ export const BackupsTab: React.FC<BackupsTabProps> = ({ activeNode, activeServer
     }
   };
 
-  // Handle Lock Toggle
+  // 2. Lock / Unlock Action
   const handleToggleLock = async (backup: BackupItem) => {
     if (!activeNode || !activeServer) return;
     setActionLoading(true);
@@ -142,7 +109,7 @@ export const BackupsTab: React.FC<BackupsTabProps> = ({ activeNode, activeServer
     }
   };
 
-  // Handle Restore
+  // 3. Restore Action
   const handleRestoreBackup = async () => {
     if (!activeNode || !activeServer || !selectedBackupForRestore) return;
     setActionLoading(true);
@@ -166,7 +133,7 @@ export const BackupsTab: React.FC<BackupsTabProps> = ({ activeNode, activeServer
     }
   };
 
-  // Handle Delete
+  // 4. Delete Action
   const handleDeleteBackup = async () => {
     if (!activeNode || !activeServer || !selectedBackupForDelete) return;
     setActionLoading(true);
@@ -338,317 +305,46 @@ export const BackupsTab: React.FC<BackupsTabProps> = ({ activeNode, activeServer
           </Button>
         </Card>
       ) : (
-        /* Backups Table */
-        <TableContainer
-          sx={{
-            backgroundColor: 'rgba(15, 23, 42, 0.7)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: 3,
+        /* Modular Backups Table */
+        <BackupListTable
+          backups={backups}
+          actionLoading={actionLoading}
+          onToggleLock={handleToggleLock}
+          onRequestRestore={(backup) => {
+            setSelectedBackupForRestore(backup);
+            setRestoreModalOpen(true);
           }}
-        >
-          <Table>
-            <TableHead>
-              <TableRow sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <TableCell sx={{ color: '#94a3b8', fontWeight: 600, py: 2 }}>Backup Name & Archive</TableCell>
-                <TableCell sx={{ color: '#94a3b8', fontWeight: 600, py: 2 }}>Size</TableCell>
-                <TableCell sx={{ color: '#94a3b8', fontWeight: 600, py: 2 }}>Created At</TableCell>
-                <TableCell sx={{ color: '#94a3b8', fontWeight: 600, py: 2 }}>Status</TableCell>
-                <TableCell align="right" sx={{ color: '#94a3b8', fontWeight: 600, py: 2 }}>
-                  Actions
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {backups.map((backup) => (
-                <TableRow
-                  key={backup.id}
-                  hover
-                  sx={{
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                    '&:last-child': { borderBottom: 'none' },
-                  }}
-                >
-                  <TableCell sx={{ py: 2 }}>
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                      <Archive size={18} color="#10b981" />
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#f8fafc' }}>
-                          {backup.name}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#64748b', fontFamily: 'monospace' }}>
-                          {backup.fileName}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </TableCell>
-
-                  <TableCell sx={{ color: '#cbd5e1', fontWeight: 500 }}>
-                    {formatBytes(backup.sizeBytes)}
-                  </TableCell>
-
-                  <TableCell sx={{ color: '#94a3b8' }}>
-                    {formatDate(backup.createdAt)}
-                  </TableCell>
-
-                  <TableCell>
-                    {backup.isLocked ? (
-                      <Chip
-                        size="small"
-                        icon={<Lock size={12} />}
-                        label="Locked"
-                        sx={{
-                          height: 22,
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          backgroundColor: 'rgba(251, 191, 36, 0.15)',
-                          color: '#fbbf24',
-                          border: '1px solid rgba(251, 191, 36, 0.3)',
-                        }}
-                      />
-                    ) : (
-                      <Chip
-                        size="small"
-                        label="Unlocked"
-                        sx={{
-                          height: 22,
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                          backgroundColor: 'rgba(148, 163, 184, 0.1)',
-                          color: '#94a3b8',
-                        }}
-                      />
-                    )}
-                  </TableCell>
-
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      {/* Lock / Unlock */}
-                      <Tooltip title={backup.isLocked ? 'Unlock Backup' : 'Lock Backup (Prevent Deletion)'}>
-                        <IconButton
-                          size="small"
-                          disabled={actionLoading}
-                          onClick={() => handleToggleLock(backup)}
-                          sx={{
-                            color: backup.isLocked ? '#fbbf24' : '#94a3b8',
-                            '&:hover': { color: '#ffffff', backgroundColor: 'rgba(255, 255, 255, 0.08)' },
-                          }}
-                        >
-                          {backup.isLocked ? <Lock size={16} /> : <Unlock size={16} />}
-                        </IconButton>
-                      </Tooltip>
-
-                      {/* Restore */}
-                      <Tooltip title="Restore Server From This Backup">
-                        <IconButton
-                          size="small"
-                          disabled={actionLoading}
-                          onClick={() => {
-                            setSelectedBackupForRestore(backup);
-                            setRestoreModalOpen(true);
-                          }}
-                          sx={{
-                            color: '#38bdf8',
-                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                            '&:hover': { backgroundColor: 'rgba(56, 189, 248, 0.2)' },
-                          }}
-                        >
-                          <RotateCcw size={16} />
-                        </IconButton>
-                      </Tooltip>
-
-                      {/* Delete */}
-                      <Tooltip title={backup.isLocked ? 'Cannot delete locked backup' : 'Delete Backup'}>
-                        <span>
-                          <IconButton
-                            size="small"
-                            disabled={actionLoading || backup.isLocked}
-                            onClick={() => {
-                              setSelectedBackupForDelete(backup);
-                              setDeleteModalOpen(true);
-                            }}
-                            sx={{
-                              color: '#f87171',
-                              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                              '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.2)' },
-                              '&.Mui-disabled': { opacity: 0.3 },
-                            }}
-                          >
-                            <Trash2 size={16} />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+          onRequestDelete={(backup) => {
+            setSelectedBackupForDelete(backup);
+            setDeleteModalOpen(true);
+          }}
+        />
       )}
 
-      {/* 1. Create Backup Modal */}
-      <Dialog
+      {/* Sub-module Modals */}
+      <CreateBackupModal
         open={createModalOpen}
-        onClose={() => !creatingBackup && setCreateModalOpen(false)}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: {
-            backgroundColor: '#0f172a',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: 3,
-            color: '#f8fafc',
-          },
-        }}
-      >
-        <DialogTitle sx={{ p: 3, pb: 1 }}>Create Server Backup</DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          <Typography variant="body2" sx={{ color: '#94a3b8', mb: 3 }}>
-            Generate a compressed archive of instance <strong>{activeServer.name}</strong>.
-          </Typography>
-          <TextField
-            fullWidth
-            label="Backup Name (Optional)"
-            placeholder="e.g. Before 1.20.4 update"
-            value={backupNameInput}
-            onChange={(e) => setBackupNameInput(e.target.value)}
-            disabled={creatingBackup}
-            autoFocus
-          />
-        </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 1, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-          <Button
-            variant="outlined"
-            onClick={() => setCreateModalOpen(false)}
-            disabled={creatingBackup}
-            sx={{ color: '#94a3b8', borderColor: 'rgba(255, 255, 255, 0.2)' }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleCreateBackup}
-            disabled={creatingBackup}
-            sx={{
-              backgroundColor: '#10b981',
-              color: '#ffffff',
-              fontWeight: 600,
-              '&:hover': { backgroundColor: '#059669' },
-            }}
-          >
-            {creatingBackup ? 'Compressing Archive...' : 'Create Backup'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        serverName={activeServer.name || activeServer.id}
+        creating={creatingBackup}
+        onClose={() => setCreateModalOpen(false)}
+        onCreate={handleCreateBackup}
+      />
 
-      {/* 2. Restore Backup Confirmation Modal */}
-      <Dialog
+      <RestoreBackupModal
         open={restoreModalOpen}
-        onClose={() => !actionLoading && setRestoreModalOpen(false)}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: {
-            backgroundColor: '#0f172a',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: 3,
-            color: '#f8fafc',
-          },
-        }}
-      >
-        <DialogTitle sx={{ p: 3, pb: 1 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <AlertTriangle size={22} color="#fbbf24" />
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Restore Server Backup?
-            </Typography>
-          </Stack>
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          <Typography variant="body2" sx={{ color: '#94a3b8', mb: 2 }}>
-            Restoring from <strong>{selectedBackupForRestore?.name}</strong> will overwrite current server files with the contents of this archive.
-          </Typography>
-          <Alert severity="warning" sx={{ backgroundColor: 'rgba(251, 191, 36, 0.1)', color: '#fbbf24' }}>
-            Ensure your server is stopped before restoring.
-          </Alert>
-        </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 1, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-          <Button
-            variant="outlined"
-            onClick={() => setRestoreModalOpen(false)}
-            disabled={actionLoading}
-            sx={{ color: '#94a3b8', borderColor: 'rgba(255, 255, 255, 0.2)' }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleRestoreBackup}
-            disabled={actionLoading}
-            sx={{
-              backgroundColor: '#38bdf8',
-              color: '#0f172a',
-              fontWeight: 700,
-              '&:hover': { backgroundColor: '#0284c7', color: '#ffffff' },
-            }}
-          >
-            {actionLoading ? 'Extracting Archive...' : 'Confirm Restore'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        backup={selectedBackupForRestore}
+        restoring={actionLoading}
+        onClose={() => setRestoreModalOpen(false)}
+        onConfirmRestore={handleRestoreBackup}
+      />
 
-      {/* 3. Delete Backup Confirmation Modal */}
-      <Dialog
+      <DeleteBackupModal
         open={deleteModalOpen}
-        onClose={() => !actionLoading && setDeleteModalOpen(false)}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: {
-            backgroundColor: '#0f172a',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: 3,
-            color: '#f8fafc',
-          },
-        }}
-      >
-        <DialogTitle sx={{ p: 3, pb: 1 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Trash2 size={22} color="#f87171" />
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Delete Backup Archive?
-            </Typography>
-          </Stack>
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          <Typography variant="body2" sx={{ color: '#94a3b8' }}>
-            Are you sure you want to permanently delete <strong>{selectedBackupForDelete?.name}</strong> ({selectedBackupForDelete?.fileName})? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 1, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-          <Button
-            variant="outlined"
-            onClick={() => setDeleteModalOpen(false)}
-            disabled={actionLoading}
-            sx={{ color: '#94a3b8', borderColor: 'rgba(255, 255, 255, 0.2)' }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleDeleteBackup}
-            disabled={actionLoading}
-            sx={{
-              backgroundColor: '#ef4444',
-              color: '#ffffff',
-              fontWeight: 600,
-              '&:hover': { backgroundColor: '#dc2626' },
-            }}
-          >
-            {actionLoading ? 'Deleting...' : 'Delete Backup'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        backup={selectedBackupForDelete}
+        deleting={actionLoading}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirmDelete={handleDeleteBackup}
+      />
     </Stack>
   );
 };
