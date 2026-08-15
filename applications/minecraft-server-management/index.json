@@ -1,7 +1,9 @@
 {
+  "id": "minecraft-server-management",
   "name": "minecraft-server-management",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Minecraft Server Management",
+  "main": "frontend/dist/index.html",
   "entrypoint": "frontend/dist/index.html",
   "runInBackground": true,
   "backend": "index.ts",
