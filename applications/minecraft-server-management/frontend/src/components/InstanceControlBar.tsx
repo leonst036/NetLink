@@ -9,7 +9,7 @@ import {
   MenuItem,
   FormControl,
 } from '@mui/material';
-import { Play, Square, RotateCw, Plus } from 'lucide-react';
+import { Play, Square, RotateCw, Plus, LayoutGrid } from 'lucide-react';
 import { NodeInfo, NodeServerItem } from '../types';
 
 interface InstanceControlBarProps {
@@ -20,6 +20,7 @@ interface InstanceControlBarProps {
   onSelectServer: (serverId: string) => void;
   onPowerAction: (action: 'start' | 'stop' | 'restart' | 'kill') => void;
   onOpenCreateModal: () => void;
+  onBackToList: () => void;
 }
 
 export const InstanceControlBar: React.FC<InstanceControlBarProps> = ({
@@ -30,6 +31,7 @@ export const InstanceControlBar: React.FC<InstanceControlBarProps> = ({
   onSelectServer,
   onPowerAction,
   onOpenCreateModal,
+  onBackToList,
 }) => {
   return (
     <Box
@@ -46,7 +48,25 @@ export const InstanceControlBar: React.FC<InstanceControlBarProps> = ({
         border: '1px solid rgba(255, 255, 255, 0.08)',
       }}
     >
-      <Stack direction="row" spacing={2} alignItems="center">
+      <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+        {/* All Servers Hub Button */}
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<LayoutGrid size={15} />}
+          onClick={onBackToList}
+          sx={{
+            color: '#38bdf8',
+            borderColor: 'rgba(56, 189, 248, 0.3)',
+            '&:hover': {
+              borderColor: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.1)',
+            },
+          }}
+        >
+          All Servers
+        </Button>
+
         <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 600 }}>
           Instance:
         </Typography>
@@ -59,7 +79,7 @@ export const InstanceControlBar: React.FC<InstanceControlBarProps> = ({
             >
               {servers.map((s) => (
                 <MenuItem key={s.id} value={s.id}>
-                  {s.name}
+                  {s.name || s.id}
                 </MenuItem>
               ))}
             </Select>
@@ -107,40 +127,52 @@ export const InstanceControlBar: React.FC<InstanceControlBarProps> = ({
             <Button
               variant="contained"
               size="small"
-              disabled={actionLoading || activeServer.status === 'online'}
               startIcon={<Play size={15} />}
+              disabled={actionLoading || activeServer.status === 'online'}
               onClick={() => onPowerAction('start')}
               sx={{
                 backgroundColor: '#10b981',
+                color: '#ffffff',
                 '&:hover': { backgroundColor: '#059669' },
+                '&.Mui-disabled': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: 'rgba(255, 255, 255, 0.2)',
+                },
               }}
             >
               Start
             </Button>
-
             <Button
               variant="contained"
               size="small"
-              disabled={actionLoading || activeServer.status === 'offline'}
               startIcon={<Square size={15} />}
+              disabled={actionLoading || activeServer.status === 'offline'}
               onClick={() => onPowerAction('stop')}
               sx={{
                 backgroundColor: '#ef4444',
+                color: '#ffffff',
                 '&:hover': { backgroundColor: '#dc2626' },
+                '&.Mui-disabled': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: 'rgba(255, 255, 255, 0.2)',
+                },
               }}
             >
               Stop
             </Button>
-
             <Button
               variant="outlined"
               size="small"
-              disabled={actionLoading}
               startIcon={<RotateCw size={15} />}
+              disabled={actionLoading}
               onClick={() => onPowerAction('restart')}
               sx={{
                 color: '#fbbf24',
                 borderColor: 'rgba(251, 191, 36, 0.3)',
+                '&:hover': {
+                  borderColor: '#fbbf24',
+                  backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                },
               }}
             >
               Restart

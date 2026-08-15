@@ -34,6 +34,7 @@ import {
   getNodeServerLogs,
 } from './api';
 import { Header } from './components/Header';
+import { ServerListView } from './components/ServerListView';
 import { InstanceControlBar } from './components/InstanceControlBar';
 import { OverviewTab } from './components/OverviewTab';
 import { ConsoleTab } from './components/ConsoleTab';
@@ -127,6 +128,8 @@ export default function App() {
   const [servers, setServers] = useState<NodeServerItem[]>([]);
   const [activeServerId, setActiveServerId] = useState<string | null>(null);
 
+  // View state: 'list' (all servers grid) or 'detail' (selected server dashboard)
+  const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'files' | 'settings'>('overview');
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,19 +212,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (activeServer && currentTab === 'console') {
+    if (activeServer && currentTab === 'console' && viewMode === 'detail') {
       fetchLogs();
       const interval = setInterval(fetchLogs, 3000);
       return () => clearInterval(interval);
     }
-  }, [activeServer?.id, currentTab, fetchLogs]);
+  }, [activeServer?.id, currentTab, viewMode, fetchLogs]);
 
   // Power actions
-  const handlePower = async (action: 'start' | 'stop' | 'restart' | 'kill') => {
-    if (!activeNode || !activeServerId) return;
+  const handlePower = async (serverId: string, action: 'start' | 'stop' | 'restart' | 'kill') => {
+    if (!activeNode) return;
     setActionLoading(true);
     try {
-      const res = await powerNodeServer(activeNode, activeServerId, action);
+      const res = await powerNodeServer(activeNode, serverId, action);
       if (res.success) {
         setToast({ message: `Action "${action}" dispatched to server.`, type: 'success' });
         setTimeout(loadServers, 1500);
@@ -244,6 +247,12 @@ export default function App() {
     } catch (err: any) {
       setToast({ message: `Failed to send command: ${err.message}`, type: 'error' });
     }
+  };
+
+  // Select server and enter detail view
+  const handleSelectServer = (serverId: string) => {
+    setActiveServerId(serverId);
+    setViewMode('detail');
   };
 
   // Completely silent and stable refresh without scroll jumps
@@ -335,93 +344,77 @@ export default function App() {
                   </CardContent>
                 </Card>
               </Box>
-            ) : (
-              /* Connected Node View */
-              <Box sx={{ mt: 3 }}>
-                {/* Instance Control Bar Module */}
-                <InstanceControlBar
+            ) : activeNode ? (
+              /* Connected Node Content */
+              viewMode === 'list' || !activeServer ? (
+                /* 1. Server Selection Grid / Hub */
+                <ServerListView
                   activeNode={activeNode}
                   servers={servers}
-                  activeServer={activeServer}
                   actionLoading={actionLoading}
-                  onSelectServer={setActiveServerId}
+                  onSelectServer={handleSelectServer}
                   onPowerAction={handlePower}
                   onOpenCreateModal={() => setCreateServerModalOpen(true)}
                 />
+              ) : (
+                /* 2. Server Management Dashboard */
+                <Box sx={{ mt: 3 }}>
+                  {/* Instance Control Bar */}
+                  <InstanceControlBar
+                    activeNode={activeNode}
+                    servers={servers}
+                    activeServer={activeServer}
+                    actionLoading={actionLoading}
+                    onSelectServer={setActiveServerId}
+                    onPowerAction={(action) => handlePower(activeServer.id, action)}
+                    onOpenCreateModal={() => setCreateServerModalOpen(true)}
+                    onBackToList={() => setViewMode('list')}
+                  />
 
-                {activeServer ? (
-                  <>
-                    {/* Navigation Tabs */}
-                    <Box sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', mb: 3 }}>
-                      <Tabs
-                        value={currentTab}
-                        onChange={(_, val) => setCurrentTab(val)}
-                        sx={{
-                          '& .MuiTabs-indicator': { backgroundColor: '#10b981', height: 3 },
-                          '& .MuiTab-root': {
-                            color: '#94a3b8',
-                            fontWeight: 600,
-                            '&.Mui-selected': { color: '#10b981' },
-                          },
-                        }}
-                      >
-                        <Tab value="overview" icon={<LayoutDashboard size={18} />} iconPosition="start" label="Overview" />
-                        <Tab value="console" icon={<Terminal size={18} />} iconPosition="start" label="Console" />
-                        <Tab value="files" icon={<Folder size={18} />} iconPosition="start" label="Files" />
-                        <Tab value="settings" icon={<Settings size={18} />} iconPosition="start" label="Settings" />
-                      </Tabs>
-                    </Box>
-
-                    {/* Tab Views */}
-                    {currentTab === 'overview' && (
-                      <OverviewTab activeNode={activeNode} activeServer={activeServer} />
-                    )}
-
-                    {currentTab === 'console' && (
-                      <ConsoleTab
-                        logs={logs}
-                        onClearLogs={() => setLogs([])}
-                        onSendCommand={handleSendCommand}
-                      />
-                    )}
-
-                    {currentTab === 'files' && (
-                      <FileManager node={activeNode} serverId={activeServer.id} />
-                    )}
-
-                    {currentTab === 'settings' && (
-                      <SettingsTab activeNode={activeNode} activeServer={activeServer} />
-                    )}
-                  </>
-                ) : (
-                  <Card
-                    sx={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.7)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: 3,
-                      p: 4,
-                      textAlign: 'center',
-                    }}
-                  >
-                    <Typography variant="body1" sx={{ color: '#94a3b8', mb: 2 }}>
-                      No Minecraft server instances found on node &ldquo;{activeNode?.name}&rdquo;.
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      startIcon={<Plus size={16} />}
-                      onClick={() => setCreateServerModalOpen(true)}
+                  {/* Navigation Tabs */}
+                  <Box sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', mb: 3 }}>
+                    <Tabs
+                      value={currentTab}
+                      onChange={(_, val) => setCurrentTab(val)}
                       sx={{
-                        backgroundColor: '#10b981',
-                        borderRadius: 2,
-                        '&:hover': { backgroundColor: '#059669' },
+                        '& .MuiTabs-indicator': { backgroundColor: '#10b981', height: 3 },
+                        '& .MuiTab-root': {
+                          color: '#94a3b8',
+                          fontWeight: 600,
+                          '&.Mui-selected': { color: '#10b981' },
+                        },
                       }}
                     >
-                      Create First Instance
-                    </Button>
-                  </Card>
-                )}
-              </Box>
-            )}
+                      <Tab value="overview" icon={<LayoutDashboard size={18} />} iconPosition="start" label="Overview" />
+                      <Tab value="console" icon={<Terminal size={18} />} iconPosition="start" label="Console" />
+                      <Tab value="files" icon={<Folder size={18} />} iconPosition="start" label="Files" />
+                      <Tab value="settings" icon={<Settings size={18} />} iconPosition="start" label="Settings" />
+                    </Tabs>
+                  </Box>
+
+                  {/* Tab Views */}
+                  {currentTab === 'overview' && (
+                    <OverviewTab activeNode={activeNode} activeServer={activeServer} />
+                  )}
+
+                  {currentTab === 'console' && (
+                    <ConsoleTab
+                      logs={logs}
+                      onClearLogs={() => setLogs([])}
+                      onSendCommand={handleSendCommand}
+                    />
+                  )}
+
+                  {currentTab === 'files' && (
+                    <FileManager node={activeNode} serverId={activeServer.id} />
+                  )}
+
+                  {currentTab === 'settings' && (
+                    <SettingsTab activeNode={activeNode} activeServer={activeServer} />
+                  )}
+                </Box>
+              )
+            ) : null}
           </Container>
         </Box>
 
