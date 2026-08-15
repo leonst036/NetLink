@@ -1,0 +1,19 @@
+services:
+  netstore-debug-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: netstore-debug-server
+    restart: unless-stopped
+    ports:
+      - "4540:4540"
+    volumes:
+      - ./:/repo:ro
+    environment:
+      - PORT=4540
+      - GIT_DIR=/repo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:4540/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3

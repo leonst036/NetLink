@@ -57,3 +57,23 @@ To publish a new application to NetStore:
 2. Add your app's technical manifest (`index.json`), `frontend/main.tsx`, and optional `local_server/` or `relay/` logic.
 3. Add your store entry to `applications/applications.json` containing `id`, `name`, `author`, `category`, `icon`, `color`, `shortDesc`, and `fullDesc`.
 
+
+---
+
+## 🛠️ Local Docker Debug Mode (Testing NetStore Apps Locally)
+
+You can host your local applications and git branches using Docker to test NetStore apps in NetLink without publishing to GitHub:
+
+### Start the Docker Debug Server
+```bash
+./start-debug.sh
+# Or directly via docker compose:
+docker compose up -d
+```
+
+The debug server runs on `http://localhost:4540` and provides:
+- Live workspace hot-reloading from your local `applications/` directory.
+- Simulation of GitHub REST trees (`/repos/.../git/trees/:branch`) and raw files (`/refs/heads/:branch/...`).
+- Dynamic local branch switching and health inspection (`/health`, `/api/branches`).
+
+In NetLink's NetStore app, select **🛠️ Local Debug (Docker)** from the channel selector to test your apps!
