@@ -22,11 +22,13 @@ export const ConsoleTab: React.FC<ConsoleTabProps> = ({
   onSendCommand,
 }) => {
   const [commandInput, setCommandInput] = useState('');
-  const consoleBottomRef = useRef<HTMLDivElement>(null);
+  const logBoxRef = useRef<HTMLDivElement>(null);
 
-  // Auto scroll to bottom on new logs
+  // Auto scroll inner container only without affecting window/iframe scroll
   useEffect(() => {
-    consoleBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (logBoxRef.current) {
+      logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
+    }
   }, [logs]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -61,6 +63,7 @@ export const ConsoleTab: React.FC<ConsoleTabProps> = ({
 
         {/* Live Output Box */}
         <Box
+          ref={logBoxRef}
           sx={{
             height: 380,
             backgroundColor: '#030712',
@@ -83,7 +86,6 @@ export const ConsoleTab: React.FC<ConsoleTabProps> = ({
               </Typography>
             ))
           )}
-          <div ref={consoleBottomRef} />
         </Box>
 
         {/* Stdin Command Input Form */}

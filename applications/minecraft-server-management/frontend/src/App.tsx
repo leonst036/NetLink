@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Box,
   Container,
@@ -134,22 +134,31 @@ export default function App() {
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Load registered nodes without unmounting UI
+  const activeNodeRef = useRef<NodeInfo | null>(null);
+  const activeServerIdRef = useRef<string | null>(null);
+
+  const activeNode = useMemo(() => {
+    return nodes.find((n) => n.id === activeNodeId) || nodes[0] || null;
+  }, [nodes, activeNodeId]);
+
+  const activeServer = useMemo(() => {
+    return servers.find((s) => s.id === activeServerId) || null;
+  }, [servers, activeServerId]);
+
+  activeNodeRef.current = activeNode;
+  activeServerIdRef.current = activeServerId;
+
+  // Load registered nodes without unmounting or triggering cascade if unchanged
   const loadNodes = useCallback(async (isInitial = false) => {
     try {
-      if (isInitial) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
-      }
+      if (isInitial) setLoading(true);
       const data = await getNodes();
-      setNodes(data);
+      setNodes((prev) => (JSON.stringify(prev) === JSON.stringify(data) ? prev : data));
       if (data.length > 0) {
-        setActiveNodeId((current) => current || data[0].id);
+        setActiveNodeId((curr) => curr || data[0].id);
       }
     } finally {
       if (isInitial) setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
@@ -157,44 +166,44 @@ export default function App() {
     loadNodes(true);
   }, [loadNodes]);
 
-  const activeNode = nodes.find((n) => n.id === activeNodeId) || nodes[0] || null;
-
-  // Load server instances quietly in background
+  // Load server instances without unmounting
   const loadServers = useCallback(async () => {
-    if (!activeNode) {
+    const node = activeNodeRef.current;
+    if (!node) {
       setServers([]);
-      setActiveServerId(null);
       return;
     }
     try {
-      const serverList = await getNodeServers(activeNode);
-      setServers(serverList);
+      const serverList = await getNodeServers(node);
+      setServers((prev) => (JSON.stringify(prev) === JSON.stringify(serverList) ? prev : serverList));
       if (serverList.length > 0) {
         setActiveServerId((curr) => (curr && serverList.some((s) => s.id === curr) ? curr : serverList[0].id));
       } else {
         setActiveServerId(null);
       }
     } catch {
-      setServers([]);
+      // Quiet fallback
     }
-  }, [activeNode]);
+  }, []);
 
   useEffect(() => {
-    loadServers();
-  }, [loadServers]);
-
-  const activeServer = servers.find((s) => s.id === activeServerId) || null;
+    if (activeNode) {
+      loadServers();
+    }
+  }, [activeNode?.id, loadServers]);
 
   // Poll server logs
   const fetchLogs = useCallback(async () => {
-    if (!activeNode || !activeServerId) return;
+    const node = activeNodeRef.current;
+    const serverId = activeServerIdRef.current;
+    if (!node || !serverId) return;
     try {
-      const latestLogs = await getNodeServerLogs(activeNode, activeServerId);
-      setLogs(latestLogs);
+      const latestLogs = await getNodeServerLogs(node, serverId);
+      setLogs((prev) => (JSON.stringify(prev) === JSON.stringify(latestLogs) ? prev : latestLogs));
     } catch {
       // Ignore
     }
-  }, [activeNode, activeServerId]);
+  }, []);
 
   useEffect(() => {
     if (activeServer && currentTab === 'console') {
@@ -202,7 +211,7 @@ export default function App() {
       const interval = setInterval(fetchLogs, 3000);
       return () => clearInterval(interval);
     }
-  }, [activeServer, currentTab, fetchLogs]);
+  }, [activeServer?.id, currentTab, fetchLogs]);
 
   // Power actions
   const handlePower = async (action: 'start' | 'stop' | 'restart' | 'kill') => {
@@ -234,11 +243,14 @@ export default function App() {
     }
   };
 
-  // Smooth refresh without flicker
+  // Completely silent and stable refresh without scroll jumps
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadNodes(false), loadServers(), fetchLogs()]);
-    setRefreshing(false);
+    try {
+      await Promise.all([loadNodes(false), loadServers(), fetchLogs()]);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
