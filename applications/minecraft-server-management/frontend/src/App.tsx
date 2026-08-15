@@ -21,6 +21,7 @@ import {
   LayoutDashboard,
   Terminal,
   Folder,
+  Settings,
   Plus,
 } from 'lucide-react';
 import { NodeInfo, NodeServerItem } from './types';
@@ -32,12 +33,12 @@ import {
   sendNodeServerCommand,
   getNodeServerLogs,
 } from './api';
-
 import { Header } from './components/Header';
 import { InstanceControlBar } from './components/InstanceControlBar';
 import { OverviewTab } from './components/OverviewTab';
 import { ConsoleTab } from './components/ConsoleTab';
 import { FileManager } from './components/FileManager';
+import { SettingsTab } from './components/SettingsTab';
 import { InstallNodeModal } from './components/InstallNodeModal';
 import { CreateServerModal } from './components/CreateServerModal';
 
@@ -126,7 +127,7 @@ export default function App() {
   const [servers, setServers] = useState<NodeServerItem[]>([]);
   const [activeServerId, setActiveServerId] = useState<string | null>(null);
 
-  const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'files'>('overview');
+  const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'files' | 'settings'>('overview');
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -367,6 +368,7 @@ export default function App() {
                         <Tab value="overview" icon={<LayoutDashboard size={18} />} iconPosition="start" label="Overview" />
                         <Tab value="console" icon={<Terminal size={18} />} iconPosition="start" label="Console" />
                         <Tab value="files" icon={<Folder size={18} />} iconPosition="start" label="Files" />
+                        <Tab value="settings" icon={<Settings size={18} />} iconPosition="start" label="Settings" />
                       </Tabs>
                     </Box>
 
@@ -385,6 +387,10 @@ export default function App() {
 
                     {currentTab === 'files' && (
                       <FileManager node={activeNode} serverId={activeServer.id} />
+                    )}
+
+                    {currentTab === 'settings' && (
+                      <SettingsTab activeNode={activeNode} activeServer={activeServer} />
                     )}
                   </>
                 ) : (
@@ -431,7 +437,6 @@ export default function App() {
             setInstallModalOpen(false);
             setToast({ message: `Node "${node.name}" installed successfully!`, type: 'success' });
           }}
-
         />
 
         {activeNode && (
