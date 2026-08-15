@@ -15,6 +15,8 @@ import {
 import { Sliders, CheckCircle2, Cpu, Activity } from 'lucide-react';
 import { NodeInfo, NodeServerItem } from '../types';
 import { getNodeServerStats, updateNodeServerResources } from '../api';
+import { PortForwardCard } from './PortForwardCard';
+
 
 interface SettingsTabProps {
   activeNode: NodeInfo | null;
@@ -297,6 +299,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
           </Stack>
         </CardContent>
       </Card>
+
+      {/* Relay Port Forwarding & Public Tunnel Card */}
+      <PortForwardCard activeNode={activeNode} activeServer={activeServer} />
     </Stack>
   );
 };
+

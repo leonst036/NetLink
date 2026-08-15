@@ -7,7 +7,8 @@ import {
   ServerStats,
 } from './types';
 
-const API_BASE = '/api/custom/minecraft-server-management';
+const API_BASE = '/api/minecraft-server-management';
+
 
 // Get all connected Wings nodes
 export async function getNodes(): Promise<NodeInfo[]> {
@@ -483,5 +484,200 @@ export async function deleteNodeServerBackup(
     return { success: false, error: err.message };
   }
 }
+
+// 8. Port Forwarding / Relay Tunnel APIs
+
+export async function getServerTunnels(serverId?: string): Promise<import('./types').TunnelInfo[]> {
+  try {
+    const token = localStorage.getItem('netlink_token');
+    const query = serverId ? `?appId=minecraft-server-management&serverId=${encodeURIComponent(serverId)}` : '?appId=minecraft-server-management';
+    const res = await fetch(`/api/tunnels${query}`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.tunnels || [];
+    }
+  } catch (err) {
+    console.warn('Failed to fetch tunnels:', err);
+  }
+  return [];
+}
+
+export async function openServerTunnel(params: {
+  publicPort: number;
+  targetHost: string;
+  targetPort: number;
+  serverId: string;
+  name?: string;
+}): Promise<{ success: boolean; tunnel?: import('./types').TunnelInfo; error?: string }> {
+  try {
+    const token = localStorage.getItem('netlink_token');
+    const res = await fetch('/api/tunnels/open', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        ...params,
+        appId: 'minecraft-server-management'
+      })
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function closeServerTunnel(publicPort: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const token = localStorage.getItem('netlink_token');
+    const res = await fetch('/api/tunnels/close', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ publicPort })
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// 9. Sub-Users Management APIs (Pterodactyl-Style)
+
+const getSubUserStorageKey = (serverId: string) => `netlink_mc_subusers_${serverId}`;
+
+function getLocalSubUsers(serverId: string): import('./types').ServerSubUser[] {
+  try {
+    const raw = localStorage.getItem(getSubUserStorageKey(serverId));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+function saveLocalSubUsers(serverId: string, users: import('./types').ServerSubUser[]) {
+  try {
+    localStorage.setItem(getSubUserStorageKey(serverId), JSON.stringify(users));
+  } catch {}
+}
+
+export async function getServerSubUsers(serverId: string): Promise<import('./types').ServerSubUser[]> {
+  try {
+    const res = await fetch(`${API_BASE}/servers/${serverId}/users`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.users && Array.isArray(data.users)) {
+        saveLocalSubUsers(serverId, data.users);
+        return data.users;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch server sub-users from backend:', err);
+  }
+  return getLocalSubUsers(serverId);
+}
+
+export async function addServerSubUser(
+  serverId: string,
+  data: { username: string; email?: string; permissions: string[] }
+): Promise<{ success: boolean; user?: import('./types').ServerSubUser; error?: string }> {
+  const newUser: import('./types').ServerSubUser = {
+    id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    username: data.username,
+    email: data.email,
+    serverId,
+    permissions: data.permissions,
+    createdAt: Date.now(),
+    invitedBy: 'admin',
+  };
+
+  try {
+    const res = await fetch(`${API_BASE}/servers/${serverId}/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const respData = await res.json();
+      if (respData.user) {
+        const local = getLocalSubUsers(serverId);
+        saveLocalSubUsers(serverId, [respData.user, ...local.filter((u) => u.id !== respData.user.id)]);
+        return respData;
+      }
+    }
+  } catch {}
+
+  // Fallback to local storage
+  const current = getLocalSubUsers(serverId);
+  const updated = [newUser, ...current];
+  saveLocalSubUsers(serverId, updated);
+  return { success: true, user: newUser };
+}
+
+export async function updateServerSubUser(
+  serverId: string,
+  userId: string,
+  data: { permissions: string[]; email?: string }
+): Promise<{ success: boolean; user?: import('./types').ServerSubUser; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/servers/${serverId}/users/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const respData = await res.json();
+      if (respData.user) {
+        const local = getLocalSubUsers(serverId);
+        saveLocalSubUsers(serverId, local.map((u) => (u.id === userId ? respData.user : u)));
+        return respData;
+      }
+    }
+  } catch {}
+
+  // Fallback to local storage
+  const current = getLocalSubUsers(serverId);
+  const user = current.find((u) => u.id === userId);
+  if (user) {
+    user.permissions = data.permissions;
+    if (data.email !== undefined) user.email = data.email;
+    saveLocalSubUsers(serverId, current);
+    return { success: true, user };
+  }
+  return { success: false, error: 'User not found' };
+}
+
+export async function deleteServerSubUser(
+  serverId: string,
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/servers/${serverId}/users/${userId}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) {
+      const local = getLocalSubUsers(serverId);
+      saveLocalSubUsers(serverId, local.filter((u) => u.id !== userId));
+      return { success: true };
+    }
+  } catch {}
+
+  // Fallback to local storage
+  const current = getLocalSubUsers(serverId);
+  saveLocalSubUsers(serverId, current.filter((u) => u.id !== userId));
+  return { success: true };
+}
+
+
+
 
 

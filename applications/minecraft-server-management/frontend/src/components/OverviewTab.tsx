@@ -264,7 +264,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ activeNode, activeServ
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
               gap: 2.5,
               mb: 2,
             }}
@@ -286,7 +286,17 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ activeNode, activeServ
                 {activeNode?.name} ({activeNode?.host}:{activeNode?.daemonPort})
               </Typography>
             </Box>
+
+            <Box>
+              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                Public Endpoint (Relay Port Forward)
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 600, color: '#38bdf8', fontFamily: 'monospace' }}>
+                {typeof window !== 'undefined' ? `${window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname}:25565` : '0.0.0.0:25565'}
+              </Typography>
+            </Box>
           </Box>
+
 
           <Box>
             <Typography variant="caption" sx={{ color: '#94a3b8' }}>

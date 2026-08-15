@@ -7,7 +7,12 @@ import {
   recordAuditEvent,
   getAuditEvents,
   NodeRecord,
+  saveSubUser,
+  getSubUsers,
+  deleteSubUser,
+  ServerSubUser,
 } from "./db.ts";
+
 
 const port = parseInt(Deno.env.get("PORT") || "8000");
 
@@ -118,7 +123,80 @@ Deno.serve({ port }, async (req) => {
     return jsonResponse({ logs });
   }
 
+  // --- SUB-USERS ROUTES ---
+  // GET /servers/:serverId/users
+  const subUsersGetMatch = url.pathname.match(/\/servers\/([^\/]+)\/users(?:\/)?$/);
+  if (req.method === "GET" && subUsersGetMatch) {
+    const serverId = subUsersGetMatch[1];
+    const users = await getSubUsers(serverId);
+    return jsonResponse({ users });
+  }
+
+  // POST /servers/:serverId/users
+  if (req.method === "POST" && subUsersGetMatch) {
+    const serverId = subUsersGetMatch[1];
+    try {
+      const body = await req.json();
+      const { username, email, permissions, invitedBy } = body;
+      if (!username) {
+        return jsonResponse({ error: "Username is required" }, 400);
+      }
+      const user: ServerSubUser = {
+        id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        username,
+        email: email || undefined,
+        serverId,
+        permissions: Array.isArray(permissions) ? permissions : [],
+        createdAt: Date.now(),
+        invitedBy: invitedBy || "admin",
+      };
+      await saveSubUser(user);
+      await recordAuditEvent("SUB_USER_INVITED", { serverId, details: { username, permissions } });
+      return jsonResponse({ success: true, user });
+    } catch (err: any) {
+      return jsonResponse({ error: err.message }, 500);
+    }
+  }
+
+  // PUT /servers/:serverId/users/:userId
+  const subUserPutMatch = url.pathname.match(/\/servers\/([^\/]+)\/users\/([^\/]+)(?:\/)?$/);
+  if (req.method === "PUT" && subUserPutMatch) {
+    const [, serverId, userId] = subUserPutMatch;
+    try {
+      const body = await req.json();
+      const users = await getSubUsers(serverId);
+      const existing = users.find((u) => u.id === userId);
+      if (!existing) {
+        return jsonResponse({ error: "Sub-user not found" }, 404);
+      }
+      if (Array.isArray(body.permissions)) {
+        existing.permissions = body.permissions;
+      }
+      if (body.email !== undefined) {
+        existing.email = body.email;
+      }
+      await saveSubUser(existing);
+      await recordAuditEvent("SUB_USER_UPDATED", { serverId, details: { userId, permissions: existing.permissions } });
+      return jsonResponse({ success: true, user: existing });
+    } catch (err: any) {
+      return jsonResponse({ error: err.message }, 500);
+    }
+  }
+
+  // DELETE /servers/:serverId/users/:userId
+  if (req.method === "DELETE" && subUserPutMatch) {
+    const [, serverId, userId] = subUserPutMatch;
+    try {
+      const deleted = await deleteSubUser(serverId, userId);
+      await recordAuditEvent("SUB_USER_DELETED", { serverId, details: { userId } });
+      return jsonResponse({ success: deleted });
+    } catch (err: any) {
+      return jsonResponse({ error: err.message }, 500);
+    }
+  }
+
   // Forward node proxy requests: /node/:nodeId/...
+
   const proxyMatch = url.pathname.match(/\/node\/([^\/]+)\/(.+)$/);
   if (proxyMatch) {
     const [, nodeId, subPath] = proxyMatch;

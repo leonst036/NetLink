@@ -38,6 +38,13 @@
       "docker",
       "screen",
       "systemctl"
+    ],
+    "allowPortForwarding": true,
+    "allowExposePorts": [
+      25565,
+      25566,
+      25567,
+      19132
     ]
   }
 }

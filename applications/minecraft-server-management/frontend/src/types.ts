@@ -49,6 +49,22 @@ export interface BackupItem {
   isLocked: boolean;
 }
 
+export interface TunnelInfo {
+  publicPort: number;
+  targetHost: string;
+  targetPort: number;
+  appId: string;
+  serverId?: string;
+  name?: string;
+  status: 'active' | 'error' | 'closed';
+  activeConnections: number;
+  bytesRx: number;
+  bytesTx: number;
+  createdAt: number;
+  error?: string;
+}
+
+
 export interface FileItem {
   name: string;
   isDirectory: boolean;
@@ -78,3 +94,71 @@ export interface CreateServerParams {
   pvp?: boolean;
   onlineMode?: boolean;
 }
+
+export interface ServerSubUser {
+  id: string;
+  username: string;
+  email?: string;
+  serverId: string;
+  permissions: string[];
+  createdAt: number;
+  invitedBy?: string;
+}
+
+export interface PermissionItem {
+  key: string;
+  label: string;
+  description: string;
+}
+
+export interface PermissionGroup {
+  id: string;
+  name: string;
+  description: string;
+  permissions: PermissionItem[];
+}
+
+export const SUBUSER_PERMISSIONS_SCHEMA: PermissionGroup[] = [
+  {
+    id: 'control',
+    name: 'Server Control',
+    description: 'Permissions for power actions and real-time state management.',
+    permissions: [
+      { key: 'control.start', label: 'Start Server', description: 'Start the Minecraft server process.' },
+      { key: 'control.stop', label: 'Stop Server', description: 'Gracefully shutdown the Minecraft server process.' },
+      { key: 'control.restart', label: 'Restart Server', description: 'Restart the Minecraft server instance.' },
+      { key: 'control.console', label: 'Access Console', description: 'View live logs and send commands to the server console.' },
+    ],
+  },
+  {
+    id: 'file',
+    name: 'File Manager',
+    description: 'Permissions to view and manage instance directory contents.',
+    permissions: [
+      { key: 'file.read', label: 'View Files', description: 'Browse directories and view file contents.' },
+      { key: 'file.write', label: 'Edit & Create Files', description: 'Save edits, create new files, and upload content.' },
+      { key: 'file.delete', label: 'Delete Files', description: 'Permanently remove files and subdirectories.' },
+    ],
+  },
+  {
+    id: 'backup',
+    name: 'Backup System',
+    description: 'Permissions to create, restore, lock, and manage snapshots.',
+    permissions: [
+      { key: 'backup.view', label: 'View Backups', description: 'Inspect available backup archives and metadata.' },
+      { key: 'backup.create', label: 'Create Backups', description: 'Take new tar archive snapshots.' },
+      { key: 'backup.restore', label: 'Restore Backups', description: 'Extract and restore server state from snapshots.' },
+      { key: 'backup.delete', label: 'Delete Backups', description: 'Delete unlocked backup snapshots.' },
+    ],
+  },
+  {
+    id: 'settings',
+    name: 'Settings & Network',
+    description: 'Permissions for resource allocations and public tunnel access.',
+    permissions: [
+      { key: 'settings.resources', label: 'Resource Limits', description: 'Adjust RAM memory and CPU core limits.' },
+      { key: 'settings.network', label: 'Port Forwarding', description: 'Open and close public internet relay tunnels.' },
+    ],
+  },
+];
+

@@ -117,3 +117,51 @@ export async function getAuditEvents(limit = 100): Promise<AuditEvent[]> {
   }
   return [...memoryAuditEvents].reverse().slice(0, limit);
 }
+
+// Sub-Users Management Storage
+export interface ServerSubUser {
+  id: string;
+  username: string;
+  email?: string;
+  serverId: string;
+  permissions: string[];
+  createdAt: number;
+  invitedBy?: string;
+}
+
+const memorySubUsers = new Map<string, ServerSubUser>();
+
+export async function saveSubUser(user: ServerSubUser): Promise<void> {
+  const kv = await getKv();
+  if (kv) {
+    await kv.set(["sub_users", user.serverId, user.id], user);
+  } else {
+    memorySubUsers.set(`${user.serverId}:${user.id}`, user);
+  }
+}
+
+export async function getSubUsers(serverId: string): Promise<ServerSubUser[]> {
+  const kv = await getKv();
+  if (kv) {
+    const list: ServerSubUser[] = [];
+    for await (const entry of kv.list({ prefix: ["sub_users", serverId] })) {
+      if (entry.value) list.push(entry.value as ServerSubUser);
+    }
+    return list;
+  }
+  const list: ServerSubUser[] = [];
+  for (const [, v] of memorySubUsers) {
+    if (v.serverId === serverId) list.push(v);
+  }
+  return list;
+}
+
+export async function deleteSubUser(serverId: string, userId: string): Promise<boolean> {
+  const kv = await getKv();
+  if (kv) {
+    await kv.delete(["sub_users", serverId, userId]);
+    return true;
+  }
+  return memorySubUsers.delete(`${serverId}:${userId}`);
+}
+

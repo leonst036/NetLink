@@ -24,6 +24,7 @@ import {
   Archive,
   Settings,
   Plus,
+  Users,
 } from 'lucide-react';
 import { NodeInfo, NodeServerItem } from './types';
 import {
@@ -42,9 +43,11 @@ import { ConsoleTab } from './components/ConsoleTab';
 import { FileManager } from './components/FileManager';
 import { BackupsTab } from './components/BackupsTab';
 import { SettingsTab } from './components/SettingsTab';
+import { UsersTab } from './components/UsersTab';
 import { InstallNodeModal } from './components/InstallNodeModal';
 import { CreateServerModal } from './components/CreateServerModal';
 import { NodeMetricsModal } from './components/NodeMetricsModal';
+
 
 
 const darkTheme = createTheme({
@@ -134,7 +137,7 @@ export default function App() {
 
   // View state: 'list' (all servers grid) or 'detail' (selected server dashboard)
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
-  const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'files' | 'backups' | 'settings'>('overview');
+  const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'files' | 'backups' | 'users' | 'settings'>('overview');
 
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -398,6 +401,7 @@ export default function App() {
                       <Tab value="console" icon={<Terminal size={18} />} iconPosition="start" label="Console" />
                       <Tab value="files" icon={<Folder size={18} />} iconPosition="start" label="Files" />
                       <Tab value="backups" icon={<Archive size={18} />} iconPosition="start" label="Backups" />
+                      <Tab value="users" icon={<Users size={18} />} iconPosition="start" label="Users" />
                       <Tab value="settings" icon={<Settings size={18} />} iconPosition="start" label="Settings" />
                     </Tabs>
                   </Box>
@@ -423,9 +427,14 @@ export default function App() {
                     <BackupsTab activeNode={activeNode} activeServer={activeServer} />
                   )}
 
+                  {currentTab === 'users' && (
+                    <UsersTab activeNode={activeNode} activeServer={activeServer} />
+                  )}
+
                   {currentTab === 'settings' && (
                     <SettingsTab activeNode={activeNode} activeServer={activeServer} />
                   )}
+
 
                 </Box>
               )
