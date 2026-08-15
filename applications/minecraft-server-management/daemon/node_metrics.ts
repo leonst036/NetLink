@@ -64,7 +64,7 @@ async function sampleHostMemory(): Promise<{ totalMb: number; usedMb: number; fr
       return { totalMb, usedMb, freeMb: availMb, percent };
     }
   } catch {}
-  return { totalMb: 8192, usedMb: 2048, freeMb: 6144, percent: 25 };
+  return { totalMb: 0, usedMb: 0, freeMb: 0, percent: 0 };
 }
 
 // Sample Disk usage using df command
@@ -86,7 +86,7 @@ async function sampleHostDisk(dataDir: string): Promise<{ totalMb: number; usedM
       return { totalMb, usedMb, freeMb, percent };
     }
   } catch {}
-  return { totalMb: 100000, usedMb: 15000, freeMb: 85000, percent: 15 };
+  return { totalMb: 0, usedMb: 0, freeMb: 0, percent: 0 };
 }
 
 // Sample Load Average from /proc/loadavg

@@ -16,13 +16,17 @@ import {
 
 const port = parseInt(Deno.env.get("PORT") || "8000");
 
-// Read installer and wings scripts from daemon/ folder with embedded fallback
+// Read installer and wings scripts from daemon/scripts folder with embedded fallback
 async function getDaemonScripts() {
   let installerScript = DEFAULT_INSTALLER_SCRIPT;
   let wingsScript = DEFAULT_WINGS_SCRIPT;
   try {
     const daemonDir = new URL("../daemon", import.meta.url).pathname;
-    installerScript = await Deno.readTextFile(`${daemonDir}/installer.sh`);
+    try {
+      installerScript = await Deno.readTextFile(`${daemonDir}/scripts/installer.sh`);
+    } catch {
+      installerScript = await Deno.readTextFile(`${daemonDir}/installer.sh`);
+    }
     wingsScript = await Deno.readTextFile(`${daemonDir}/wings.ts`);
   } catch {
     // Fallback to embedded default payloads

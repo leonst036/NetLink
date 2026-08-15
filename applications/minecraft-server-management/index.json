@@ -12,7 +12,6 @@
     "local-server"
   ],
   "shortDesc": "Manage remote Minecraft servers with live Wings telemetry, terminal, and backups.",
-
   "fullDesc": "Deploy and control remote Minecraft instances across Linux nodes via Wings daemon with CPU & RAM telemetry, interactive console with syntax highlighting, web file manager, and full snapshot backup system.",
   "main": "frontend/dist/index.html",
   "entrypoint": "frontend/dist/index.html",
@@ -32,12 +31,16 @@
     "allowRunCommands": [
       "ping",
       "sh",
+      "bash",
       "ip",
       "hostname",
       "java",
       "docker",
       "screen",
-      "systemctl"
+      "systemctl",
+      "tar",
+      "df",
+      "cpulimit"
     ],
     "allowPortForwarding": true,
     "allowExposePorts": [

@@ -62,21 +62,9 @@ export async function getAllNodes(): Promise<NodeRecord[]> {
     for await (const entry of kv.list({ prefix: ["nodes"] })) {
       if (entry.value) nodes.push(entry.value as NodeRecord);
     }
-    if (nodes.length > 0) return nodes;
-  } else {
-    if (memoryNodes.size > 0) return Array.from(memoryNodes.values());
+    return nodes;
   }
-
-  const defaultNode: NodeRecord = {
-    id: "node-baddie",
-    name: "Leon Server",
-    host: "192.168.55.127",
-    daemonPort: 9080,
-    daemonToken: "netlink-secret-token",
-    installedAt: Date.now(),
-  };
-  await saveNode(defaultNode);
-  return [defaultNode];
+  return Array.from(memoryNodes.values());
 }
 
 export async function deleteNode(id: string): Promise<void> {

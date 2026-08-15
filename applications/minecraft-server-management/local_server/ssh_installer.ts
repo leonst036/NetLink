@@ -1,4 +1,5 @@
 import { Client } from "npm:ssh2";
+import { readDaemonFile, DEFAULT_BOOTSTRAP_SCRIPT } from "./daemon_payloads.ts";
 
 export interface SshNodeConfig {
   host: string;
@@ -15,6 +16,9 @@ export async function installDaemonOverSsh(
   installerScript: string,
   wingsScript: string
 ): Promise<{ success: boolean; output: string }> {
+  // Load bootstrap script from daemon/scripts/ folder
+  const bootstrapScript = (await readDaemonFile("bootstrap_remote.sh")) || DEFAULT_BOOTSTRAP_SCRIPT;
+
   return new Promise((resolve) => {
     const conn = new Client();
     let outputBuffer = "";
@@ -23,33 +27,16 @@ export async function installDaemonOverSsh(
       .on("ready", () => {
         outputBuffer += "[SSH] Connected to remote host.\n";
 
-        // Encode scripts into base64 for shell compatibility (fish, zsh, bash, etc.)
+        // Encode scripts into base64 for shell execution
         const wingsB64 = btoa(unescape(encodeURIComponent(wingsScript)));
         const installerB64 = btoa(unescape(encodeURIComponent(installerScript)));
-        const daemonPort = config.daemonPort || 8080;
+        const bootstrapB64 = btoa(unescape(encodeURIComponent(bootstrapScript)));
+        const daemonPort = config.daemonPort || 9080;
         const daemonToken = config.daemonToken || "netlink-secret-token";
-        const sudoPass = config.password ? `echo '${config.password.replace(/'/g, "'\\''")}' | sudo -S` : "sudo -n";
+        const sudoPrefix = config.password ? `echo '${config.password.replace(/'/g, "'\\''")}' | sudo -S` : "sudo -n";
 
-        // Portable shell script compatible with fish, zsh, bash, sh
-        const remoteScript = `
-mkdir -p /tmp/netlink-wings-setup
-echo '${wingsB64}' | base64 -d > /tmp/netlink-wings-setup/wings.ts
-echo '${installerB64}' | base64 -d > /tmp/netlink-wings-setup/installer.sh
-chmod +x /tmp/netlink-wings-setup/installer.sh
-
-${sudoPass} mkdir -p /opt/netlink-wings
-${sudoPass} cp /tmp/netlink-wings-setup/wings.ts /opt/netlink-wings/wings.ts
-${sudoPass} cp /tmp/netlink-wings-setup/installer.sh /opt/netlink-wings/installer.sh
-${sudoPass} chmod +x /opt/netlink-wings/installer.sh
-
-export DAEMON_PORT="${daemonPort}"
-export DAEMON_TOKEN="${daemonToken}"
-${sudoPass} -E DAEMON_PORT="${daemonPort}" DAEMON_TOKEN="${daemonToken}" bash /opt/netlink-wings/installer.sh
-rm -rf /tmp/netlink-wings-setup
-`;
-
-        // Execute explicitly with bash -c or sh -c for fish compatibility
-        const commandWrapper = `sh -c '${remoteScript.replace(/'/g, "'\\''")}'`;
+        // Execute bootstrap_remote.sh with payload environment variables
+        const commandWrapper = `WINGS_PAYLOAD_B64='${wingsB64}' INSTALLER_PAYLOAD_B64='${installerB64}' DAEMON_PORT='${daemonPort}' DAEMON_TOKEN='${daemonToken}' echo '${bootstrapB64}' | base64 -d | ${sudoPrefix} -E bash`;
 
         conn.exec(commandWrapper, (err: any, stream: any) => {
           if (err) {

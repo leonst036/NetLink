@@ -1,45 +1,65 @@
+// Payload loader for Minecraft Wings Daemon
+// Reads .sh and .ts scripts directly from the daemon/scripts/ or daemon/ directory with built-in fallbacks.
+
+export async function readDaemonFile(fileName: string): Promise<string | null> {
+  try {
+    const daemonDir = new URL("../daemon", import.meta.url).pathname;
+    try {
+      return await Deno.readTextFile(`${daemonDir}/scripts/${fileName}`);
+    } catch {
+      return await Deno.readTextFile(`${daemonDir}/${fileName}`);
+    }
+  } catch {
+    return null;
+  }
+}
+
 export const DEFAULT_INSTALLER_SCRIPT = `#!/usr/bin/env bash
 set -e
 
-INSTALL_DIR="/opt/netlink-wings"
-DATA_DIR="/var/lib/netlink-wings/servers"
-SERVICE_NAME="netlink-mc-wings"
+INSTALL_DIR="\${INSTALL_DIR:-/opt/netlink-wings}"
+DATA_DIR="\${DATA_DIR:-/var/lib/netlink-wings/servers}"
+SERVICE_NAME="\${SERVICE_NAME:-netlink-mc-wings}"
 PORT="\${DAEMON_PORT:-9080}"
 TOKEN="\${DAEMON_TOKEN:-netlink-secret-token}"
 
-echo "[1/5] Creating directories..."
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$DATA_DIR"
 
-echo "[2/5] Checking prerequisites..."
 if ! command -v java &> /dev/null; then
-    echo "Java not found. Attempting to install OpenJDK..."
     if command -v apt-get &> /dev/null; then
-        apt-get update -y && apt-get install -y openjdk-17-jre-headless curl unzip
+        apt-get update -y && apt-get install -y openjdk-17-jre-headless curl unzip tar
+    elif command -v dnf &> /dev/null; then
+        dnf install -y java-17-openjdk-headless curl unzip tar
     elif command -v yum &> /dev/null; then
-        yum install -y java-17-openjdk-headless curl unzip
+        yum install -y java-17-openjdk-headless curl unzip tar
     elif command -v apk &> /dev/null; then
-        apk add openjdk17-jre curl unzip
-    else
-        echo "Warning: Package manager not recognized. Please install Java 17+ manually."
+        apk add openjdk17-jre curl unzip tar
+    elif command -v pacman &> /dev/null; then
+        pacman -Sy --noconfirm jre17-openjdk-headless curl unzip tar
+    elif command -v zypper &> /dev/null; then
+        zypper install -y java-17-openjdk-headless curl unzip tar
     fi
 fi
 
 if ! command -v deno &> /dev/null; then
-    echo "Installing Deno runtime..."
     curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh || curl -fsSL https://deno.land/install.sh | sh
     export DENO_INSTALL="$HOME/.deno"
     export PATH="$DENO_INSTALL/bin:$PATH:/usr/local/bin"
+    if [ -f "$HOME/.deno/bin/deno" ] && [ ! -f "/usr/local/bin/deno" ]; then
+        cp "$HOME/.deno/bin/deno" /usr/local/bin/deno 2>/dev/null || true
+    fi
 fi
 
-echo "[3/5] Setting up Wings daemon environment..."
 cat << EOF > "$INSTALL_DIR/wings.env"
 PORT=$PORT
-DATA_DIR=/var/lib/netlink-wings/servers
+DATA_DIR=$DATA_DIR
 AUTH_TOKEN=$TOKEN
 EOF
+chmod 600 "$INSTALL_DIR/wings.env"
 
-echo "[4/5] Creating systemd service..."
+DENO_BIN="\$(command -v deno || echo "/usr/local/bin/deno")"
+
 cat << EOF > /etc/systemd/system/\${SERVICE_NAME}.service
 [Unit]
 Description=NetLink Minecraft Wings Daemon
@@ -50,20 +70,152 @@ Type=simple
 User=root
 WorkingDirectory=$INSTALL_DIR
 EnvironmentFile=$INSTALL_DIR/wings.env
-ExecStart=/usr/local/bin/deno run --allow-all $INSTALL_DIR/wings.ts
+ExecStart=$DENO_BIN run --allow-all $INSTALL_DIR/wings.ts
 Restart=always
 RestartSec=5
+LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-echo "[5/5] Enabling and starting service..."
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
+`;
 
-echo "NetLink Wings Daemon installed and running on port $PORT."
+export const DEFAULT_BOOTSTRAP_SCRIPT = `#!/usr/bin/env bash
+set -e
+
+TMP_SETUP_DIR="/tmp/netlink-wings-setup"
+TARGET_DIR="\${INSTALL_DIR:-/opt/netlink-wings}"
+PORT="\${DAEMON_PORT:-9080}"
+TOKEN="\${DAEMON_TOKEN:-netlink-secret-token}"
+
+mkdir -p "$TMP_SETUP_DIR"
+
+if [ -n "$WINGS_PAYLOAD_B64" ]; then
+    echo "$WINGS_PAYLOAD_B64" | base64 -d > "$TMP_SETUP_DIR/wings.ts"
+fi
+
+if [ -n "$INSTALLER_PAYLOAD_B64" ]; then
+    echo "$INSTALLER_PAYLOAD_B64" | base64 -d > "$TMP_SETUP_DIR/installer.sh"
+fi
+
+if [ -f "$TMP_SETUP_DIR/installer.sh" ]; then
+    chmod +x "$TMP_SETUP_DIR/installer.sh"
+fi
+
+mkdir -p "$TARGET_DIR"
+
+if [ -f "$TMP_SETUP_DIR/wings.ts" ]; then
+    cp "$TMP_SETUP_DIR/wings.ts" "$TARGET_DIR/wings.ts"
+fi
+
+if [ -f "$TMP_SETUP_DIR/installer.sh" ]; then
+    cp "$TMP_SETUP_DIR/installer.sh" "$TARGET_DIR/installer.sh"
+    chmod +x "$TARGET_DIR/installer.sh"
+fi
+
+export DAEMON_PORT="$PORT"
+export DAEMON_TOKEN="$TOKEN"
+export INSTALL_DIR="$TARGET_DIR"
+
+if [ -f "$TARGET_DIR/installer.sh" ]; then
+    bash "$TARGET_DIR/installer.sh"
+fi
+
+rm -rf "$TMP_SETUP_DIR"
+`;
+
+export const DEFAULT_UNINSTALL_SCRIPT = `#!/usr/bin/env bash
+set -e
+
+INSTALL_DIR="\${INSTALL_DIR:-/opt/netlink-wings}"
+DATA_DIR="\${DATA_DIR:-/var/lib/netlink-wings/servers}"
+SERVICE_NAME="\${SERVICE_NAME:-netlink-mc-wings}"
+
+if systemctl is-active --quiet "$SERVICE_NAME"; then
+    systemctl stop "$SERVICE_NAME" || true
+fi
+
+if systemctl is-enabled --quiet "$SERVICE_NAME" 2>/dev/null; then
+    systemctl disable "$SERVICE_NAME" || true
+fi
+
+if [ -f "/etc/systemd/system/\${SERVICE_NAME}.service" ]; then
+    rm -f "/etc/systemd/system/\${SERVICE_NAME}.service"
+    systemctl daemon-reload
+fi
+
+if [ -d "$INSTALL_DIR" ]; then
+    rm -rf "$INSTALL_DIR"
+fi
+
+if [ "$1" == "--purge-data" ]; then
+    rm -rf "$DATA_DIR"
+fi
+`;
+
+export const DEFAULT_SERVICE_SCRIPT = `#!/usr/bin/env bash
+set -e
+
+SERVICE_NAME="\${SERVICE_NAME:-netlink-mc-wings}"
+ACTION="\${1:-status}"
+
+case "$ACTION" in
+    start)
+        systemctl start "$SERVICE_NAME"
+        systemctl status "$SERVICE_NAME" --no-pager
+        ;;
+    stop)
+        systemctl stop "$SERVICE_NAME"
+        ;;
+    restart)
+        systemctl restart "$SERVICE_NAME"
+        systemctl status "$SERVICE_NAME" --no-pager
+        ;;
+    status)
+        systemctl status "$SERVICE_NAME" --no-pager
+        ;;
+    logs)
+        if [ "$2" == "-f" ] || [ "$2" == "--follow" ]; then
+            journalctl -u "$SERVICE_NAME" -f
+        else
+            journalctl -u "$SERVICE_NAME" -n 100 --no-pager
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status|logs [-f]}"
+        exit 1
+        ;;
+esac
+`;
+
+export const DEFAULT_RUN_SERVER_SCRIPT = `#!/usr/bin/env bash
+set -e
+
+SERVER_DIR="\${1:-.}"
+RAM_MB="\${2:-2048}"
+JAR_FILE="\${3:-server.jar}"
+MIN_RAM_MB=$((RAM_MB / 2))
+
+if [ ! -d "$SERVER_DIR" ]; then
+    mkdir -p "$SERVER_DIR"
+fi
+
+cd "$SERVER_DIR"
+
+if [ ! -f "eula.txt" ]; then
+    echo "eula=true" > "eula.txt"
+fi
+
+if [ ! -f "$JAR_FILE" ]; then
+    JAR_URL="https://piston-data.mojang.com/v1/objects/8dd1a28015f51b1803213892b50b7b4fc76e594d/server.jar"
+    curl -fsSL -o "$JAR_FILE" "$JAR_URL"
+fi
+
+exec java -Xms"\${MIN_RAM_MB}M" -Xmx"\${RAM_MB}M" -jar "$JAR_FILE" nogui
 `;
 
 export const DEFAULT_WINGS_SCRIPT = `const port = parseInt(Deno.env.get("PORT") || "9080");
@@ -96,7 +248,7 @@ function appendLog(serverId: string, line: string) {
 }
 
 function resolveSafePath(baseDir: string, relPath: string = ""): string | null {
-  const normalized = relPath.replace(/^(\.\.(\/|\\|$))+/, "").replace(/^\\/+/, "");
+  const normalized = relPath.replace(/^(\.\.(\/|\\\\|$))+/, "").replace(/^\\/+/, "");
   const parts = normalized.split(/[\\/\\\\]/).filter((p) => p && p !== "." && p !== "..");
   const safePath = parts.length > 0 ? \`\${baseDir}/\${parts.join("/")}\` : baseDir;
   return safePath.startsWith(baseDir) ? safePath : null;
@@ -286,7 +438,7 @@ Deno.serve({ port }, async (req) => {
         \`online-mode=\${body.onlineMode !== false}\`,
       ].join("\\n");
 
-      await Deno.writeTextFile(\`\${serverPath}/server.properties\", properties);
+      await Deno.writeTextFile(\`\${serverPath}/server.properties\`, properties);
       return jsonResponse({ success: true, serverId, serverPath });
     } catch (e: any) {
       return jsonResponse({ error: e.message }, 500);

@@ -54,7 +54,7 @@ export const InstallNodeModal: React.FC<InstallNodeModalProps> = ({
         username: username.trim(),
         password: password || undefined,
         nodeName: nodeName.trim() || host.trim(),
-        daemonPort: parseInt(daemonPort) || 8080,
+        daemonPort: parseInt(daemonPort) || 9080,
       });
 
       setOutput(res.output || 'Installation completed.');
@@ -64,7 +64,7 @@ export const InstallNodeModal: React.FC<InstallNodeModalProps> = ({
           id: res.nodeId,
           name: nodeName.trim() || host.trim(),
           host: host.trim(),
-          daemonPort: parseInt(daemonPort) || 8080,
+          daemonPort: parseInt(daemonPort) || 9080,
           installedAt: Date.now(),
         });
       } else {

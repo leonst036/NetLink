@@ -156,8 +156,7 @@ export async function getServerProcessStats(serverId: string, serverPath: string
       instance.lastSampleTime = now;
     }
   } catch {
-    // Fallback estimate if /proc unavailable
-    memoryMb = Math.round(instance.ramLimitMb * 0.45);
+    memoryMb = 0;
   }
 
   const uptimeSeconds = Math.round((Date.now() - instance.startedAt) / 1000);
