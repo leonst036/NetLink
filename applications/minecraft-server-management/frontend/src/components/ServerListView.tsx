@@ -41,6 +41,62 @@ export const ServerListView: React.FC<ServerListViewProps> = ({
   onPowerAction,
   onOpenCreateModal,
 }) => {
+  if (servers.length === 0) {
+    return (
+      <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}>
+        <Card
+          sx={{
+            maxWidth: 520,
+            width: '100%',
+            backgroundColor: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(8px)',
+            border: '2px dashed rgba(255, 255, 255, 0.15)',
+            borderRadius: 3,
+            p: 4,
+            textAlign: 'center',
+          }}
+        >
+          <CardContent sx={{ p: 0 }}>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                p: 2,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                color: '#10b981',
+                mb: 2,
+              }}
+            >
+              <Plus size={36} />
+            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>
+              No Minecraft Server Instances
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#94a3b8', mb: 3 }}>
+              No Minecraft server instances have been created yet on node &ldquo;{activeNode.name}&rdquo;. Create your first server to get started.
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<Plus size={16} />}
+              onClick={onOpenCreateModal}
+              sx={{
+                backgroundColor: '#10b981',
+                color: '#ffffff',
+                px: 3,
+                py: 1,
+                borderRadius: 2,
+                fontWeight: 600,
+                '&:hover': { backgroundColor: '#059669' },
+              }}
+            >
+              Create New Instance
+            </Button>
+          </CardContent>
+        </Card>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ mt: 3 }}>
       {/* Section Header */}
@@ -271,55 +327,6 @@ export const ServerListView: React.FC<ServerListViewProps> = ({
             </Grid>
           );
         })}
-
-        {/* Create Server Action Card */}
-        <Grid item xs={12} sm={6} md={4}>
-          <Card
-            onClick={onOpenCreateModal}
-            sx={{
-              backgroundColor: 'rgba(15, 23, 42, 0.3)',
-              border: '2px dashed rgba(255, 255, 255, 0.12)',
-              borderRadius: 3,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              height: '100%',
-              minHeight: 180,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              p: 3,
-              textAlign: 'center',
-              '&:hover': {
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.05)',
-                transform: 'translateY(-3px)',
-              },
-            }}
-          >
-            <Box
-              sx={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                color: '#10b981',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mb: 1.5,
-              }}
-            >
-              <Plus size={24} />
-            </Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#f8fafc', mb: 0.5 }}>
-              Create New Instance
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-              Deploy a new Minecraft server with custom port and world configuration
-            </Typography>
-          </Card>
-        </Grid>
       </Grid>
     </Box>
   );
