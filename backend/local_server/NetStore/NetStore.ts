@@ -339,18 +339,23 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
     }
 }
 
-export async function installApplication(appId: string, branch: string = 'NetStore', githubToken?: string, userId?: string, runInBackground: boolean = false) {
+export async function installApplication(
+    appId: string, 
+    branch: string = 'NetStore', 
+    githubToken?: string, 
+    userId?: string, 
+    runInBackground: boolean = false,
+    customStoreUrl?: string
+) {
     if (!userId) {
         throw new Error('userId is required to install an application');
     }
     try {
-        console.log(`Starting installation of application ${appId} from branch ${branch} for user ${userId}...`);
+        console.log(`Starting installation of application ${appId} from branch ${branch} for user ${userId} (customStoreUrl: ${customStoreUrl || 'none'})...`);
 
         const sandboxAppId = `${userId}_${appId}`;
         denoSandbox.stopApp(sandboxAppId);
 
-        // Check if application exists in local dev workspace
-        const localDevAppDir = resolveLocalNetStorePath('applications', appId);
         const appDir = path.join(NET_STORE_DIR, userId, appId);
 
         // Wipe destination appDir if it exists to clean out stale files
@@ -359,36 +364,54 @@ export async function installApplication(appId: string, branch: string = 'NetSto
         }
         fs.mkdirSync(appDir, { recursive: true });
 
-        if (fs.existsSync(localDevAppDir)) {
-            console.log(`Installing ${appId} from local workspace (${localDevAppDir})...`);
-            fs.cpSync(localDevAppDir, appDir, { recursive: true });
-            await StartLocalApps();
-            console.log(`Successfully installed local application: ${appId}`);
-            return;
+        // If a custom store URL (like Docker debug server) is specified, use it directly
+        const storeBaseUrl = customStoreUrl || process.env.LOCAL_NETSTORE_URL || '';
+
+        if (!storeBaseUrl) {
+            // Check if application exists in local dev workspace directly if no custom store URL
+            const localDevAppDir = resolveLocalNetStorePath('applications', appId);
+            if (fs.existsSync(localDevAppDir) && (branch === 'NetStore' || branch === 'workspace' || branch === 'local-debug')) {
+                console.log(`Installing ${appId} from local workspace (${localDevAppDir})...`);
+                fs.cpSync(localDevAppDir, appDir, { recursive: true });
+                await StartLocalApps(userId, true);
+                console.log(`Successfully installed local application: ${appId}`);
+                return;
+            }
         }
-        const headers = getGitHubHeaders(githubToken);
-        const treeUrl = `https://api.github.com/repos/leonst036/NetLink-NetStore/git/trees/${branch}?recursive=1`;
+
+        let treeUrl = `https://api.github.com/repos/leonst036/NetLink-NetStore/git/trees/${branch}?recursive=1`;
+        let getRawUrl = (filePath: string) => `https://raw.githubusercontent.com/leonst036/NetLink-NetStore/refs/heads/${branch}/${filePath}`;
+        let headers: Record<string, string> = getGitHubHeaders(githubToken);
+
+        if (storeBaseUrl) {
+            const cleanBase = storeBaseUrl.replace(/\/$/, '');
+            treeUrl = `${cleanBase}/repos/leonst036/NetLink-NetStore/git/trees/${branch}?recursive=1`;
+            getRawUrl = (filePath: string) => `${cleanBase}/refs/heads/${branch}/${filePath}`;
+            headers = { 'User-Agent': 'NetLink-LocalServer-Debug' };
+            console.log(`[NetStore Debug] Fetching tree from local store: ${treeUrl}`);
+        }
+
         const treeRes = await fetch(treeUrl, { headers });
         if (!treeRes.ok) {
             const errText = await treeRes.text().catch(() => '');
-            throw new Error(`Failed to fetch GitHub tree (${treeRes.status} ${treeRes.statusText}): ${errText.substring(0, 100)}`);
+            throw new Error(`Failed to fetch store tree (${treeRes.status} ${treeRes.statusText}): ${errText.substring(0, 100)}`);
         }
         
         const treeData = await treeRes.json();
         if (!treeData.tree || !Array.isArray(treeData.tree)) {
-            throw new Error('Invalid tree data from GitHub');
+            throw new Error('Invalid tree data from application store');
         }
 
         const appPrefix = `applications/${appId}/`;
         const appFiles = treeData.tree.filter((node: any) => node.type === 'blob' && node.path.startsWith(appPrefix));
         
         if (appFiles.length === 0) {
-            throw new Error(`Application ${appId} not found or has no files on GitHub branch ${branch}`);
+            throw new Error(`Application ${appId} not found or has no files on store branch/channel ${branch}`);
         }
 
         // Fetch each file
         for (const fileNode of appFiles) {
-            const rawUrl = `https://raw.githubusercontent.com/leonst036/NetLink-NetStore/refs/heads/${branch}/${fileNode.path}`;
+            const rawUrl = getRawUrl(fileNode.path);
             const relativePath = fileNode.path.substring(appPrefix.length);
             const localPath = path.join(appDir, relativePath);
             
@@ -397,9 +420,9 @@ export async function installApplication(appId: string, branch: string = 'NetSto
                 fs.mkdirSync(fileDir, { recursive: true });
             }
 
-            console.log(`Downloading ${fileNode.path}...`);
+            console.log(`Downloading ${fileNode.path} from ${rawUrl}...`);
             const fileRes = await fetch(rawUrl, { headers });
-            if (!fileRes.ok) throw new Error(`Failed to fetch ${fileNode.path}`);
+            if (!fileRes.ok) throw new Error(`Failed to fetch ${fileNode.path} (${fileRes.status})`);
             
             const buffer = await fileRes.arrayBuffer();
             fs.writeFileSync(localPath, Buffer.from(buffer));

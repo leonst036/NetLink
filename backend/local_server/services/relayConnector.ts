@@ -66,7 +66,14 @@ export function handleRelayConnection(token: string): void {
                 console.log(`Relay requested installation of app: ${message.appId} for user: ${message.userId}`);
                 import('../NetStore/NetStore.js').then((ns) => {
                     if (ns.installApplication) {
-                        ns.installApplication(message.appId, message.branch || 'NetStore', message.githubToken, message.userId, message.runInBackground).then(() => {
+                        ns.installApplication(
+                            message.appId, 
+                            message.branch || 'NetStore', 
+                            message.githubToken, 
+                            message.userId, 
+                            message.runInBackground,
+                            message.customStoreUrl
+                        ).then(() => {
                             console.log(`Successfully installed ${message.appId}. Syncing with relay...`);
                             ns.sendApplicationJson(controlWs);
                             controlWs.send(JSON.stringify({ type: 'install_success', appId: message.appId }));

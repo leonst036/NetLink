@@ -145,6 +145,7 @@ function startProcesses() {
         console.log(' NetLink Dev Environment Running!');
         console.log(' 🌐 Web UI (Vite Dev / Hot Reload): http://localhost:5173');
         console.log(' 🌐 Relay Backend API:             http://localhost:4535');
+        console.log(' 🛠️ NetStore Docker Debug:         http://localhost:4540 (optional)');
         console.log(' 🔑 Login: admin / admin');
         console.log(' 🎯 Default Target: local-server (auto-detected)');
         console.log(' 🔄 Press key + Enter to restart specific processes:');

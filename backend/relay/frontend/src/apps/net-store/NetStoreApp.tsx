@@ -39,7 +39,10 @@ import {
   Key,
   Trash2,
   Pin,
-  PinOff
+  PinOff,
+  Wrench,
+  AlertTriangle,
+  Server
 } from 'lucide-react';
 import './NetStoreApp.css';
 import { useWindowStore } from '../../store/useWindowStore';
@@ -66,8 +69,6 @@ interface AppItem {
   main?: string;
 }
 
-
-
 type MainTab = 'discover' | 'all' | 'installed' | 'updates';
 
 interface NetStoreAppProps {
@@ -90,10 +91,10 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   const [selectedApp, setSelectedApp] = useState<AppItem | null>(null);
   const [storeCatalog, setStoreCatalog] = useState<AppItem[]>([]);
 
-  const [selectedBranch, setSelectedBranch] = useState<'NetStore' | 'NetStore-dev'>(() => {
+  const [selectedBranch, setSelectedBranch] = useState<'NetStore' | 'NetStore-dev' | 'local-debug'>(() => {
     try {
       const saved = localStorage.getItem('netstore_selected_branch');
-      if (saved === 'NetStore' || saved === 'NetStore-dev') return saved;
+      if (saved === 'NetStore' || saved === 'NetStore-dev' || saved === 'local-debug') return saved;
     } catch (e) {}
     return 'NetStore';
   });
@@ -103,6 +104,36 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       localStorage.setItem('netstore_selected_branch', selectedBranch);
     } catch (e) {}
   }, [selectedBranch]);
+
+  const [debugStoreUrl, setDebugStoreUrl] = useState<string>(() => {
+    try {
+      return localStorage.getItem('netstore_debug_url') || 'http://localhost:4540';
+    } catch {
+      return 'http://localhost:4540';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('netstore_debug_url', debugStoreUrl);
+    } catch (e) {}
+  }, [debugStoreUrl]);
+
+  const [debugConnected, setDebugConnected] = useState<boolean | null>(null);
+  const [debugBranches, setDebugBranches] = useState<string[]>(['workspace', 'NetStore', 'NetStore-dev']);
+  const [selectedLocalBranch, setSelectedLocalBranch] = useState<string>(() => {
+    try {
+      return localStorage.getItem('netstore_local_branch') || 'workspace';
+    } catch {
+      return 'workspace';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('netstore_local_branch', selectedLocalBranch);
+    } catch (e) {}
+  }, [selectedLocalBranch]);
 
   const [githubToken, setGithubToken] = useState<string>(() => {
     try {
@@ -123,6 +154,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   }, [githubToken]);
 
   const [installedVersions, setInstalledVersions] = useState<Record<string, string>>({});
+  const [refreshIndex, setRefreshIndex] = useState<number>(0);
 
   useEffect(() => {
     const fetchApps = async () => {
@@ -132,8 +164,36 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         if (!res.ok) throw new Error('Failed to fetch store applications');
         const localData = await res.json();
         
-        let githubData = [];
-        try {
+        let catalogData: any[] = [];
+        
+        if (selectedBranch === 'local-debug') {
+          // Fetch from local Docker debug server
+          try {
+            const cleanUrl = debugStoreUrl.replace(/\/$/, '');
+            const healthRes = await fetch(`${cleanUrl}/health`).catch(() => null);
+            if (healthRes && healthRes.ok) {
+              setDebugConnected(true);
+              const healthData = await healthRes.json().catch(() => ({}));
+              if (Array.isArray(healthData.branches)) {
+                setDebugBranches(healthData.branches);
+              }
+            } else {
+              setDebugConnected(false);
+            }
+
+            const catRes = await fetch(`${cleanUrl}/applications/applications.json?ref=${encodeURIComponent(selectedLocalBranch)}`).catch(() => null);
+            if (catRes && catRes.ok) {
+              catalogData = await catRes.json();
+            } else {
+              console.warn(`Failed to fetch catalog from local debug store: ${cleanUrl}`);
+            }
+          } catch (e) {
+            setDebugConnected(false);
+            console.warn('Failed to connect to local debug store:', e);
+          }
+        } else {
+          // Fetch from GitHub
+          try {
             let ghRes: Response;
             if (githubToken) {
               ghRes = await fetch(
@@ -151,16 +211,17 @@ export default function NetStoreApp(props: NetStoreAppProps) {
               );
             }
             if (ghRes.ok) {
-              githubData = await ghRes.json();
+              catalogData = await ghRes.json();
             } else {
               console.warn(`Failed to fetch branch ${selectedBranch}`);
             }
-        } catch (e) {
+          } catch (e) {
             console.warn('Failed to fetch github branch data', e);
+          }
         }
         
         const mergedMap = new Map();
-        for (const app of githubData) {
+        for (const app of catalogData) {
             mergedMap.set(app.id, { ...app, installed: false });
         }
         
@@ -216,7 +277,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     };
     
     fetchApps();
-  }, [props.target, selectedBranch, githubToken]);
+  }, [props.target, selectedBranch, selectedLocalBranch, debugStoreUrl, githubToken, refreshIndex]);
 
   // Installed App State
   const [installedAppIds, setInstalledAppIds] = useState<string[]>([]);
@@ -241,6 +302,9 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     setInstallingMap((prev) => ({ ...prev, [app.id]: 15 }));
 
     const targetId = props.target;
+    const isDebug = selectedBranch === 'local-debug';
+    const effectiveBranch = isDebug ? (selectedLocalBranch || 'workspace') : selectedBranch;
+    const effectiveCustomStoreUrl = isDebug ? debugStoreUrl : undefined;
     
     fetch('/api/applications/install', {
       method: 'POST',
@@ -248,7 +312,14 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         'Content-Type': 'application/json',
         ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
       },
-      body: JSON.stringify({ appId: app.id, target: targetId, branch: selectedBranch, githubToken, runInBackground: runInBg })
+      body: JSON.stringify({ 
+        appId: app.id, 
+        target: targetId, 
+        branch: effectiveBranch, 
+        githubToken, 
+        runInBackground: runInBg,
+        customStoreUrl: effectiveCustomStoreUrl
+      })
     })
     .then(async (res) => {
       if (!res.ok) {
@@ -411,33 +482,96 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             <Select
               labelId="branch-select-label"
               value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value as 'NetStore' | 'NetStore-dev')}
+              onChange={(e) => setSelectedBranch(e.target.value as 'NetStore' | 'NetStore-dev' | 'local-debug')}
               label="Store Channel"
               sx={{ fontSize: '0.85rem' }}
             >
               <MenuItem value="NetStore">Stable (NetStore)</MenuItem>
               <MenuItem value="NetStore-dev">Developer (NetStore-dev)</MenuItem>
+              <MenuItem value="local-debug">🛠️ Local Debug (Docker)</MenuItem>
             </Select>
           </FormControl>
         </Box>
 
-        {/* GitHub Token Field */}
-        <Box sx={{ px: 2, pb: 2 }}>
-          <TextField
-            size="small"
-            type="password"
-            label="GitHub Token (Optional)"
-            placeholder="ghp_xxxxxxxxxxxx"
-            value={githubToken}
-            onChange={(e) => setGithubToken(e.target.value)}
-            fullWidth
-            slotProps={{
-              input: {
-                startAdornment: <Key size={14} style={{ marginRight: 6, color: '#94a3b8' }} />
-              }
-            }}
-          />
-        </Box>
+        {/* Debug or GitHub Token Controls */}
+        {selectedBranch === 'local-debug' ? (
+          <Box sx={{ px: 2, pb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {/* Status Bar */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'rgba(255, 255, 255, 0.03)', p: 1, borderRadius: 1, border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+              {debugConnected === true ? (
+                <Chip
+                  size="small"
+                  icon={<CheckCircle2 size={12} style={{ color: '#10b981' }} />}
+                  label="Docker Online"
+                  sx={{ bgcolor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontSize: '0.75rem', fontWeight: 600, height: 24, border: '1px solid rgba(16, 185, 129, 0.25)' }}
+                />
+              ) : (
+                <Tooltip title="Start Docker debug server: ./start-debug.sh in NetLink-NetStore" arrow>
+                  <Chip
+                    size="small"
+                    icon={<AlertTriangle size={12} style={{ color: '#f43f5e' }} />}
+                    label="Docker Offline"
+                    sx={{ bgcolor: 'rgba(244, 63, 94, 0.15)', color: '#fb7185', fontSize: '0.75rem', fontWeight: 600, height: 24, border: '1px solid rgba(244, 63, 94, 0.25)' }}
+                  />
+                </Tooltip>
+              )}
+              <IconButton size="small" onClick={() => setRefreshIndex(prev => prev + 1)} sx={{ color: '#94a3b8', p: 0.5 }}>
+                <RefreshCw size={14} />
+              </IconButton>
+            </Box>
+
+            {/* Local Branch Select */}
+            <FormControl fullWidth size="small" variant="outlined">
+              <InputLabel id="local-branch-label" sx={{ fontSize: '0.8rem' }}>Local Branch</InputLabel>
+              <Select
+                labelId="local-branch-label"
+                value={selectedLocalBranch}
+                onChange={(e) => setSelectedLocalBranch(e.target.value)}
+                label="Local Branch"
+                sx={{ fontSize: '0.82rem' }}
+              >
+                {debugBranches.map(b => (
+                  <MenuItem key={b} value={b} sx={{ fontSize: '0.85rem' }}>
+                    {b === 'workspace' ? '📁 workspace (live)' : `🌿 ${b}`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Docker Server URL */}
+            <TextField
+              size="small"
+              label="Docker Store URL"
+              value={debugStoreUrl}
+              onChange={(e) => setDebugStoreUrl(e.target.value)}
+              fullWidth
+              slotProps={{
+                input: {
+                  sx: { fontSize: '0.8rem' },
+                  startAdornment: <Server size={13} style={{ marginRight: 6, color: '#94a3b8' }} />
+                }
+              }}
+            />
+          </Box>
+        ) : (
+          /* GitHub Token Field */
+          <Box sx={{ px: 2, pb: 2 }}>
+            <TextField
+              size="small"
+              type="password"
+              label="GitHub Token (Optional)"
+              placeholder="ghp_xxxxxxxxxxxx"
+              value={githubToken}
+              onChange={(e) => setGithubToken(e.target.value)}
+              fullWidth
+              slotProps={{
+                input: {
+                  startAdornment: <Key size={14} style={{ marginRight: 6, color: '#94a3b8' }} />
+                }
+              }}
+            />
+          </Box>
+        )}
 
         {/* Sidebar Menu List */}
         <List className="netstore-sidebar-list">
@@ -597,11 +731,27 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                       ? 'All Applications'
                       : `${selectedCategory} Apps`}
             </Typography>
-            <Chip
-              label={`${filteredApps.length} Apps`}
-              size="small"
-              variant="outlined"
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {selectedBranch === 'local-debug' && (
+                <Chip
+                  icon={<Wrench size={12} style={{ color: '#facc15' }} />}
+                  label={`Docker: ${selectedLocalBranch}`}
+                  size="small"
+                  sx={{
+                    bgcolor: 'rgba(234, 179, 8, 0.15)',
+                    color: '#facc15',
+                    border: '1px solid rgba(234, 179, 8, 0.3)',
+                    fontSize: '0.75rem',
+                    fontWeight: 600
+                  }}
+                />
+              )}
+              <Chip
+                label={`${filteredApps.length} Apps`}
+                size="small"
+                variant="outlined"
+              />
+            </Box>
           </Box>
 
           {/* App Cards Grid */}

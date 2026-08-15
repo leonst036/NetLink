@@ -49,7 +49,7 @@ export async function handleInstallApplicationRoute(parsedUrl: URL, req: http.In
         req.on('end', () => {
             try {
                 const data = JSON.parse(body);
-                const { appId, target, branch, githubToken, runInBackground } = data;
+                const { appId, target, branch, githubToken, runInBackground, customStoreUrl } = data;
 
                 if (!appId || !target) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -71,7 +71,8 @@ export async function handleInstallApplicationRoute(parsedUrl: URL, req: http.In
                     userId: userId,
                     branch: branch || 'NetStore',
                     githubToken: githubToken || process.env.GITHUB_TOKEN || process.env.GH_TOKEN,
-                    runInBackground: Boolean(runInBackground)
+                    runInBackground: Boolean(runInBackground),
+                    customStoreUrl: customStoreUrl || undefined
                 }));
 
                 const requestHandler = (msg: string) => {
