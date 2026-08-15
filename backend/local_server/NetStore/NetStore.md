@@ -349,3 +349,78 @@ To ensure all NetStore apps look premium and feel native within NetLink, follow 
 ### 4. Layout & Responsiveness
 * Apps render inside dynamic windows and tabs. Root containers must use flexible sizing classes (e.g. `w-full h-full flex flex-col overflow-hidden` or `overflow-y-auto`).
 * Provide visual feedback for all interactive states (`transition-all duration-200 ease-in-out`, spinners, skeleton loaders).
+
+---
+
+## Shared UI Package (`@netlink/ui`)
+
+NetLink provides an official UI component package located in [`packages/ui`](https://github.com/leonst036/NetLink-NetStore/tree/NetStore/packages/ui) (`@netlink/ui`) containing pre-styled Material-UI themes, layout containers, and common interactive components.
+
+### 1. Installation & Dependency
+
+In your app's `frontend/package.json`, add `@netlink/ui`:
+
+```json
+{
+  "dependencies": {
+    "@netlink/ui": "workspace:*",
+    "@mui/material": "^5.14.0",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "lucide-react": "^0.294.0"
+  }
+}
+```
+
+### 2. Available Components & Helpers
+
+* **`getAppTheme(themeName?: string)`**: Creates a tailored Material-UI theme matching NetLink's slate dark mode (`#020617` base, `#0f172a` paper, `#38bdf8` primary).
+* **`WindowLayout`**: Standardized window frame component with header bar, icon, title, action controls, and scrollable content body.
+* **`GeminiLoader`**: Animated pulsing gradient spinner for loading screens and asynchronous operations.
+
+### 3. Usage Example
+
+```tsx
+import React, { useState, useEffect } from 'react';
+import { ThemeProvider } from '@mui/material/styles';
+import { WindowLayout, GeminiLoader, getAppTheme } from '@netlink/ui';
+import { Server, RefreshCw } from 'lucide-react';
+
+export default function MyApp() {
+    const [loading, setLoading] = useState(true);
+    const theme = getAppTheme('dark');
+
+    useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 1000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    return (
+        <ThemeProvider theme={theme}>
+            <WindowLayout
+                title="Server Manager"
+                icon={<Server size={18} className="text-sky-400" />}
+                actions={
+                    <button 
+                        onClick={() => setLoading(true)} 
+                        className="p-1 hover:bg-slate-800 rounded transition-colors text-slate-400 hover:text-slate-200"
+                    >
+                        <RefreshCw size={16} />
+                    </button>
+                }
+            >
+                {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                        <GeminiLoader />
+                    </div>
+                ) : (
+                    <div className="p-6 text-slate-100">
+                        <h2 className="text-lg font-semibold">Active Services</h2>
+                        <p className="text-slate-400 text-sm mt-1">All systems operational.</p>
+                    </div>
+                )}
+            </WindowLayout>
+        </ThemeProvider>
+    );
+}
+```
