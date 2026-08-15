@@ -365,3 +365,123 @@ export async function getNodeSystemStats(node: NodeInfo): Promise<import('./type
   return null;
 }
 
+// 7. Backup Management APIs
+
+// List backups
+export async function getNodeServerBackups(node: NodeInfo, serverId: string): Promise<import('./types').BackupItem[]> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/backups`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.backups || [];
+    }
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/backups`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.backups || [];
+    }
+  } catch {}
+
+  return [];
+}
+
+// Create backup
+export async function createNodeServerBackup(
+  node: NodeInfo,
+  serverId: string,
+  name?: string
+): Promise<{ success: boolean; backup?: import('./types').BackupItem; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/backups/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/backups/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Restore backup
+export async function restoreNodeServerBackup(
+  node: NodeInfo,
+  serverId: string,
+  backupId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/backups/${backupId}/restore`, {
+      method: 'POST',
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/backups/${backupId}/restore`, {
+      method: 'POST',
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Toggle lock backup
+export async function toggleLockNodeServerBackup(
+  node: NodeInfo,
+  serverId: string,
+  backupId: string
+): Promise<{ success: boolean; backup?: import('./types').BackupItem; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/backups/${backupId}/lock`, {
+      method: 'POST',
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/backups/${backupId}/lock`, {
+      method: 'POST',
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Delete backup
+export async function deleteNodeServerBackup(
+  node: NodeInfo,
+  serverId: string,
+  backupId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/backups/${backupId}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/backups/${backupId}`, {
+      method: 'DELETE',
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+

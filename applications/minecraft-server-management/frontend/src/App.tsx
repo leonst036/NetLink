@@ -21,6 +21,7 @@ import {
   LayoutDashboard,
   Terminal,
   Folder,
+  Archive,
   Settings,
   Plus,
 } from 'lucide-react';
@@ -39,10 +40,12 @@ import { InstanceControlBar } from './components/InstanceControlBar';
 import { OverviewTab } from './components/OverviewTab';
 import { ConsoleTab } from './components/ConsoleTab';
 import { FileManager } from './components/FileManager';
+import { BackupsTab } from './components/BackupsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { InstallNodeModal } from './components/InstallNodeModal';
 import { CreateServerModal } from './components/CreateServerModal';
 import { NodeMetricsModal } from './components/NodeMetricsModal';
+
 
 const darkTheme = createTheme({
   palette: {
@@ -131,7 +134,8 @@ export default function App() {
 
   // View state: 'list' (all servers grid) or 'detail' (selected server dashboard)
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
-  const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'files' | 'settings'>('overview');
+  const [currentTab, setCurrentTab] = useState<'overview' | 'console' | 'files' | 'backups' | 'settings'>('overview');
+
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -392,6 +396,7 @@ export default function App() {
                       <Tab value="overview" icon={<LayoutDashboard size={18} />} iconPosition="start" label="Overview" />
                       <Tab value="console" icon={<Terminal size={18} />} iconPosition="start" label="Console" />
                       <Tab value="files" icon={<Folder size={18} />} iconPosition="start" label="Files" />
+                      <Tab value="backups" icon={<Archive size={18} />} iconPosition="start" label="Backups" />
                       <Tab value="settings" icon={<Settings size={18} />} iconPosition="start" label="Settings" />
                     </Tabs>
                   </Box>
@@ -413,9 +418,14 @@ export default function App() {
                     <FileManager node={activeNode} serverId={activeServer.id} />
                   )}
 
+                  {currentTab === 'backups' && (
+                    <BackupsTab activeNode={activeNode} activeServer={activeServer} />
+                  )}
+
                   {currentTab === 'settings' && (
                     <SettingsTab activeNode={activeNode} activeServer={activeServer} />
                   )}
+
                 </Box>
               )
             ) : null}

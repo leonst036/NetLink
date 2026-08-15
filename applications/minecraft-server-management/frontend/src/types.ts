@@ -40,6 +40,15 @@ export interface NodeSystemStats {
   daemonUptimeSeconds: number;
 }
 
+export interface BackupItem {
+  id: string;
+  name: string;
+  fileName: string;
+  createdAt: number;
+  sizeBytes: number;
+  isLocked: boolean;
+}
+
 export interface FileItem {
   name: string;
   isDirectory: boolean;

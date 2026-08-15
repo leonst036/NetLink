@@ -1,5 +1,5 @@
 // NetLink Minecraft Wings Daemon - Main Router
-// Imports process_manager, file_manager, server_manager, and node_metrics to serve the HTTP REST API.
+// Imports process_manager, file_manager, server_manager, node_metrics, and backup_manager to serve the HTTP REST API.
 
 import {
   activeServers,
@@ -23,6 +23,13 @@ import {
 import {
   getNodeSystemStats,
 } from "./node_metrics.ts";
+import {
+  listBackups,
+  createBackup,
+  restoreBackup,
+  deleteBackup,
+  toggleLockBackup,
+} from "./backup_manager.ts";
 
 const port = parseInt(Deno.env.get("PORT") || "9080");
 const dataDir = Deno.env.get("DATA_DIR") || "/var/lib/netlink-wings/servers";
@@ -42,7 +49,7 @@ Deno.serve({ port }, async (req) => {
   // CORS headers
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 
@@ -137,7 +144,49 @@ Deno.serve({ port }, async (req) => {
     }
   }
 
-  // 6. Server Lifecycle, Metrics, & Control routes: /api/servers/:id/power | command | logs | stats | resources
+  // 6. Backup Management routes: /api/servers/:id/backups...
+  const backupsPathMatch = url.pathname.match(/^\/api\/servers\/([^\/]+)\/backups(\/create|\/([^\/]+)\/restore|\/([^\/]+)\/lock|\/([^\/]+))?$/);
+  if (backupsPathMatch) {
+    const [, serverId, subAction, restoreId, lockId, deleteId] = backupsPathMatch;
+    const serverPath = `${dataDir}/${serverId}`;
+
+    try {
+      // GET /api/servers/:id/backups - List backups
+      if (!subAction && req.method === "GET") {
+        const backups = await listBackups(serverPath);
+        return jsonResponse({ backups });
+      }
+
+      // POST /api/servers/:id/backups/create - Create backup
+      if (subAction === "/create" && req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        const backup = await createBackup(serverPath, body.name);
+        return jsonResponse({ success: true, backup });
+      }
+
+      // POST /api/servers/:id/backups/:backupId/restore - Restore backup
+      if (restoreId && req.method === "POST") {
+        await restoreBackup(serverPath, restoreId);
+        return jsonResponse({ success: true, message: "Backup restored successfully" });
+      }
+
+      // POST /api/servers/:id/backups/:backupId/lock - Toggle lock
+      if (lockId && req.method === "POST") {
+        const updated = await toggleLockBackup(serverPath, lockId);
+        return jsonResponse({ success: true, backup: updated });
+      }
+
+      // DELETE /api/servers/:id/backups/:backupId - Delete backup
+      if (deleteId && req.method === "DELETE") {
+        await deleteBackup(serverPath, deleteId);
+        return jsonResponse({ success: true });
+      }
+    } catch (err: any) {
+      return jsonResponse({ error: err.message }, 500);
+    }
+  }
+
+  // 7. Server Lifecycle, Metrics, & Control routes: /api/servers/:id/power | command | logs | stats | resources
   const serverPathMatch = url.pathname.match(/^\/api\/servers\/([^\/]+)\/(power|command|logs|stats|resources)$/);
   if (serverPathMatch) {
     const [, serverId, action] = serverPathMatch;
