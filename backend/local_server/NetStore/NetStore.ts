@@ -484,6 +484,18 @@ export async function uninstallApplication(appId: string, userId?: string) {
             console.log(`Removed directory for application ${appId}`);
         }
 
+        // Clear granted permissions for this app
+        try {
+            const perms = getGrantedPermissions();
+            if (perms[appId]) {
+                delete perms[appId];
+                saveGrantedPermissions(perms);
+                console.log(`Cleared local granted permissions for uninstalled app ${appId}`);
+            }
+        } catch (e) {
+            console.error('Failed to clear permissions on local uninstall:', e);
+        }
+
         console.log(`Successfully uninstalled application: ${appId}`);
     } catch (err) {
         console.error(`Error during uninstallation of ${appId}:`, err);

@@ -18,6 +18,8 @@ const __dirname = path.dirname(__filename);
 const RELAY_APPS_DIR = path.join(__dirname, '..', 'NetStore', 'Applications');
 const PERMISSIONS_FILE = path.join(RELAY_APPS_DIR, 'permissions.json');
 
+export const pendingPermissionRequests = new Map<string, Map<string, any>>();
+
 export function getGrantedPermissions(): Record<string, any> {
     if (!fs.existsSync(PERMISSIONS_FILE)) return {};
     try {
@@ -193,19 +195,27 @@ export function handleLocalServerConnection(
 
                             if (!foldersGranted || !runGranted || !envGranted || !dbGranted) {
                                 console.log(`App ${appId} requires permissions. Requesting from frontend...`);
+                                const reqPayload = {
+                                    type: 'permission_request',
+                                    appId,
+                                    appName,
+                                    folders: requestedFolders,
+                                    requestedPermissions: requestedPerms,
+                                    requestedCollections: requestedCollections,
+                                    allowDatabase: requestedDb
+                                };
+                                let targetMap = pendingPermissionRequests.get(identifier);
+                                if (!targetMap) {
+                                    targetMap = new Map();
+                                    pendingPermissionRequests.set(identifier, targetMap);
+                                }
+                                targetMap.set(appId, reqPayload);
+
                                 const clients = frontendClients.get(identifier);
                                 if (clients) {
                                     clients.forEach(client => {
                                         if (client.readyState === WebSocket.OPEN) {
-                                            client.send(JSON.stringify({
-                                                type: 'permission_request',
-                                                appId,
-                                                appName,
-                                                folders: requestedFolders,
-                                                requestedPermissions: requestedPerms,
-                                                requestedCollections: requestedCollections,
-                                                allowDatabase: requestedDb
-                                            }));
+                                            client.send(JSON.stringify(reqPayload));
                                         }
                                     });
                                 }
@@ -330,11 +340,27 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
         frontendClients.set(targetId, clients);
     }
     clients.add(ws);
+
+    // Replay any pending permission requests for this target to the newly connected desktop
+    const targetPending = pendingPermissionRequests.get(targetId);
+    if (targetPending && targetPending.size > 0) {
+        targetPending.forEach(reqPayload => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(reqPayload));
+            }
+        });
+    }
     
     ws.on('message', async (data: any) => {
         try {
             const message = JSON.parse(data.toString());
             if (message.type === 'permission_response' && message.appId) {
+                // Clear pending permission request
+                const pMap = pendingPermissionRequests.get(targetId);
+                if (pMap) {
+                    pMap.delete(message.appId);
+                }
+
                 if (message.granted) {
                     console.log(`Permission granted for app ${message.appId}`);
                     const perms = getGrantedPermissions();

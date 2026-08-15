@@ -127,7 +127,7 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
         req.on('data', chunk => {
             body += chunk.toString();
         });
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
                 const { appId, target } = data;
@@ -150,6 +150,19 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
                 const absoluteRelayAppsDir = path.resolve(RELAY_APPS_DIR);
                 if (targetAppDir.startsWith(absoluteRelayAppsDir + path.sep) && fs.existsSync(targetAppDir)) {
                     fs.rmSync(targetAppDir, { recursive: true, force: true });
+                }
+
+                // Clear granted permissions for app on uninstall
+                try {
+                    const { getGrantedPermissions, saveGrantedPermissions } = await import('../../websocket/connectionHandlers.js');
+                    const perms = getGrantedPermissions();
+                    if (perms[appId]) {
+                        delete perms[appId];
+                        saveGrantedPermissions(perms);
+                        console.log(`Cleared granted permissions for uninstalled app ${appId}`);
+                    }
+                } catch (e) {
+                    console.error('Failed to clear permissions on uninstall:', e);
                 }
 
                 // Send command to local server

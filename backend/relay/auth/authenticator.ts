@@ -74,17 +74,32 @@ export async function authenticateToken(
 
     const secretKey = process.env.JWT_SECRET || 'default_secret';
     
-    // 1. JWT verification
-    const decoded = await VerifyToken(token, secretKey);
-    
-    // 2. Database validation if MongoDB is configured
-    if (mongoClient) {
-        const tokenExists = await CheckToken(mongoClient, token);
-        if (!tokenExists) {
-            const { StoreToken } = await import('../database/MongoManager.js');
-            await StoreToken(mongoClient, token);
+    // 1. Try JWT verification first
+    try {
+        const decoded = await VerifyToken(token, secretKey);
+        
+        // 2. Database validation if MongoDB is configured
+        if (mongoClient) {
+            const tokenExists = await CheckToken(mongoClient, token);
+            if (!tokenExists) {
+                const { StoreToken } = await import('../database/MongoManager.js');
+                await StoreToken(mongoClient, token);
+            }
         }
+        return decoded;
+    } catch (jwtErr) {
+        // Fallback: Check if token is actually a session Ticket
+        const { consumeTicket } = await import('./ticketManager.js');
+        const ticketData = consumeTicket(token);
+        if (ticketData) {
+            return {
+                userId: ticketData.userId,
+                deviceId: ticketData.target || ticketData.userId,
+                role: ticketData.role || (ticketData.userId === 'admin' ? 'admin' : 'user'),
+                permissions: ticketData.permissions || []
+            };
+        }
+        throw jwtErr;
     }
-    return decoded;
 }
 
