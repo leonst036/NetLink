@@ -6,6 +6,7 @@ import {
   CreateServerParams,
   ServerStats,
   ServerSoftwareResponse,
+  SoftwareBuildsResponse,
   ChangeSoftwarePayload,
 } from './types';
 
@@ -965,6 +966,30 @@ export async function updateServerSoftware(
   } catch (err: any) {
     return { success: false, error: err.message || 'Failed to update server software' };
   }
+}
+
+// Fetch available software build numbers or loader versions
+export async function getSoftwareBuilds(
+  node: NodeInfo,
+  serverId: string,
+  software: string,
+  version: string
+): Promise<SoftwareBuildsResponse | null> {
+  const query = `software=${encodeURIComponent(software)}&version=${encodeURIComponent(version)}`;
+
+  if (node.host && node.daemonPort) {
+    try {
+      const res = await fetch(`http://${node.host}:${node.daemonPort}/api/servers/${serverId}/software/builds?${query}`);
+      if (res.ok) return await res.json();
+    } catch {}
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/servers/${serverId}/software/builds?${query}`);
+    if (res.ok) return await res.json();
+  } catch {}
+
+  return null;
 }
 
 

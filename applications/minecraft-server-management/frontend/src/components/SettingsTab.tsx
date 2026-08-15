@@ -25,6 +25,7 @@ import {
   Layers,
   DownloadCloud,
   AlertTriangle,
+  Hash,
 } from 'lucide-react';
 import { NodeInfo, NodeServerItem, SoftwareOption } from '../types';
 import {
@@ -32,6 +33,7 @@ import {
   updateNodeServerResources,
   getServerSoftware,
   updateServerSoftware,
+  getSoftwareBuilds,
 } from '../api';
 import { PortForwardCard } from './PortForwardCard';
 
@@ -68,6 +70,8 @@ const FALLBACK_SOFTWARES: SoftwareOption[] = [
     description: 'High-performance Spigot fork with bug fixes and plugin support.',
     recommendedVersion: '1.20.4',
     supportedVersions: ['1.21.4', '1.21.3', '1.21.1', '1.20.6', '1.20.4', '1.20.2', '1.20.1', '1.19.4', '1.18.2', '1.16.5'],
+    supportsBuilds: true,
+    buildLabel: 'Build Number',
   },
   {
     id: 'purpur',
@@ -75,6 +79,8 @@ const FALLBACK_SOFTWARES: SoftwareOption[] = [
     description: 'Drop-in replacement for Paper with extensive gameplay configuration.',
     recommendedVersion: '1.20.4',
     supportedVersions: ['1.21.4', '1.21.3', '1.21.1', '1.20.6', '1.20.4', '1.20.2', '1.20.1', '1.19.4', '1.18.2', '1.16.5'],
+    supportsBuilds: true,
+    buildLabel: 'Build Number',
   },
   {
     id: 'vanilla',
@@ -82,6 +88,7 @@ const FALLBACK_SOFTWARES: SoftwareOption[] = [
     description: 'Official, unmodded Minecraft server software directly from Mojang.',
     recommendedVersion: '1.20.4',
     supportedVersions: ['1.21.4', '1.21.3', '1.21.1', '1.20.6', '1.20.4', '1.20.2', '1.20.1', '1.19.4', '1.18.2', '1.16.5', '1.12.2'],
+    supportsBuilds: false,
   },
   {
     id: 'fabric',
@@ -89,6 +96,8 @@ const FALLBACK_SOFTWARES: SoftwareOption[] = [
     description: 'Lightweight, highly-modular mod loader with fast startup and low overhead.',
     recommendedVersion: '1.20.4',
     supportedVersions: ['1.21.4', '1.21.3', '1.21.1', '1.20.6', '1.20.4', '1.20.2', '1.20.1', '1.19.4', '1.18.2', '1.16.5'],
+    supportsBuilds: true,
+    buildLabel: 'Loader Version',
   },
   {
     id: 'spigot',
@@ -96,6 +105,7 @@ const FALLBACK_SOFTWARES: SoftwareOption[] = [
     description: 'Modified Minecraft server with Bukkit plugin compatibility.',
     recommendedVersion: '1.20.4',
     supportedVersions: ['1.21.4', '1.21.1', '1.20.4', '1.20.1', '1.19.4', '1.18.2', '1.16.5', '1.12.2'],
+    supportsBuilds: false,
   },
 ];
 
@@ -105,9 +115,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
   const [savingLimits, setSavingLimits] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Software & Version state
+  // Software, Version & Build state
   const [software, setSoftware] = useState<string>('vanilla');
   const [version, setVersion] = useState<string>('1.20.4');
+  const [build, setBuild] = useState<string>('latest');
+  const [customBuildInput, setCustomBuildInput] = useState<string>('');
+  const [availableBuilds, setAvailableBuilds] = useState<string[]>([]);
+  const [loadingBuilds, setLoadingBuilds] = useState(false);
   const [supportedSoftwares, setSupportedSoftwares] = useState<SoftwareOption[]>(FALLBACK_SOFTWARES);
   const [savingSoftware, setSavingSoftware] = useState(false);
   const [softwareFeedback, setSoftwareFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -133,6 +147,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
         if (swData.current) {
           setSoftware(swData.current.software || 'vanilla');
           setVersion(swData.current.version || '1.20.4');
+          if (swData.current.build) {
+            setBuild(swData.current.build);
+          }
         }
         if (swData.supportedSoftwares && swData.supportedSoftwares.length > 0) {
           setSupportedSoftwares(swData.supportedSoftwares);
@@ -144,6 +161,35 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  const currentSoftwareOption = supportedSoftwares.find((s) => s.id === software) || supportedSoftwares[0];
+  const supportsBuilds = currentSoftwareOption?.supportsBuilds ?? false;
+  const buildLabel = currentSoftwareOption?.buildLabel || 'Build Number';
+
+  // Load available builds when software or version changes
+  useEffect(() => {
+    if (!activeNode || !activeServer || !supportsBuilds) {
+      setAvailableBuilds([]);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchBuilds = async () => {
+      setLoadingBuilds(true);
+      try {
+        const res = await getSoftwareBuilds(activeNode, activeServer.id, software, version);
+        if (isMounted && res && Array.isArray(res.builds)) {
+          setAvailableBuilds(res.builds);
+        }
+      } catch {}
+      if (isMounted) setLoadingBuilds(false);
+    };
+
+    fetchBuilds();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeNode, activeServer, software, version, supportsBuilds]);
 
   // Handle saving custom RAM and CPU limits
   const handleSaveResources = async () => {
@@ -182,24 +228,28 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
     }
   };
 
-  // Handle installing/switching software and version
+  // Handle installing/switching software, version and build
   const handleSaveSoftware = async () => {
     if (!activeNode || !activeServer) return;
     setSavingSoftware(true);
     setSoftwareFeedback(null);
 
+    const effectiveBuild = build === 'custom' ? customBuildInput.trim() : build;
+
     try {
       const res = await updateServerSoftware(activeNode, activeServer.id, {
         software,
         version,
+        build: effectiveBuild,
       });
 
       if (res.success) {
         const swOption = supportedSoftwares.find((s) => s.id === software);
         const swName = swOption ? swOption.name : software;
+        const buildText = effectiveBuild && effectiveBuild !== 'latest' ? ` (build ${effectiveBuild})` : '';
         setSoftwareFeedback({
           type: 'success',
-          message: `Successfully installed and switched server software to ${swName} (${version}).`,
+          message: `Successfully installed and switched server software to ${swName} ${version}${buildText}.`,
         });
       } else {
         setSoftwareFeedback({
@@ -217,7 +267,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
     }
   };
 
-  const currentSoftwareOption = supportedSoftwares.find((s) => s.id === software) || supportedSoftwares[0];
   const versionList = currentSoftwareOption?.supportedVersions || [
     '1.21.4',
     '1.21.3',
@@ -250,7 +299,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
         </Alert>
       )}
 
-      {/* 1. Server Software & Version Tuning Card */}
+      {/* 1. Server Software, Version & Build Tuning Card */}
       <Card
         sx={{
           backgroundColor: 'rgba(15, 23, 42, 0.7)',
@@ -266,7 +315,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
             </Typography>
           </Stack>
           <Typography variant="body2" sx={{ color: '#94a3b8', mb: 3 }}>
-            Change the underlying Minecraft server engine (Paper, Purpur, Vanilla, Fabric, Spigot) and switch versions.
+            Change the underlying Minecraft server engine (Paper, Purpur, Vanilla, Fabric, Spigot), version, and specific build or loader versions.
           </Typography>
 
           {softwareFeedback && (
@@ -309,6 +358,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
                 onChange={(e) => {
                   const newSw = e.target.value;
                   setSoftware(newSw);
+                  setBuild('latest');
                   const opt = supportedSoftwares.find((s) => s.id === newSw);
                   if (opt && opt.supportedVersions.length > 0 && !opt.supportedVersions.includes(version)) {
                     setVersion(opt.recommendedVersion || opt.supportedVersions[0]);
@@ -338,7 +388,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
               <Select
                 value={version}
                 label="Minecraft Version"
-                onChange={(e) => setVersion(e.target.value)}
+                onChange={(e) => {
+                  setVersion(e.target.value);
+                  setBuild('latest');
+                }}
                 sx={{
                   backgroundColor: 'rgba(15, 23, 42, 0.6)',
                   color: '#f8fafc',
@@ -373,7 +426,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
                       label={ver}
                       size="small"
                       clickable
-                      onClick={() => setVersion(ver)}
+                      onClick={() => {
+                        setVersion(ver);
+                        setBuild('latest');
+                      }}
                       sx={{
                         backgroundColor: isSelected ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
                         color: isSelected ? '#c084fc' : '#cbd5e1',
@@ -390,11 +446,110 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
               </Stack>
             </Box>
 
+            {/* Optional Build / Loader Version Selector */}
+            {supportsBuilds && (
+              <Box sx={{ p: 2, backgroundColor: 'rgba(0, 0, 0, 0.25)', borderRadius: 2, border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
+                  <Hash size={16} color="#c084fc" />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#f8fafc' }}>
+                    {buildLabel} Selection
+                  </Typography>
+                  {loadingBuilds && <CircularProgress size={14} sx={{ color: '#c084fc' }} />}
+                </Stack>
+
+                <Stack spacing={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel sx={{ color: '#94a3b8' }}>{buildLabel}</InputLabel>
+                    <Select
+                      value={build}
+                      label={buildLabel}
+                      onChange={(e) => setBuild(e.target.value)}
+                      sx={{
+                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                        color: '#f8fafc',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.12)' },
+                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.25)' },
+                      }}
+                    >
+                      <MenuItem value="latest">
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Typography sx={{ fontWeight: 600, color: '#f8fafc' }}>Latest (Auto Recommended)</Typography>
+                          <Chip label="Auto" size="small" sx={{ height: 18, fontSize: '0.68rem', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399' }} />
+                        </Stack>
+                      </MenuItem>
+                      {availableBuilds.slice(0, 30).map((b) => (
+                        <MenuItem key={b} value={b}>
+                          <Typography sx={{ color: '#f8fafc' }}>
+                            {software === 'fabric' ? `Loader v${b}` : `Build #${b}`}
+                          </Typography>
+                        </MenuItem>
+                      ))}
+                      <MenuItem value="custom">
+                        <Typography sx={{ color: '#c084fc', fontStyle: 'italic' }}>Custom / Other {buildLabel}...</Typography>
+                      </MenuItem>
+                    </Select>
+                  </FormControl>
+
+                  {build === 'custom' && (
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label={`Custom ${buildLabel}`}
+                      placeholder={software === 'fabric' ? 'e.g. 0.16.10' : 'e.g. 232'}
+                      value={customBuildInput}
+                      onChange={(e) => setCustomBuildInput(e.target.value)}
+                    />
+                  )}
+
+                  {/* Quick Build Presets */}
+                  {availableBuilds.length > 0 && (
+                    <Box>
+                      <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1 }}>
+                        Recent {buildLabel}s:
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        <Chip
+                          label="Latest (Auto)"
+                          size="small"
+                          clickable
+                          onClick={() => setBuild('latest')}
+                          sx={{
+                            backgroundColor: build === 'latest' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                            color: build === 'latest' ? '#c084fc' : '#cbd5e1',
+                            border: build === 'latest' ? '1px solid #a855f7' : '1px solid rgba(255, 255, 255, 0.08)',
+                            fontWeight: build === 'latest' ? 700 : 400,
+                          }}
+                        />
+                        {availableBuilds.slice(0, 5).map((b) => {
+                          const isSelected = build === b;
+                          return (
+                            <Chip
+                              key={b}
+                              label={software === 'fabric' ? `v${b}` : `#${b}`}
+                              size="small"
+                              clickable
+                              onClick={() => setBuild(b)}
+                              sx={{
+                                backgroundColor: isSelected ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                                color: isSelected ? '#c084fc' : '#cbd5e1',
+                                border: isSelected ? '1px solid #a855f7' : '1px solid rgba(255, 255, 255, 0.08)',
+                                fontWeight: isSelected ? 700 : 400,
+                              }}
+                            />
+                          );
+                        })}
+                      </Stack>
+                    </Box>
+                  )}
+                </Stack>
+              </Box>
+            )}
+
             {/* Install Button */}
             <Box pt={1}>
               <Button
                 variant="contained"
-                disabled={savingSoftware || !software || !version}
+                disabled={savingSoftware || !software || !version || (build === 'custom' && !customBuildInput.trim())}
                 startIcon={savingSoftware ? <CircularProgress size={16} color="inherit" /> : <DownloadCloud size={16} />}
                 onClick={handleSaveSoftware}
                 sx={{
@@ -407,7 +562,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
                   '&:hover': { backgroundColor: '#9333ea' },
                 }}
               >
-                {savingSoftware ? 'Downloading & Installing...' : `Install & Switch to ${currentSoftwareOption?.name} ${version}`}
+                {savingSoftware
+                  ? 'Downloading & Installing...'
+                  : `Install & Switch to ${currentSoftwareOption?.name} ${version}${build && build !== 'latest' && build !== 'custom' ? ` (${build})` : build === 'custom' && customBuildInput ? ` (${customBuildInput})` : ''}`}
               </Button>
             </Box>
           </Stack>
@@ -478,7 +635,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ activeNode, activeServ
                           clickable
                           onClick={() => setRamInput(preset.value.toString())}
                           sx={{
-                            backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                            backgroundColor: isSelected ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
                             color: isSelected ? '#34d399' : '#cbd5e1',
                             border: isSelected ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
                             fontWeight: isSelected ? 700 : 400,

@@ -228,11 +228,14 @@ export interface SoftwareOption {
   description: string;
   recommendedVersion: string;
   supportedVersions: string[];
+  supportsBuilds?: boolean;
+  buildLabel?: string;
 }
 
 export interface InstanceSoftwareConfig {
   software: string;
   version: string;
+  build?: string;
   jarFile: string;
   updatedAt?: number;
 }
@@ -242,9 +245,15 @@ export interface ServerSoftwareResponse {
   supportedSoftwares: SoftwareOption[];
 }
 
+export interface SoftwareBuildsResponse {
+  builds: string[];
+  latest: string;
+}
+
 export interface ChangeSoftwarePayload {
   software: string;
   version: string;
+  build?: string;
   jarFile?: string;
 }
 

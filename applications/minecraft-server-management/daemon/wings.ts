@@ -47,6 +47,7 @@ import {
 import {
   getInstanceSoftware,
   installServerSoftware,
+  getAvailableBuilds,
   SUPPORTED_SOFTWARES,
 } from "./software_manager.ts";
 
@@ -371,6 +372,14 @@ Deno.serve({ port }, async (req) => {
   }
 
   // 9. Software Management Endpoints
+  const softwareBuildsPathMatch = url.pathname.match(/^\/api\/servers\/([^\/]+)\/software\/builds$/);
+  if (softwareBuildsPathMatch && req.method === "GET") {
+    const software = url.searchParams.get("software") || "paper";
+    const version = url.searchParams.get("version") || "1.20.4";
+    const buildsData = await getAvailableBuilds(software, version);
+    return jsonResponse(buildsData);
+  }
+
   const softwarePathMatch = url.pathname.match(/^\/api\/servers\/([^\/]+)\/software$/);
   if (softwarePathMatch) {
     const serverId = softwarePathMatch[1];
@@ -388,12 +397,13 @@ Deno.serve({ port }, async (req) => {
       const body = await req.json();
       const software = body.software || "vanilla";
       const version = body.version || "1.20.4";
+      const build = body.build || "latest";
       const jarFile = body.jarFile || "server.jar";
 
-      const res = await installServerSoftware(serverPath, software, version, jarFile);
+      const res = await installServerSoftware(serverPath, software, version, build, jarFile);
       if (res.success) {
-        appendLog(serverId, `[Wings] Server software switched to ${software} (${version}).`);
-        return jsonResponse({ success: true, software, version, jarPath: res.jarPath });
+        appendLog(serverId, `[Wings] Server software switched to ${software} (${version}${build && build !== "latest" ? `, build ${build}` : ""}).`);
+        return jsonResponse({ success: true, software, version, build, jarPath: res.jarPath });
       } else {
         return jsonResponse({ success: false, error: res.error }, 500);
       }
