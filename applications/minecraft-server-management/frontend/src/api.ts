@@ -356,17 +356,75 @@ export async function createNodeServerFolder(node: NodeInfo, serverId: string, p
 
 // 6. Get overall Node host machine telemetry and resource utilization
 export async function getNodeSystemStats(node: NodeInfo): Promise<import('./types').NodeSystemStats | null> {
-  try {
-    const res = await fetch(`${API_BASE}/node/${node.id}/system-stats`);
-    if (res.ok) return await res.json();
-  } catch {}
+  if (node.host && node.daemonPort) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(`http://${node.host}:${node.daemonPort}/api/node/system-stats`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) return await res.json();
+    } catch {}
+  }
 
   try {
-    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/node/system-stats`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch(`${API_BASE}/node/${node.id}/system-stats`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
     if (res.ok) return await res.json();
   } catch {}
 
   return null;
+}
+
+// Check Wings Daemon Node Heartbeat / Health status
+export async function checkNodeHealth(node: NodeInfo): Promise<{
+  online: boolean;
+  latencyMs?: number;
+  version?: string;
+  uptimeSeconds?: number;
+}> {
+  const start = performance.now();
+  if (node.host && node.daemonPort) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const res = await fetch(`http://${node.host}:${node.daemonPort}/api/health`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          online: data.status === 'online',
+          latencyMs: Math.round(performance.now() - start),
+          version: data.version,
+          uptimeSeconds: data.uptimeSeconds,
+        };
+      }
+    } catch {}
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(`${API_BASE}/node/${node.id}/system-stats`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      return {
+        online: true,
+        latencyMs: Math.round(performance.now() - start),
+      };
+    }
+  } catch {}
+
+  return { online: false };
 }
 
 // 7. Backup Management APIs

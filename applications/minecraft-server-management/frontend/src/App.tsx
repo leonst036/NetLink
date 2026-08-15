@@ -26,6 +26,8 @@ import {
   Plus,
   Users,
   Gamepad2,
+  WifiOff,
+  RefreshCw,
 } from 'lucide-react';
 import { NodeInfo, NodeServerItem } from './types';
 import {
@@ -35,6 +37,7 @@ import {
   powerNodeServer,
   sendNodeServerCommand,
   getNodeServerLogs,
+  checkNodeHealth,
 } from './api';
 import { Header } from './components/Header';
 import { ServerListView } from './components/ServerListView';
@@ -183,6 +186,37 @@ export default function App() {
     loadNodes(true);
   }, [loadNodes]);
 
+  const [isNodeOnline, setIsNodeOnline] = useState(true);
+  const [nodeLatencyMs, setNodeLatencyMs] = useState<number | undefined>(undefined);
+  const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(null);
+
+  // Heartbeat monitoring for active node
+  const checkHeartbeat = useCallback(async () => {
+    const node = activeNodeRef.current;
+    if (!node) return;
+    try {
+      const res = await checkNodeHealth(node);
+      setIsNodeOnline(res.online);
+      if (res.online) {
+        setNodeLatencyMs(res.latencyMs);
+        setLastHeartbeat(new Date());
+      } else {
+        setNodeLatencyMs(undefined);
+      }
+    } catch {
+      setIsNodeOnline(false);
+      setNodeLatencyMs(undefined);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeNode) {
+      checkHeartbeat();
+      const timer = setInterval(checkHeartbeat, 3500);
+      return () => clearInterval(timer);
+    }
+  }, [activeNode?.id, checkHeartbeat]);
+
   // Load server instances without unmounting
   const loadServers = useCallback(async () => {
     const node = activeNodeRef.current;
@@ -296,15 +330,58 @@ export default function App() {
               nodes={nodes}
               activeNode={activeNode}
               refreshing={refreshing}
+              isNodeOnline={isNodeOnline}
+              nodeLatencyMs={nodeLatencyMs}
               onSelectNode={(nodeId) => {
                 setActiveNodeId(nodeId);
                 setViewMode('list');
               }}
               onGoToServerList={() => setViewMode('list')}
-              onRefresh={handleRefresh}
+              onRefresh={() => {
+                handleRefresh();
+                checkHeartbeat();
+              }}
               onOpenInstallModal={() => setInstallModalOpen(true)}
               onOpenNodeMetrics={() => setNodeMetricsOpen(true)}
             />
+
+            {/* Global Node Offline Banner Bar */}
+            {activeNode && !isNodeOnline && (
+              <Box sx={{ mt: 3, mb: 1 }}>
+                <Alert
+                  severity="error"
+                  icon={<WifiOff size={20} />}
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => {
+                        checkHeartbeat();
+                        loadServers();
+                      }}
+                      startIcon={<RefreshCw size={14} />}
+                      sx={{ fontWeight: 700, textTransform: 'none' }}
+                    >
+                      Retry Connection
+                    </Button>
+                  }
+                  sx={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.16)',
+                    color: '#fca5a5',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    borderRadius: 2.5,
+                    '& .MuiAlert-icon': { color: '#ef4444' },
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#fca5a5' }}>
+                    Node Daemon Offline — &ldquo;{activeNode.name}&rdquo; ({activeNode.host}:{activeNode.daemonPort})
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#f87171', display: 'block' }}>
+                    Heartbeat signal lost. The Wings daemon is currently unreachable. Real-time telemetry and server controls are paused.{lastHeartbeat ? ` (Last heartbeat: ${lastHeartbeat.toLocaleTimeString()})` : ''}
+                  </Typography>
+                </Alert>
+              </Box>
+            )}
 
             {loading ? (
               <Box sx={{ py: 10, textAlign: 'center' }}>
@@ -369,6 +446,7 @@ export default function App() {
                   activeNode={activeNode}
                   servers={servers}
                   actionLoading={actionLoading}
+                  isNodeOnline={isNodeOnline}
                   onSelectServer={handleSelectServer}
                   onPowerAction={handlePower}
                   onOpenCreateModal={() => setCreateServerModalOpen(true)}

@@ -83,8 +83,8 @@ Deno.serve({ port }, async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  // 1. GET /api/status - Daemon status
-  if (req.method === "GET" && url.pathname === "/api/status") {
+  // 1. GET /api/status or /api/health - Daemon heartbeat and status
+  if (req.method === "GET" && (url.pathname === "/api/status" || url.pathname === "/api/health")) {
     return jsonResponse({
       status: "online",
       version: "1.0.1",

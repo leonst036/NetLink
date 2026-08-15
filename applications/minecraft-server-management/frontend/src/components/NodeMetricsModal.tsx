@@ -14,6 +14,7 @@ import {
   LinearProgress,
   Chip,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Activity,
@@ -22,6 +23,8 @@ import {
   Clock,
   Server,
   CheckCircle2,
+  WifiOff,
+  RefreshCw,
 } from 'lucide-react';
 
 import { NodeInfo, NodeSystemStats } from '../types';
@@ -39,21 +42,31 @@ export const NodeMetricsModal: React.FC<NodeMetricsModalProps> = ({
   onClose,
 }) => {
   const [stats, setStats] = useState<NodeSystemStats | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(null);
 
   const fetchMetrics = useCallback(async () => {
     if (!node) return;
     try {
       const data = await getNodeSystemStats(node);
-      if (data) setStats(data);
-    } catch {}
+      if (data) {
+        setStats(data);
+        setIsOnline(true);
+        setLastHeartbeat(new Date());
+      } else {
+        setIsOnline(false);
+      }
+    } catch {
+      setIsOnline(false);
+    }
   }, [node]);
 
   useEffect(() => {
     if (open && node) {
       setLoading(true);
       fetchMetrics().finally(() => setLoading(false));
-      const interval = setInterval(fetchMetrics, 2500);
+      const interval = setInterval(fetchMetrics, 3000);
       return () => clearInterval(interval);
     }
   }, [open, node, fetchMetrics]);
@@ -103,8 +116,8 @@ export const NodeMetricsModal: React.FC<NodeMetricsModalProps> = ({
                 width: 38,
                 height: 38,
                 borderRadius: 2,
-                backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                color: '#38bdf8',
+                backgroundColor: isOnline ? 'rgba(56, 189, 248, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                color: isOnline ? '#38bdf8' : '#f87171',
               }}
             >
               <Activity size={20} />
@@ -119,21 +132,66 @@ export const NodeMetricsModal: React.FC<NodeMetricsModalProps> = ({
             </Box>
           </Stack>
 
-          <Chip
-            size="small"
-            icon={<CheckCircle2 size={13} color="#34d399" />}
-            label="Live Telemetry"
-            sx={{
-              backgroundColor: 'rgba(16, 185, 129, 0.15)',
-              color: '#34d399',
-              fontWeight: 600,
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-            }}
-          />
+          {/* Heartbeat Status Chip: Live Telemetry vs Offline */}
+          {isOnline ? (
+            <Chip
+              size="small"
+              icon={<CheckCircle2 size={13} color="#34d399" />}
+              label="Live Telemetry"
+              sx={{
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                color: '#34d399',
+                fontWeight: 600,
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+              }}
+            />
+          ) : (
+            <Chip
+              size="small"
+              icon={<WifiOff size={13} color="#f87171" />}
+              label="Offline"
+              sx={{
+                backgroundColor: 'rgba(239, 68, 68, 0.18)',
+                color: '#f87171',
+                fontWeight: 700,
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+              }}
+            />
+          )}
         </Stack>
       </DialogTitle>
 
       <DialogContent sx={{ p: 3 }}>
+        {/* Offline Banner Bar */}
+        {!isOnline && (
+          <Alert
+            severity="error"
+            icon={<WifiOff size={18} />}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={fetchMetrics}
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={12} color="inherit" /> : <RefreshCw size={14} />}
+                sx={{ fontWeight: 700, textTransform: 'none' }}
+              >
+                Retry Heartbeat
+              </Button>
+            }
+            sx={{
+              mb: 3,
+              backgroundColor: 'rgba(239, 68, 68, 0.16)',
+              color: '#fca5a5',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              borderRadius: 2,
+              '& .MuiAlert-icon': { color: '#ef4444' },
+            }}
+          >
+            <strong>Node Daemon Offline:</strong> Heartbeat connection to {node?.host}:{node?.daemonPort} failed or timed out. Real-time telemetry is paused.
+          </Alert>
+        )}
+
         {loading && !stats ? (
           <Box sx={{ py: 8, textAlign: 'center' }}>
             <CircularProgress size={32} sx={{ color: '#38bdf8' }} />
@@ -142,7 +200,7 @@ export const NodeMetricsModal: React.FC<NodeMetricsModalProps> = ({
             </Typography>
           </Box>
         ) : stats ? (
-          <Stack spacing={3}>
+          <Stack spacing={3} sx={{ opacity: isOnline ? 1 : 0.65, transition: 'opacity 0.3s' }}>
             {/* Primary Metrics Grid */}
             <Grid container spacing={2.5}>
               {/* 1. Host CPU Card */}
@@ -385,13 +443,37 @@ export const NodeMetricsModal: React.FC<NodeMetricsModalProps> = ({
             </Grid>
           </Stack>
         ) : (
-          <Typography variant="body2" sx={{ color: '#f87171', textAlign: 'center', py: 4 }}>
-            Failed to load node hardware statistics.
-          </Typography>
+          <Box sx={{ py: 6, textAlign: 'center' }}>
+            <WifiOff size={40} color="#ef4444" style={{ marginBottom: 12 }} />
+            <Typography variant="h6" sx={{ color: '#f87171', fontWeight: 700 }}>
+              Wings Node Daemon Offline
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#94a3b8', mt: 1, maxWidth: 460, mx: 'auto' }}>
+              Could not communicate with the Wings daemon at {node?.host}:{node?.daemonPort}. Please verify that the daemon process is running on the host machine.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={fetchMetrics}
+              startIcon={<RefreshCw size={15} />}
+              sx={{
+                mt: 3,
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                '&:hover': { backgroundColor: '#dc2626' },
+              }}
+            >
+              Retry Connection
+            </Button>
+          </Box>
         )}
       </DialogContent>
 
       <DialogActions sx={{ p: 3, pt: 1, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+        {lastHeartbeat && (
+          <Typography variant="caption" sx={{ color: '#64748b', mr: 'auto' }}>
+            Last heartbeat: {lastHeartbeat.toLocaleTimeString()}
+          </Typography>
+        )}
         <Button
           onClick={onClose}
           variant="outlined"

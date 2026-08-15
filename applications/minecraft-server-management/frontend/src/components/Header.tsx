@@ -8,8 +8,9 @@ import {
   MenuItem,
   FormControl,
   keyframes,
+  Chip,
 } from '@mui/material';
-import { Server, Plus, RefreshCw, Activity } from 'lucide-react';
+import { Server, Plus, RefreshCw, Activity, WifiOff } from 'lucide-react';
 
 import { NodeInfo } from '../types';
 
@@ -22,6 +23,8 @@ interface HeaderProps {
   nodes: NodeInfo[];
   activeNode: NodeInfo | null;
   refreshing?: boolean;
+  isNodeOnline?: boolean;
+  nodeLatencyMs?: number;
   onSelectNode: (nodeId: string) => void;
   onRefresh: () => void;
   onOpenInstallModal: () => void;
@@ -33,6 +36,8 @@ export const Header: React.FC<HeaderProps> = ({
   nodes,
   activeNode,
   refreshing = false,
+  isNodeOnline = true,
+  nodeLatencyMs,
   onSelectNode,
   onRefresh,
   onOpenInstallModal,
@@ -115,18 +120,43 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Node Controls */}
       <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
         {nodes.length > 0 && (
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <Select
-              value={activeNode?.id || ''}
-              onChange={(e) => onSelectNode(e.target.value)}
-            >
-              {nodes.map((node) => (
-                <MenuItem key={node.id} value={node.id}>
-                  {node.name} ({node.host}:{node.daemonPort})
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <Select
+                value={activeNode?.id || ''}
+                onChange={(e) => onSelectNode(e.target.value)}
+              >
+                {nodes.map((node) => (
+                  <MenuItem key={node.id} value={node.id}>
+                    {node.name} ({node.host}:{node.daemonPort})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Heartbeat Status Indicator */}
+            {activeNode && (
+              <Chip
+                size="small"
+                icon={isNodeOnline ? undefined : <WifiOff size={11} />}
+                label={
+                  isNodeOnline
+                    ? nodeLatencyMs !== undefined
+                      ? `${nodeLatencyMs}ms`
+                      : 'Online'
+                    : 'Offline'
+                }
+                sx={{
+                  height: 24,
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  backgroundColor: isNodeOnline ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.2)',
+                  color: isNodeOnline ? '#34d399' : '#f87171',
+                  border: isNodeOnline ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.4)',
+                }}
+              />
+            )}
+          </Stack>
         )}
 
         {activeNode && onOpenNodeMetrics && (
@@ -134,13 +164,20 @@ export const Header: React.FC<HeaderProps> = ({
             variant="outlined"
             size="small"
             onClick={onOpenNodeMetrics}
-            startIcon={<Activity size={14} color="#38bdf8" />}
+            startIcon={
+              isNodeOnline ? (
+                <Activity size={14} color="#38bdf8" />
+              ) : (
+                <WifiOff size={14} color="#f87171" />
+              )
+            }
             sx={{
-              color: '#38bdf8',
-              borderColor: 'rgba(56, 189, 248, 0.3)',
+              color: isNodeOnline ? '#38bdf8' : '#f87171',
+              borderColor: isNodeOnline ? 'rgba(56, 189, 248, 0.3)' : 'rgba(239, 68, 68, 0.4)',
+              backgroundColor: isNodeOnline ? 'transparent' : 'rgba(239, 68, 68, 0.08)',
               '&:hover': {
-                borderColor: '#38bdf8',
-                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                borderColor: isNodeOnline ? '#38bdf8' : '#ef4444',
+                backgroundColor: isNodeOnline ? 'rgba(56, 189, 248, 0.1)' : 'rgba(239, 68, 68, 0.15)',
               },
             }}
           >
@@ -152,7 +189,6 @@ export const Header: React.FC<HeaderProps> = ({
           variant="outlined"
           size="small"
           onClick={onRefresh}
-
           startIcon={
             <Box
               component="span"
@@ -178,17 +214,15 @@ export const Header: React.FC<HeaderProps> = ({
         </Button>
 
         <Button
-          variant="outlined"
+          variant="contained"
           size="small"
-          startIcon={<Plus size={15} />}
+          startIcon={<Plus size={14} />}
           onClick={onOpenInstallModal}
           sx={{
-            color: '#34d399',
-            borderColor: 'rgba(16, 185, 129, 0.3)',
-            '&:hover': {
-              borderColor: '#10b981',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            },
+            backgroundColor: '#10b981',
+            color: '#ffffff',
+            fontWeight: 600,
+            '&:hover': { backgroundColor: '#059669' },
           }}
         >
           Connect Node (SSH)
@@ -197,4 +231,3 @@ export const Header: React.FC<HeaderProps> = ({
     </Box>
   );
 };
-

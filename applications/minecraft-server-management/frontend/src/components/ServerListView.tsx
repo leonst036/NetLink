@@ -22,6 +22,7 @@ import {
   HardDrive,
   Globe,
   Activity,
+  WifiOff,
 } from 'lucide-react';
 import { NodeInfo, NodeServerItem } from '../types';
 
@@ -29,6 +30,7 @@ interface ServerListViewProps {
   activeNode: NodeInfo;
   servers: NodeServerItem[];
   actionLoading: boolean;
+  isNodeOnline?: boolean;
   onSelectServer: (serverId: string) => void;
   onPowerAction: (serverId: string, action: 'start' | 'stop' | 'restart' | 'kill') => void;
   onOpenCreateModal: () => void;
@@ -39,6 +41,7 @@ export const ServerListView: React.FC<ServerListViewProps> = ({
   activeNode,
   servers,
   actionLoading,
+  isNodeOnline = true,
   onSelectServer,
   onPowerAction,
   onOpenCreateModal,
@@ -139,16 +142,23 @@ export const ServerListView: React.FC<ServerListViewProps> = ({
         <Stack direction="row" spacing={1.5} alignItems="center">
           <Button
             variant="outlined"
-            startIcon={<Activity size={16} />}
+            startIcon={
+              isNodeOnline ? (
+                <Activity size={16} color="#38bdf8" />
+              ) : (
+                <WifiOff size={16} color="#f87171" />
+              )
+            }
             onClick={onOpenNodeMetrics}
             sx={{
-              color: '#38bdf8',
-              borderColor: 'rgba(56, 189, 248, 0.3)',
+              color: isNodeOnline ? '#38bdf8' : '#f87171',
+              borderColor: isNodeOnline ? 'rgba(56, 189, 248, 0.3)' : 'rgba(239, 68, 68, 0.4)',
+              backgroundColor: isNodeOnline ? 'transparent' : 'rgba(239, 68, 68, 0.08)',
               borderRadius: 2,
               fontWeight: 600,
               '&:hover': {
-                borderColor: '#38bdf8',
-                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                borderColor: isNodeOnline ? '#38bdf8' : '#ef4444',
+                backgroundColor: isNodeOnline ? 'rgba(56, 189, 248, 0.1)' : 'rgba(239, 68, 68, 0.15)',
               },
             }}
           >
