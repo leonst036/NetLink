@@ -132,6 +132,9 @@
     "color": "#10b981",
     "shortDesc": "Manage Minecraft servers in your network.",
     "fullDesc": "Monitor and manage Minecraft servers in your network.",
+    "target": "local-server",
+    "defaultTarget": "local-server",
+    "targets": ["local-server"],
     "isFeatured": true
   }
 ]
