@@ -1,5 +1,5 @@
 // NetLink Minecraft Wings Daemon - Main Router
-// Imports process_manager, file_manager, and server_manager to serve the HTTP REST API.
+// Imports process_manager, file_manager, server_manager, and node_metrics to serve the HTTP REST API.
 
 import {
   activeServers,
@@ -20,6 +20,9 @@ import {
   listAllServers,
   provisionServerInstance,
 } from "./server_manager.ts";
+import {
+  getNodeSystemStats,
+} from "./node_metrics.ts";
 
 const port = parseInt(Deno.env.get("PORT") || "9080");
 const dataDir = Deno.env.get("DATA_DIR") || "/var/lib/netlink-wings/servers";
@@ -64,14 +67,20 @@ Deno.serve({ port }, async (req) => {
     });
   }
 
-  // 2. GET /api/servers - List all server directories & statuses
+  // 2. GET /api/node/system-stats - Node host machine hardware utilization & metrics
+  if (req.method === "GET" && (url.pathname === "/api/node/system-stats" || url.pathname === "/api/node/stats")) {
+    const stats = await getNodeSystemStats(dataDir);
+    return jsonResponse(stats);
+  }
+
+  // 3. GET /api/servers - List all server directories & statuses
   if (req.method === "GET" && url.pathname === "/api/servers") {
     const activeIds = new Set(activeServers.keys());
     const servers = await listAllServers(dataDir, activeIds);
     return jsonResponse({ servers });
   }
 
-  // 3. POST /api/servers/create - Create server instance
+  // 4. POST /api/servers/create - Create server instance
   if (req.method === "POST" && url.pathname === "/api/servers/create") {
     try {
       const body = await req.json();
@@ -82,7 +91,7 @@ Deno.serve({ port }, async (req) => {
     }
   }
 
-  // 4. File Management routes: /api/servers/:id/files...
+  // 5. File Management routes: /api/servers/:id/files...
   const filesPathMatch = url.pathname.match(/^\/api\/servers\/([^\/]+)\/files(\/content|\/save|\/delete|\/create-folder)?$/);
   if (filesPathMatch) {
     const [, serverId, fileAction] = filesPathMatch;
@@ -128,7 +137,7 @@ Deno.serve({ port }, async (req) => {
     }
   }
 
-  // 5. Server Lifecycle, Metrics, & Control routes: /api/servers/:id/power | command | logs | stats | resources
+  // 6. Server Lifecycle, Metrics, & Control routes: /api/servers/:id/power | command | logs | stats | resources
   const serverPathMatch = url.pathname.match(/^\/api\/servers\/([^\/]+)\/(power|command|logs|stats|resources)$/);
   if (serverPathMatch) {
     const [, serverId, action] = serverPathMatch;

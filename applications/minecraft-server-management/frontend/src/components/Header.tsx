@@ -9,7 +9,8 @@ import {
   FormControl,
   keyframes,
 } from '@mui/material';
-import { Server, Plus, RefreshCw } from 'lucide-react';
+import { Server, Plus, RefreshCw, Activity } from 'lucide-react';
+
 import { NodeInfo } from '../types';
 
 const spinAnimation = keyframes`
@@ -24,6 +25,7 @@ interface HeaderProps {
   onSelectNode: (nodeId: string) => void;
   onRefresh: () => void;
   onOpenInstallModal: () => void;
+  onOpenNodeMetrics?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectNode,
   onRefresh,
   onOpenInstallModal,
+  onOpenNodeMetrics,
 }) => {
   return (
     <Box
@@ -90,10 +93,30 @@ export const Header: React.FC<HeaderProps> = ({
           </FormControl>
         )}
 
+        {activeNode && onOpenNodeMetrics && (
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={onOpenNodeMetrics}
+            startIcon={<Activity size={14} color="#38bdf8" />}
+            sx={{
+              color: '#38bdf8',
+              borderColor: 'rgba(56, 189, 248, 0.3)',
+              '&:hover': {
+                borderColor: '#38bdf8',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+              },
+            }}
+          >
+            Node Utilization
+          </Button>
+        )}
+
         <Button
           variant="outlined"
           size="small"
           onClick={onRefresh}
+
           startIcon={
             <Box
               component="span"
@@ -138,3 +161,4 @@ export const Header: React.FC<HeaderProps> = ({
     </Box>
   );
 };
+

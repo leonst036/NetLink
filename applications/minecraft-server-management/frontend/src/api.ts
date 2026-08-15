@@ -349,3 +349,19 @@ export async function createNodeServerFolder(node: NodeInfo, serverId: string, p
     return { success: false, error: err.message };
   }
 }
+
+// 6. Get overall Node host machine telemetry and resource utilization
+export async function getNodeSystemStats(node: NodeInfo): Promise<import('./types').NodeSystemStats | null> {
+  try {
+    const res = await fetch(`${API_BASE}/node/${node.id}/system-stats`);
+    if (res.ok) return await res.json();
+  } catch {}
+
+  try {
+    const res = await fetch(`http://${node.host}:${node.daemonPort}/api/node/system-stats`);
+    if (res.ok) return await res.json();
+  } catch {}
+
+  return null;
+}
+

@@ -21,6 +21,7 @@ import {
   Plus,
   HardDrive,
   Globe,
+  Activity,
 } from 'lucide-react';
 import { NodeInfo, NodeServerItem } from '../types';
 
@@ -31,6 +32,7 @@ interface ServerListViewProps {
   onSelectServer: (serverId: string) => void;
   onPowerAction: (serverId: string, action: 'start' | 'stop' | 'restart' | 'kill') => void;
   onOpenCreateModal: () => void;
+  onOpenNodeMetrics: () => void;
 }
 
 export const ServerListView: React.FC<ServerListViewProps> = ({
@@ -40,6 +42,7 @@ export const ServerListView: React.FC<ServerListViewProps> = ({
   onSelectServer,
   onPowerAction,
   onOpenCreateModal,
+  onOpenNodeMetrics,
 }) => {
   if (servers.length === 0) {
     return (
@@ -75,22 +78,39 @@ export const ServerListView: React.FC<ServerListViewProps> = ({
             <Typography variant="body2" sx={{ color: '#94a3b8', mb: 3 }}>
               No Minecraft server instances have been created yet on node &ldquo;{activeNode.name}&rdquo;. Create your first server to get started.
             </Typography>
-            <Button
-              variant="contained"
-              startIcon={<Plus size={16} />}
-              onClick={onOpenCreateModal}
-              sx={{
-                backgroundColor: '#10b981',
-                color: '#ffffff',
-                px: 3,
-                py: 1,
-                borderRadius: 2,
-                fontWeight: 600,
-                '&:hover': { backgroundColor: '#059669' },
-              }}
-            >
-              Create New Instance
-            </Button>
+            <Stack direction="row" spacing={2} justifyContent="center">
+              <Button
+                variant="outlined"
+                startIcon={<Activity size={16} />}
+                onClick={onOpenNodeMetrics}
+                sx={{
+                  color: '#38bdf8',
+                  borderColor: 'rgba(56, 189, 248, 0.3)',
+                  '&:hover': {
+                    borderColor: '#38bdf8',
+                    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                  },
+                }}
+              >
+                Node Utilization
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<Plus size={16} />}
+                onClick={onOpenCreateModal}
+                sx={{
+                  backgroundColor: '#10b981',
+                  color: '#ffffff',
+                  px: 3,
+                  py: 1,
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  '&:hover': { backgroundColor: '#059669' },
+                }}
+              >
+                Create New Instance
+              </Button>
+            </Stack>
           </CardContent>
         </Card>
       </Box>
@@ -112,26 +132,46 @@ export const ServerListView: React.FC<ServerListViewProps> = ({
             Server Instances
           </Typography>
           <Typography variant="body2" sx={{ color: '#94a3b8' }}>
-            Managed Minecraft servers running on node &ldquo;{activeNode.name}&rdquo; ({activeNode.host}:{activeNode.daemonPort})
+            Managed Minecraft servers running on this Node
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          startIcon={<Plus size={16} />}
-          onClick={onOpenCreateModal}
-          sx={{
-            backgroundColor: '#10b981',
-            color: '#ffffff',
-            px: 3,
-            py: 1,
-            borderRadius: 2,
-            fontWeight: 600,
-            '&:hover': { backgroundColor: '#059669' },
-          }}
-        >
-          New Server Instance
-        </Button>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Button
+            variant="outlined"
+            startIcon={<Activity size={16} />}
+            onClick={onOpenNodeMetrics}
+            sx={{
+              color: '#38bdf8',
+              borderColor: 'rgba(56, 189, 248, 0.3)',
+              borderRadius: 2,
+              fontWeight: 600,
+              '&:hover': {
+                borderColor: '#38bdf8',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+              },
+            }}
+          >
+            Node Utilization
+          </Button>
+
+          <Button
+            variant="contained"
+            startIcon={<Plus size={16} />}
+            onClick={onOpenCreateModal}
+            sx={{
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              px: 3,
+              py: 1,
+              borderRadius: 2,
+              fontWeight: 600,
+              '&:hover': { backgroundColor: '#059669' },
+            }}
+          >
+            New Server Instance
+          </Button>
+        </Stack>
       </Stack>
 
       {/* Grid of Server Cards */}

@@ -42,6 +42,7 @@ import { FileManager } from './components/FileManager';
 import { SettingsTab } from './components/SettingsTab';
 import { InstallNodeModal } from './components/InstallNodeModal';
 import { CreateServerModal } from './components/CreateServerModal';
+import { NodeMetricsModal } from './components/NodeMetricsModal';
 
 const darkTheme = createTheme({
   palette: {
@@ -138,6 +139,7 @@ export default function App() {
 
   const [installModalOpen, setInstallModalOpen] = useState(false);
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false);
+  const [nodeMetricsOpen, setNodeMetricsOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const activeNodeRef = useRef<NodeInfo | null>(null);
@@ -287,6 +289,7 @@ export default function App() {
               onSelectNode={setActiveNodeId}
               onRefresh={handleRefresh}
               onOpenInstallModal={() => setInstallModalOpen(true)}
+              onOpenNodeMetrics={() => setNodeMetricsOpen(true)}
             />
 
             {loading ? (
@@ -355,6 +358,7 @@ export default function App() {
                   onSelectServer={handleSelectServer}
                   onPowerAction={handlePower}
                   onOpenCreateModal={() => setCreateServerModalOpen(true)}
+                  onOpenNodeMetrics={() => setNodeMetricsOpen(true)}
                 />
               ) : (
                 /* 2. Server Management Dashboard */
@@ -443,6 +447,12 @@ export default function App() {
             }}
           />
         )}
+
+        <NodeMetricsModal
+          open={nodeMetricsOpen}
+          node={activeNode}
+          onClose={() => setNodeMetricsOpen(false)}
+        />
 
         {/* Toast Notification */}
         <Snackbar

@@ -23,6 +23,23 @@ export interface ServerStats {
   status: 'online' | 'offline';
 }
 
+export interface NodeSystemStats {
+  cpuPercent: number;
+  cpuCores: number;
+  memoryTotalMb: number;
+  memoryUsedMb: number;
+  memoryFreeMb: number;
+  memoryPercent: number;
+  diskTotalMb: number;
+  diskUsedMb: number;
+  diskFreeMb: number;
+  diskPercent: number;
+  loadAvg: [number, number, number];
+  activeServersCount: number;
+  totalAllocatedRamMb: number;
+  daemonUptimeSeconds: number;
+}
+
 export interface FileItem {
   name: string;
   isDirectory: boolean;
