@@ -1,7 +1,7 @@
 node_modules/
 .deno/
 dist/
-servers/
-*.log
 
 .agents/*
+
+applications/minecraft-server-management/servers/*
