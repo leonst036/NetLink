@@ -95,14 +95,14 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     try {
       const saved = localStorage.getItem('netstore_selected_branch');
       if (saved === 'NetStore' || saved === 'NetStore-dev' || saved === 'local-debug') return saved;
-    } catch (e) {}
+    } catch (e) { }
     return 'NetStore';
   });
 
   useEffect(() => {
     try {
       localStorage.setItem('netstore_selected_branch', selectedBranch);
-    } catch (e) {}
+    } catch (e) { }
   }, [selectedBranch]);
 
   const [debugStoreUrl, setDebugStoreUrl] = useState<string>(() => {
@@ -116,7 +116,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   useEffect(() => {
     try {
       localStorage.setItem('netstore_debug_url', debugStoreUrl);
-    } catch (e) {}
+    } catch (e) { }
   }, [debugStoreUrl]);
 
   const [debugConnected, setDebugConnected] = useState<boolean | null>(null);
@@ -132,7 +132,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   useEffect(() => {
     try {
       localStorage.setItem('netstore_local_branch', selectedLocalBranch);
-    } catch (e) {}
+    } catch (e) { }
   }, [selectedLocalBranch]);
 
   const [githubToken, setGithubToken] = useState<string>(() => {
@@ -150,7 +150,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       } else {
         localStorage.removeItem('netlink_github_token');
       }
-    } catch (e) {}
+    } catch (e) { }
   }, [githubToken]);
 
   const [installedVersions, setInstalledVersions] = useState<Record<string, string>>({});
@@ -163,9 +163,9 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         const res = await fetch(url);
         if (!res.ok) throw new Error('Failed to fetch store applications');
         const localData = await res.json();
-        
+
         let catalogData: any[] = [];
-        
+
         if (selectedBranch === 'local-debug') {
           // Fetch from local Docker debug server
           try {
@@ -219,55 +219,55 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             console.warn('Failed to fetch github branch data', e);
           }
         }
-        
+
         const mergedMap = new Map();
         for (const app of catalogData) {
-            mergedMap.set(app.id, { ...app, installed: false });
+          mergedMap.set(app.id, { ...app, installed: false });
         }
-        
+
         const backendInstalledIds: string[] = [];
         const versionsMap: Record<string, string> = {};
         for (const app of (Array.isArray(localData) ? localData : [])) {
-            const isInstalled = app.installed !== false;
-            if (isInstalled) {
-                backendInstalledIds.push(app.id);
-                versionsMap[app.id] = app.version || 'v1.0.0';
-            }
-            const existing = mergedMap.get(app.id) || {};
-            mergedMap.set(app.id, { ...existing, ...app, installed: isInstalled });
+          const isInstalled = app.installed !== false;
+          if (isInstalled) {
+            backendInstalledIds.push(app.id);
+            versionsMap[app.id] = app.version || 'v1.0.0';
+          }
+          const existing = mergedMap.get(app.id) || {};
+          mergedMap.set(app.id, { ...existing, ...app, installed: isInstalled });
         }
-        
+
         const finalData = Array.from(mergedMap.values());
 
         useWindowStore.getState().registerAppMetadata(finalData.map((item: any) => ({
-            id: item.id,
-            title: item.name,
-            icon: typeof item.icon === 'string' ? item.icon : undefined,
-            color: item.color
+          id: item.id,
+          title: item.name,
+          icon: typeof item.icon === 'string' ? item.icon : undefined,
+          color: item.color
         })));
 
         const parsedCatalog: AppItem[] = finalData.map((item: any) => {
-            const rawIcon = typeof item.icon === 'string' ? item.icon : undefined;
-            return {
-                id: item.id || `app-${Math.random()}`,
-                name: item.name || 'Unnamed App',
-                author: item.author || 'Community',
-                category: item.category || 'Utilities',
-                rating: item.rating || 5.0,
-                downloads: item.downloads || '1.0k',
-                size: item.size || '1 MB',
-                version: item.version || 'v1.0.0',
-                nativeKey: item.nativeKey,
-                color: item.color || '#38bdf8',
-                icon: getAppIcon(item),
-                rawIcon: rawIcon,
-                shortDesc: item.shortDesc || item.shortDescription || '',
-                fullDesc: item.fullDesc || item.fullDescription || '',
-                features: item.features || [],
-                isFeatured: item.isFeatured
-            };
+          const rawIcon = typeof item.icon === 'string' ? item.icon : undefined;
+          return {
+            id: item.id || `app-${Math.random()}`,
+            name: item.name || 'Unnamed App',
+            author: item.author || 'Community',
+            category: item.category || 'Utilities',
+            rating: item.rating || 5.0,
+            downloads: item.downloads || '1.0k',
+            size: item.size || '1 MB',
+            version: item.version || 'v1.0.0',
+            nativeKey: item.nativeKey,
+            color: item.color || '#38bdf8',
+            icon: getAppIcon(item),
+            rawIcon: rawIcon,
+            shortDesc: item.shortDesc || item.shortDescription || '',
+            fullDesc: item.fullDesc || item.fullDescription || '',
+            features: item.features || [],
+            isFeatured: item.isFeatured
+          };
         });
-        
+
         setStoreCatalog(parsedCatalog);
         setInstalledVersions(versionsMap);
         setInstalledAppIds(backendInstalledIds);
@@ -275,7 +275,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         console.warn('Store fetch error:', err.message);
       }
     };
-    
+
     fetchApps();
   }, [props.target, selectedBranch, selectedLocalBranch, debugStoreUrl, githubToken, refreshIndex]);
 
@@ -301,59 +301,59 @@ export default function NetStoreApp(props: NetStoreAppProps) {
 
     setInstallingMap((prev) => ({ ...prev, [app.id]: 15 }));
 
-    const targetId = props.target;
+    const targetId = props.target || "local-server";
     const isDebug = selectedBranch === 'local-debug';
     const effectiveBranch = isDebug ? (selectedLocalBranch || 'workspace') : selectedBranch;
     const effectiveCustomStoreUrl = isDebug ? debugStoreUrl : undefined;
-    
+
     fetch('/api/applications/install', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
       },
-      body: JSON.stringify({ 
-        appId: app.id, 
-        target: targetId, 
-        branch: effectiveBranch, 
-        githubToken, 
+      body: JSON.stringify({
+        appId: app.id,
+        target: targetId,
+        branch: effectiveBranch,
+        githubToken,
         runInBackground: runInBg,
         customStoreUrl: effectiveCustomStoreUrl
       })
     })
-    .then(async (res) => {
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to install application');
-      }
-      return res.json();
-    })
-    .then(() => {
-      setInstallingMap((prev) => {
-        const copy = { ...prev };
-        delete copy[app.id];
-        return copy;
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to install application');
+        }
+        return res.json();
+      })
+      .then(() => {
+        setInstallingMap((prev) => {
+          const copy = { ...prev };
+          delete copy[app.id];
+          return copy;
+        });
+        setInstalledAppIds((prev) => Array.from(new Set([...prev, app.id])));
+        setInstalledVersions((prev) => ({ ...prev, [app.id]: app.version || 'v1.0.0' }));
+        windowStore.registerAppMetadata([{
+          id: app.id,
+          title: app.name,
+          icon: app.rawIcon,
+          color: app.color
+        }]);
+        notifyUser(`${app.name} installed / updated successfully!`, 'success');
+        window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
+      })
+      .catch((err) => {
+        console.error(err);
+        notifyUser(`Failed to install ${app.name}: ${err.message}`, 'warning');
+        setInstallingMap((prev) => {
+          const copy = { ...prev };
+          delete copy[app.id];
+          return copy;
+        });
       });
-      setInstalledAppIds((prev) => Array.from(new Set([...prev, app.id])));
-      setInstalledVersions((prev) => ({ ...prev, [app.id]: app.version || 'v1.0.0' }));
-      windowStore.registerAppMetadata([{
-        id: app.id,
-        title: app.name,
-        icon: app.rawIcon,
-        color: app.color
-      }]);
-      notifyUser(`${app.name} installed / updated successfully!`, 'success');
-      window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
-    })
-    .catch((err) => {
-      console.error(err);
-      notifyUser(`Failed to install ${app.name}: ${err.message}`, 'warning');
-      setInstallingMap((prev) => {
-        const copy = { ...prev };
-        delete copy[app.id];
-        return copy;
-      });
-    });
   };
 
   const handleUninstall = (app: AppItem, e?: React.MouseEvent) => {
@@ -363,7 +363,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       return;
     }
 
-    const targetId = props.target;
+    const targetId = props.target || "local-server";
 
     fetch('/api/applications/uninstall', {
       method: 'POST',
@@ -373,27 +373,27 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       },
       body: JSON.stringify({ appId: app.id, target: targetId })
     })
-    .then(async (res) => {
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to uninstall application');
-      }
-      return res.json();
-    })
-    .then(() => {
-      setInstalledAppIds((prev) => prev.filter((id) => id !== app.id));
-      setInstalledVersions((prev) => {
-        const copy = { ...prev };
-        delete copy[app.id];
-        return copy;
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to uninstall application');
+        }
+        return res.json();
+      })
+      .then(() => {
+        setInstalledAppIds((prev) => prev.filter((id) => id !== app.id));
+        setInstalledVersions((prev) => {
+          const copy = { ...prev };
+          delete copy[app.id];
+          return copy;
+        });
+        notifyUser(`${app.name} was uninstalled.`, 'info');
+        window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
+      })
+      .catch((err) => {
+        console.error(err);
+        notifyUser(`Failed to uninstall ${app.name}: ${err.message}`, 'warning');
       });
-      notifyUser(`${app.name} was uninstalled.`, 'info');
-      window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
-    })
-    .catch((err) => {
-      console.error(err);
-      notifyUser(`Failed to uninstall ${app.name}: ${err.message}`, 'warning');
-    });
   };
 
   const handleOpenApp = (app: AppItem, e?: React.MouseEvent) => {
@@ -417,7 +417,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     { id: 'updates', label: `Updates (${updatesCount})`, icon: <RefreshCw size={18} /> },
   ];
 
-  const categories = ['All', 'Monitoring', 'Security', 'Remote Access', 'Utilities', 'Developer Tools', 'System'];
+  const categories = ['All', 'Monitoring', 'Security', 'Remote Access', 'Utilities', 'Developer Tools', 'System', 'Gaming'];
 
   const filteredApps = storeCatalog.filter((app) => {
     if (activeTab === 'installed' && !installedAppIds.includes(app.id)) return false;
@@ -912,8 +912,8 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         <Dialog
           open={Boolean(selectedApp)}
           onClose={() => {
-              setSelectedApp(null);
-              setRunInBackground(false);
+            setSelectedApp(null);
+            setRunInBackground(false);
           }}
           maxWidth="sm"
           fullWidth

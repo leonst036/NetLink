@@ -4,14 +4,15 @@ import { fileURLToPath } from 'url';
 import { WebSocket } from 'ws';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
 import { getGitHubHeaders } from './gitHubApplications.js';
+import { formatBytes, calculateDirectorySize, resolveLocalNetStorePath } from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const NET_STORE_DIR = __dirname.includes('dist') 
-    ? path.join(__dirname, '..', '..', 'NetStore', 'Applications') 
+const NET_STORE_DIR = __dirname.includes('dist')
+    ? path.join(__dirname, '..', '..', 'NetStore', 'Applications')
     : path.join(__dirname, 'Applications');
-    
+
 const PERMISSIONS_FILE = path.join(NET_STORE_DIR, 'permissions.json');
 
 function getGrantedPermissions(): Record<string, any> {
@@ -25,9 +26,9 @@ function getGrantedPermissions(): Record<string, any> {
 
 function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
     const raw = grantedRecord[appId];
-    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [] };
+    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [], allowPortForwarding: false };
     if (Array.isArray(raw)) {
-        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [] };
+        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [], allowPortForwarding: false };
     }
     return {
         folders: Array.isArray(raw.folders) ? raw.folders : [],
@@ -35,44 +36,13 @@ function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
         allowEnv: Array.isArray(raw.allowEnv) ? raw.allowEnv : [],
         allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet),
         allowDatabase: Boolean(raw.allowDatabase || raw.database),
-        collections: Array.isArray(raw.collections) ? raw.collections : []
+        collections: Array.isArray(raw.collections) ? raw.collections : [],
+        allowPortForwarding: Boolean(raw.allowPortForwarding)
     };
 }
 
 function saveGrantedPermissions(perms: Record<string, any>) {
     fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
-}
-
-// Calculate total size of directory in bytes
-export function calculateDirectorySize(dirPath: string): number {
-    if (!fs.existsSync(dirPath)) return 0;
-    let totalSize = 0;
-    try {
-        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.join(dirPath, entry.name);
-            if (entry.isDirectory()) {
-                totalSize += calculateDirectorySize(fullPath);
-            } else if (entry.isFile()) {
-                try {
-                    const stat = fs.statSync(fullPath);
-                    totalSize += stat.size;
-                } catch {}
-            }
-        }
-    } catch (e) {
-        console.error(`Failed to calculate directory size for ${dirPath}:`, e);
-    }
-    return totalSize;
-}
-
-// Format bytes into human readable string
-export function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
 // Create directory if missing
@@ -88,10 +58,10 @@ export async function StartLocalApps(targetUserId?: string, forceStart: boolean 
     const apps = ScanApplications(targetUserId);
     for (const app of apps) {
         if (!app.id || !app.userId) continue;
-        
+
         // Start apps if forceStart is true (user login) or if runInBackground is true (system boot)
         if (!forceStart && app.runInBackground !== true) continue;
-        
+
         const appDir = path.join(NET_STORE_DIR, app.userId, app.id);
         const localServerDir = path.join(appDir, 'local_server');
         const entryTs = path.join(localServerDir, 'index.ts');
@@ -130,8 +100,9 @@ export async function StartLocalApps(targetUserId?: string, forceStart: boolean 
                 Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.every((v: string) => appGranted.allowEnv.includes(v))
             );
             const dbGranted = !requestedDb || appGranted.allowDatabase || (requestedCollections.length > 0 && requestedCollections.every(c => appGranted.collections.includes(c) || appGranted.collections.includes('*')));
+            const portForwardingGranted = !requestedPerms.allowPortForwarding || appGranted.allowPortForwarding;
 
-            if (!foldersGranted || !runGranted || !envGranted || !dbGranted) {
+            if (!foldersGranted || !runGranted || !envGranted || !dbGranted || !portForwardingGranted) {
                 console.warn(`Local App ${app.id} requires permissions that are not granted. Waiting for admin approval...`);
                 continue;
             }
@@ -186,10 +157,10 @@ export function ScanApplications(targetUserId?: string): any[] {
 
     const applicationJson: any[] = [];
     const userFolders = fs.readdirSync(NET_STORE_DIR).filter(f => fs.statSync(path.join(NET_STORE_DIR, f)).isDirectory());
-    
+
     for (const userId of userFolders) {
         if (targetUserId && userId !== targetUserId) continue;
-        
+
         const userDir = path.join(NET_STORE_DIR, userId);
         const entries = fs.readdirSync(userDir);
         const applicationFolders = entries.filter((folder) => {
@@ -215,21 +186,16 @@ export function ScanApplications(targetUserId?: string): any[] {
     return applicationJson;
 }
 
-// Kept for legacy compatibility if needed
-export function WriteApplicationJson(): void {
-    // No-op
-}
-
 // Get all necessary files (relay, frontend) for syncing to Relay server
 export function getAppSyncFiles(targetUserId?: string): any[] {
     if (!fs.existsSync(NET_STORE_DIR)) return [];
 
     const relaySyncData: any[] = [];
     const userFolders = fs.readdirSync(NET_STORE_DIR).filter(f => fs.statSync(path.join(NET_STORE_DIR, f)).isDirectory());
-    
+
     for (const userId of userFolders) {
         if (targetUserId && userId !== targetUserId) continue;
-        
+
         const userDir = path.join(NET_STORE_DIR, userId);
         const entries = fs.readdirSync(userDir);
         const applicationFolders = entries.filter((folder) => {
@@ -240,77 +206,64 @@ export function getAppSyncFiles(targetUserId?: string): any[] {
         for (const application of applicationFolders) {
             const appDirPath = path.join(userDir, application);
             const filesData: any[] = [];
-        
-        const walkSync = (dir: string, filelist: string[] = []) => {
-            if (!fs.existsSync(dir)) return filelist;
-            fs.readdirSync(dir).forEach(file => {
-                if (file === 'node_modules' || file.startsWith('.')) return;
-                const filePath = path.join(dir, file);
-                if (fs.statSync(filePath).isDirectory()) {
-                    filelist = walkSync(filePath, filelist);
-                } else {
-                    filelist.push(filePath);
+
+            const walkSync = (dir: string, filelist: string[] = []) => {
+                if (!fs.existsSync(dir)) return filelist;
+                fs.readdirSync(dir).forEach(file => {
+                    if (file === 'node_modules' || file.startsWith('.')) return;
+                    const filePath = path.join(dir, file);
+                    if (fs.statSync(filePath).isDirectory()) {
+                        filelist = walkSync(filePath, filelist);
+                    } else {
+                        filelist.push(filePath);
+                    }
+                });
+                return filelist;
+            };
+
+            const relayFiles = walkSync(path.join(appDirPath, 'relay'));
+            const frontendFiles = walkSync(path.join(appDirPath, 'frontend'));
+            const allFiles = [...relayFiles, ...frontendFiles];
+
+            // Also sync index.json to relay
+            const indexJsonPath = path.join(appDirPath, 'index.json');
+            if (fs.existsSync(indexJsonPath)) {
+                allFiles.push(indexJsonPath);
+            }
+
+            for (const file of allFiles) {
+                const relativePath = path.relative(appDirPath, file).replace(/\\/g, '/');
+                try {
+                    const content = fs.readFileSync(file, 'base64'); // Use base64 to avoid corrupting binary assets
+                    filesData.push({ path: relativePath, content });
+                } catch (e) {
+                    console.error(`Failed to read file ${file}:`, e);
                 }
-            });
-            return filelist;
-        };
+            }
 
-        const relayFiles = walkSync(path.join(appDirPath, 'relay'));
-        const frontendFiles = walkSync(path.join(appDirPath, 'frontend'));
-        const allFiles = [...relayFiles, ...frontendFiles];
-        
-        // Also sync index.json to relay
-        const indexJsonPath = path.join(appDirPath, 'index.json');
-        if (fs.existsSync(indexJsonPath)) {
-            allFiles.push(indexJsonPath);
-        }
-
-        for (const file of allFiles) {
-            const relativePath = path.relative(appDirPath, file).replace(/\\/g, '/');
-            try {
-                const content = fs.readFileSync(file, 'base64'); // Use base64 to avoid corrupting binary assets
-                filesData.push({ path: relativePath, content });
-            } catch (e) {
-                console.error(`Failed to read file ${file}:`, e);
+            if (filesData.length > 0) {
+                relaySyncData.push({
+                    appId: application,
+                    userId: userId,
+                    files: filesData
+                });
             }
         }
-
-        if (filesData.length > 0) {
-            relaySyncData.push({
-                appId: application,
-                userId: userId,
-                files: filesData
-            });
-        }
-    }
     }
     return relaySyncData;
 }
-
-function resolveLocalNetStorePath(...subPaths: string[]): string {
-    const candidates = [
-        path.resolve(__dirname, '../../../../NetLink-NetStore', ...subPaths),
-        path.resolve(__dirname, '../../../../../NetLink-NetStore', ...subPaths),
-        path.resolve(process.cwd(), '../NetLink-NetStore', ...subPaths)
-    ];
-    for (const cand of candidates) {
-        if (fs.existsSync(cand)) return cand;
-    }
-    return candidates[0] || '';
-}
-
 // Send application JSON over WebSocket to relay server
 export async function sendApplicationJson(ws: WebSocket): Promise<void> {
     let applications = ScanApplications();
     const relayBackends = getAppSyncFiles();
-    
+
     try {
         const { getGitHubApplicationsList } = await import('./gitHubApplications.js');
         let githubApps = await getGitHubApplicationsList().catch((err: any) => {
             console.log(`[NetStore] Offline Mode: Developing locally without GitHub token (${err.message})`);
             return [];
         });
-        
+
         // Merge local dev applications.json if available
         const localDevCatalog = resolveLocalNetStorePath('applications', 'applications.json');
         if (fs.existsSync(localDevCatalog)) {
@@ -322,7 +275,7 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
                     map.set(app.id, app);
                 }
                 githubApps = Array.from(map.values());
-            } catch {}
+            } catch { }
         }
 
         const appMap = new Map();
@@ -335,7 +288,7 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
             }
             appMap.set(app.id, { ...app, size: appSize, installed: false });
         }
-        
+
         for (const app of applications) {
             // Local apps override github apps properties if they exist
             // Using a unique key per user installation so one user can have it installed and another doesn't
@@ -343,12 +296,12 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
             const existing = appMap.get(app.id) || {};
             appMap.set(key, { ...existing, ...app, installed: true });
         }
-        
+
         applications = Array.from(appMap.values());
     } catch (err) {
         console.error('Failed to load GitHub applications:', err);
     }
-    
+
     if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'applications', applications }));
         if (relayBackends.length > 0) {
@@ -358,10 +311,10 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
 }
 
 export async function installApplication(
-    appId: string, 
-    branch: string = 'NetStore', 
-    githubToken?: string, 
-    userId?: string, 
+    appId: string,
+    branch: string = 'NetStore',
+    githubToken?: string,
+    userId?: string,
     runInBackground: boolean = false,
     customStoreUrl?: string
 ) {
@@ -414,7 +367,7 @@ export async function installApplication(
             const errText = await treeRes.text().catch(() => '');
             throw new Error(`Failed to fetch store tree (${treeRes.status} ${treeRes.statusText}): ${errText.substring(0, 100)}`);
         }
-        
+
         const treeData = await treeRes.json();
         if (!treeData.tree || !Array.isArray(treeData.tree)) {
             throw new Error('Invalid tree data from application store');
@@ -422,7 +375,7 @@ export async function installApplication(
 
         const appPrefix = `applications/${appId}/`;
         const appFiles = treeData.tree.filter((node: any) => node.type === 'blob' && node.path.startsWith(appPrefix));
-        
+
         if (appFiles.length === 0) {
             throw new Error(`Application ${appId} not found or has no files on store branch/channel ${branch}`);
         }
@@ -432,7 +385,7 @@ export async function installApplication(
             const rawUrl = getRawUrl(fileNode.path);
             const relativePath = fileNode.path.substring(appPrefix.length);
             const localPath = path.join(appDir, relativePath);
-            
+
             const fileDir = path.dirname(localPath);
             if (!fs.existsSync(fileDir)) {
                 fs.mkdirSync(fileDir, { recursive: true });
@@ -441,7 +394,7 @@ export async function installApplication(
             console.log(`Downloading ${fileNode.path} from ${rawUrl}...`);
             const fileRes = await fetch(rawUrl, { headers });
             if (!fileRes.ok) throw new Error(`Failed to fetch ${fileNode.path} (${fileRes.status})`);
-            
+
             const buffer = await fileRes.arrayBuffer();
             fs.writeFileSync(localPath, Buffer.from(buffer));
         }

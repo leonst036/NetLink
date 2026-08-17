@@ -31,9 +31,9 @@ export function getGrantedPermissions(): Record<string, any> {
 
 export function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
     const raw = grantedRecord[appId];
-    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [] };
+    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [], allowPortForwarding: false };
     if (Array.isArray(raw)) {
-        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [] };
+        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [], allowPortForwarding: false };
     }
     return {
         folders: Array.isArray(raw.folders) ? raw.folders : [],
@@ -41,7 +41,8 @@ export function getAppGranted(grantedRecord: Record<string, any>, appId: string)
         allowEnv: Array.isArray(raw.allowEnv) ? raw.allowEnv : [],
         allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet),
         allowDatabase: Boolean(raw.allowDatabase || raw.database),
-        collections: Array.isArray(raw.collections) ? raw.collections : []
+        collections: Array.isArray(raw.collections) ? raw.collections : [],
+        allowPortForwarding: Boolean(raw.allowPortForwarding)
     };
 }
 
@@ -192,8 +193,9 @@ export function handleLocalServerConnection(
                                 Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.every((v: string) => appGranted.allowEnv.includes(v))
                             );
                             const dbGranted = !requestedDb || appGranted.allowDatabase || (requestedCollections.length > 0 && requestedCollections.every(c => appGranted.collections.includes(c) || appGranted.collections.includes('*')));
+                            const portForwardingGranted = !requestedPerms.allowPortForwarding || appGranted.allowPortForwarding;
 
-                            if (!foldersGranted || !runGranted || !envGranted || !dbGranted) {
+                            if (!foldersGranted || !runGranted || !envGranted || !dbGranted || !portForwardingGranted) {
                                 console.log(`App ${appId} requires permissions. Requesting from frontend...`);
                                 const reqPayload = {
                                     type: 'permission_request',

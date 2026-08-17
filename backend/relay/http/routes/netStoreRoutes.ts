@@ -50,14 +50,24 @@ export async function handleInstallApplicationRoute(parsedUrl: URL, req: http.In
             try {
                 const data = JSON.parse(body);
                 const { appId, target, branch, githubToken, runInBackground, customStoreUrl } = data;
+                let effectiveTarget = target;
+                if (!effectiveTarget) {
+                    if (controlConnections.size === 1) {
+                        effectiveTarget = controlConnections.keys().next().value;
+                    } else if (controlConnections.has("local-server")) {
+                        effectiveTarget = "local-server";
+                    } else if (controlConnections.size > 0) {
+                        effectiveTarget = Array.from(controlConnections.keys())[0];
+                    }
+                }
 
-                if (!appId || !target) {
+                if (!appId || !effectiveTarget) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Missing appId or target' }));
                     return;
                 }
 
-                const targetWs = controlConnections.get(target);
+                const targetWs = controlConnections.get(effectiveTarget);
                 if (!targetWs || targetWs.readyState !== 1 /* WebSocket.OPEN */) {
                     res.writeHead(404, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Target local server not found or offline' }));
@@ -131,8 +141,18 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
             try {
                 const data = JSON.parse(body);
                 const { appId, target } = data;
+                let effectiveTarget = target;
+                if (!effectiveTarget) {
+                    if (controlConnections.size === 1) {
+                        effectiveTarget = controlConnections.keys().next().value;
+                    } else if (controlConnections.has("local-server")) {
+                        effectiveTarget = "local-server";
+                    } else if (controlConnections.size > 0) {
+                        effectiveTarget = Array.from(controlConnections.keys())[0];
+                    }
+                }
 
-                if (!appId || !target) {
+                if (!appId || !effectiveTarget) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Missing appId or target' }));
                     return;

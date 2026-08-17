@@ -8,6 +8,7 @@ import { handleServerLoginsRoute } from './routes/serverRoutes.js';
 import { handleInstallScriptRoute, handleDemoScriptRoute, handleDemoSetupRoute } from './routes/scriptRoutes.js';
 import { handleFaviconRoute, handleStaticFileRoute, handleAppFrontendRoute } from './routes/staticRoutes.js';
 import { handleNetStoreApplicationsRoute, handleInstallApplicationRoute, handleUninstallApplicationRoute } from './routes/netStoreRoutes.js';
+import { handleTunnelRoutes } from './routes/tunnelRoutes.js';
 import { handleDockRoute } from './routes/dockRoutes.js';
 import { handleAppDatabaseRoute } from './routes/appDatabaseRoutes.js';
 
@@ -80,6 +81,11 @@ appRouter.get('/api/netstore', (req, res, parsedUrl) => handleNetStoreApplicatio
 appRouter.post('/api/applications/install', (req, res, parsedUrl) => handleInstallApplicationRoute(parsedUrl, req, res));
 appRouter.post('/api/applications/uninstall', (req, res, parsedUrl) => handleUninstallApplicationRoute(parsedUrl, req, res));
 
+// TCP Port Forwarding Tunnel routes
+appRouter.all('/api/tunnels', (req, res, parsedUrl) => handleTunnelRoutes(parsedUrl, req, res));
+appRouter.all('/api/tunnels/open', (req, res, parsedUrl) => handleTunnelRoutes(parsedUrl, req, res));
+appRouter.all('/api/tunnels/close', (req, res, parsedUrl) => handleTunnelRoutes(parsedUrl, req, res));
+
 // Dock configuration routes
 appRouter.get('/api/dock', (req, res, parsedUrl) => handleDockRoute(parsedUrl, req, res));
 appRouter.post('/api/dock', (req, res, parsedUrl) => handleDockRoute(parsedUrl, req, res));
@@ -100,7 +106,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     if (match) {
         const appId = match[1] as string;
         // Exclude system api routes like login, register, servers etc.
-        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps'];
+        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'tunnels'];
         if (!systemRoutes.includes(appId)) {
             let userId = 'unknown';
             try {

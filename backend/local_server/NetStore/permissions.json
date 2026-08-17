@@ -1,1 +1,30 @@
-{}
+{
+  "minecraft-server-management": {
+    "allowRun": true,
+    "allowRunCommands": [
+      "ping",
+      "sh",
+      "ip",
+      "hostname",
+      "java",
+      "docker",
+      "screen",
+      "systemctl"
+    ],
+    "allowNet": true,
+    "allowDatabase": true,
+    "collections": [
+      "nodes",
+      "servers",
+      "audit_logs",
+      "tunnels"
+    ],
+    "allowPortForwarding": true,
+    "allowExposePorts": [
+      25565,
+      25566,
+      25567,
+      19132
+    ]
+  }
+}
