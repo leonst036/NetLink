@@ -265,7 +265,7 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
         });
 
         // Merge local dev applications.json if available
-        const localDevCatalog = resolveLocalNetStorePath('applications', 'applications.json');
+        const localDevCatalog = resolveLocalNetStorePath(__dirname, 'applications', 'applications.json');
         if (fs.existsSync(localDevCatalog)) {
             try {
                 const localApps = JSON.parse(fs.readFileSync(localDevCatalog, 'utf-8'));
@@ -281,7 +281,7 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
         const appMap = new Map();
         // Since github apps are not user-specific, we keep them generic until installed
         for (const app of githubApps) {
-            const appDevDir = resolveLocalNetStorePath('applications', app.id);
+            const appDevDir = resolveLocalNetStorePath(__dirname, 'applications', app.id);
             let appSize = app.size;
             if (fs.existsSync(appDevDir)) {
                 appSize = formatBytes(calculateDirectorySize(appDevDir));
@@ -312,7 +312,7 @@ export async function sendApplicationJson(ws: WebSocket): Promise<void> {
 
 export async function installApplication(
     appId: string,
-    branch: string = 'NetStore',
+    branch: string = 'main',
     githubToken?: string,
     userId?: string,
     runInBackground: boolean = false,
@@ -341,7 +341,7 @@ export async function installApplication(
         if (!storeBaseUrl) {
             // Check if application exists in local dev workspace directly if no custom store URL
             const localDevAppDir = resolveLocalNetStorePath('applications', appId);
-            if (fs.existsSync(localDevAppDir) && (branch === 'NetStore' || branch === 'workspace' || branch === 'local-debug')) {
+            if (fs.existsSync(localDevAppDir) && (branch === 'main' || branch === 'workspace' || branch === 'local-debug')) {
                 console.log(`Installing ${appId} from local workspace (${localDevAppDir})...`);
                 fs.cpSync(localDevAppDir, appDir, { recursive: true });
                 await StartLocalApps(userId, true);
@@ -350,13 +350,13 @@ export async function installApplication(
             }
         }
 
-        let treeUrl = `https://api.github.com/repos/leonst036/NetLink-NetStore/git/trees/${branch}?recursive=1`;
-        let getRawUrl = (filePath: string) => `https://raw.githubusercontent.com/leonst036/NetLink-NetStore/refs/heads/${branch}/${filePath}`;
+        let treeUrl = `https://api.github.com/repos/leonst036/NetStore/git/trees/${branch}?recursive=1`;
+        let getRawUrl = (filePath: string) => `https://raw.githubusercontent.com/leonst036/NetStore/refs/heads/${branch}/${filePath}`;
         let headers: Record<string, string> = getGitHubHeaders(githubToken);
 
         if (storeBaseUrl) {
             const cleanBase = storeBaseUrl.replace(/\/$/, '');
-            treeUrl = `${cleanBase}/repos/leonst036/NetLink-NetStore/git/trees/${branch}?recursive=1`;
+            treeUrl = `${cleanBase}/repos/leonst036/NetStore/git/trees/${branch}?recursive=1`;
             getRawUrl = (filePath: string) => `${cleanBase}/refs/heads/${branch}/${filePath}`;
             headers = { 'User-Agent': 'NetLink-LocalServer-Debug' };
             console.log(`[NetStore Debug] Fetching tree from local store: ${treeUrl}`);

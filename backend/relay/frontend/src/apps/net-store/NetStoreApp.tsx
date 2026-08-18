@@ -90,17 +90,30 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   const [selectedApp, setSelectedApp] = useState<AppItem | null>(null);
   const [storeCatalog, setStoreCatalog] = useState<AppItem[]>([]);
 
-  const [selectedBranch, setSelectedBranch] = useState<'NetStore' | 'NetStore-dev' | 'local-debug'>(() => {
+  // Branch aus URL-Query, Fallback auf localStorage oder 'main'
+  const [selectedBranch, setSelectedBranch] = useState<'main' | 'dev' | 'local-debug'>(() => {
     try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchParam = urlParams.get('branch');
+      if (branchParam === 'main' || branchParam === 'dev' || branchParam === 'local-debug') {
+        return branchParam;
+      }
       const saved = localStorage.getItem('netstore_selected_branch');
-      if (saved === 'NetStore' || saved === 'NetStore-dev' || saved === 'local-debug') return saved;
+      if (saved === 'main' || saved === 'dev' || saved === 'local-debug') return saved;
     } catch (e) { }
-    return 'NetStore';
+    return 'main';
   });
 
+  // Synchronisation in localStorage und URL-Query (?branch=xxxx)
   useEffect(() => {
     try {
       localStorage.setItem('netstore_selected_branch', selectedBranch);
+
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('branch') !== selectedBranch) {
+        url.searchParams.set('branch', selectedBranch);
+        window.history.replaceState({}, '', url.toString());
+      }
     } catch (e) { }
   }, [selectedBranch]);
 
@@ -119,7 +132,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   }, [debugStoreUrl]);
 
   const [debugConnected, setDebugConnected] = useState<boolean | null>(null);
-  const [debugBranches, setDebugBranches] = useState<string[]>(['workspace', 'NetStore', 'NetStore-dev']);
+  const [debugBranches, setDebugBranches] = useState<string[]>(['workspace', 'main', 'dev']);
   const [selectedLocalBranch, setSelectedLocalBranch] = useState<string>(() => {
     try {
       return localStorage.getItem('netstore_local_branch') || 'workspace';
@@ -145,10 +158,12 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         if (!res.ok) throw new Error('Failed to fetch store applications');
         const localData = await res.json();
 
-        let catalogData: any[] = []; // TODO: Implement fetching from backend, setDebugBranches must be defined.
+        const catalogUrl = `/api/netstore/catalog?branch=${encodeURIComponent(selectedBranch)}`;
+        const catalogRes = await fetch(catalogUrl);
+        const catalogData = catalogRes.ok ? await catalogRes.json() : [];
 
         const mergedMap = new Map();
-        for (const app of catalogData) {
+        for (const app of (Array.isArray(catalogData) ? catalogData : [])) {
           mergedMap.set(app.id, { ...app, installed: false });
         }
 
@@ -371,7 +386,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
 
   return (
     <Box className="netstore-root">
-      {/* Sidebar (Matches SettingsApp.tsx SidebarPaper) */}
+      {/* Sidebar */}
       <Paper className="netstore-sidebar" elevation={0}>
         <Box className="netstore-sidebar-header">
           <Store size={24} color="#ec4899" />
@@ -408,12 +423,12 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             <Select
               labelId="branch-select-label"
               value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value as 'NetStore' | 'NetStore-dev' | 'local-debug')}
+              onChange={(e) => setSelectedBranch(e.target.value as 'main' | 'dev' | 'local-debug')}
               label="Store Channel"
               sx={{ fontSize: '0.85rem' }}
             >
-              <MenuItem value="NetStore">Stable (NetStore)</MenuItem>
-              <MenuItem value="NetStore-dev">Developer (NetStore-dev)</MenuItem>
+              <MenuItem value="main">Stable (main)</MenuItem>
+              <MenuItem value="dev">Developer (dev)</MenuItem>
               <MenuItem value="local-debug">🛠️ Local Debug (Docker)</MenuItem>
             </Select>
           </FormControl>
@@ -553,7 +568,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         </List>
       </Paper>
 
-      {/* Main Content Area (Matches SettingsApp.tsx main-content-container) */}
+      {/* Main Content Area */}
       <Box className="netstore-main">
         <Box className="netstore-content-max">
           {/* Featured Banner on Discover Tab */}
@@ -815,7 +830,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         </Box>
       </Box>
 
-      {/* App Detail Dialog (Matches SettingsApp.tsx Dialogs) */}
+      {/* App Detail Dialog */}
       {selectedApp && (
         <Dialog
           open={Boolean(selectedApp)}
@@ -901,7 +916,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
           </DialogContent>
 
           <DialogActions className="netstore-dialog-actions" sx={{ px: 3, py: 2, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 1.5, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-            {/* Left side actions */}
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
               <Button
                 size="small"
@@ -947,7 +961,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
               )}
             </Box>
 
-            {/* Right side actions */}
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', ml: 'auto' }}>
               {!installedAppIds.includes(selectedApp.id) && (
                 <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>

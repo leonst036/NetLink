@@ -9,7 +9,7 @@ export function getGitHubHeaders(customToken?: string): Record<string, string> {
     return headers;
 }
 
-async function getGitHubApplicationsVersion(branch: string = 'NetStore', customToken?: string) {
+async function getGitHubApplicationsVersion(branch: string = 'main', customToken?: string) {
     const url = `https://raw.githubusercontent.com/leonst036/NetStore/refs/heads/${branch}/applications/version.json`;
     const response = await fetch(url, { headers: getGitHubHeaders(customToken) });
     if (!response.ok) {
@@ -19,7 +19,7 @@ async function getGitHubApplicationsVersion(branch: string = 'NetStore', customT
     return applicationsVersion;
 }
 
-export async function getGitHubApplicationsList(branch: string = 'NetStore', customToken?: string) {
+export async function getGitHubApplicationsList(branch: string = 'main', customToken?: string) {
     const url = `https://raw.githubusercontent.com/leonst036/NetStore/refs/heads/${branch}/applications/applications.json`;
     const response = await fetch(url, { headers: getGitHubHeaders(customToken) });
     if (!response.ok) {
@@ -29,7 +29,7 @@ export async function getGitHubApplicationsList(branch: string = 'NetStore', cus
     return applicationsList;
 }
 
-export async function checkNewApplications(branch: string = 'NetStore', customToken?: string) {
+export async function checkNewApplications(branch: string = 'main', customToken?: string) {
     try {
         const applicationsVersion = await getGitHubApplicationsVersion(branch, customToken);
         console.log(`GitHub Version (${branch}):`, applicationsVersion);

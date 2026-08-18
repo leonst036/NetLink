@@ -118,6 +118,7 @@ Here are all the ways you can configure both servers. You can put these in a `.e
 
 ## 📝 To-Do
 - Mobile Version: Enhance interaction with touch screen for better use on tablets and laptops with touch screens
+- Custom github repo's for NetStore applications
 
 ## 📁 File Structure
 

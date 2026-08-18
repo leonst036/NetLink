@@ -6,10 +6,12 @@ import { controlConnections } from '../../websocket/connectionManager.js';
 import { sendApplicationJson } from '../../NetStore/NetStore.js';
 import { extractTokenFromRequest, authenticateToken } from '../../auth/authenticator.js';
 import { getMongoClient } from '../../database/MongoManager.js';
+import { FetchApplicationCatalog } from '../../NetStore/FetchApplications.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const RELAY_APPS_DIR = path.join(__dirname, '..', '..', 'NetStore', 'Applications');
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || null;
 
 // Route handler for NetStore applications
 export async function handleNetStoreApplicationsRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
@@ -99,10 +101,10 @@ export async function handleInstallApplicationRoute(parsedUrl: URL, req: http.In
                             res.writeHead(500, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({ error: data.error }));
                         }
-                    } catch (err) {}
+                    } catch (err) { }
                 };
                 targetWs.on('message', requestHandler);
-                
+
                 const timeout = setTimeout(() => {
                     targetWs.removeListener('message', requestHandler);
                     res.writeHead(202, { 'Content-Type': 'application/json' });
@@ -206,10 +208,10 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
                             res.writeHead(500, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({ error: data.error }));
                         }
-                    } catch (err) {}
+                    } catch (err) { }
                 };
                 targetWs.on('message', requestHandler);
-                
+
                 const timeout = setTimeout(() => {
                     targetWs.removeListener('message', requestHandler);
                     res.writeHead(202, { 'Content-Type': 'application/json' });
@@ -227,3 +229,23 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
     }
 }
 
+export async function handleFetchApplicationCatalogRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    try {
+        const branch = parsedUrl.searchParams.get('branch') || 'main';
+
+        const applications = await FetchApplicationCatalog(GITHUB_TOKEN, branch);
+
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify(applications));
+    } catch (error: any) {
+        console.error('Error fetching application catalog:', error);
+        res.writeHead(500, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({ error: 'Failed to fetch application catalog' }));
+    }
+}

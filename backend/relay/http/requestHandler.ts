@@ -7,7 +7,7 @@ import { handleUsersRoute } from './routes/userRoutes.js';
 import { handleServerLoginsRoute } from './routes/serverRoutes.js';
 import { handleInstallScriptRoute, handleDemoScriptRoute, handleDemoSetupRoute } from './routes/scriptRoutes.js';
 import { handleFaviconRoute, handleStaticFileRoute, handleAppFrontendRoute } from './routes/staticRoutes.js';
-import { handleNetStoreApplicationsRoute, handleInstallApplicationRoute, handleUninstallApplicationRoute } from './routes/netStoreRoutes.js';
+import { handleNetStoreApplicationsRoute, handleInstallApplicationRoute, handleUninstallApplicationRoute, handleFetchApplicationCatalogRoute } from './routes/netStoreRoutes.js';
 import { handleTunnelRoutes } from './routes/tunnelRoutes.js';
 import { handleDockRoute } from './routes/dockRoutes.js';
 import { handleAppDatabaseRoute } from './routes/appDatabaseRoutes.js';
@@ -77,6 +77,7 @@ appRouter.delete('/api/users', (req, res, parsedUrl) => handleUsersRoute(parsedU
 
 // NetStore application catalog route
 appRouter.get('/api/applications', (req, res, parsedUrl) => handleNetStoreApplicationsRoute(parsedUrl, req, res));
+appRouter.get('/api/netstore/catalog', (req, res, parsedUrl) => handleFetchApplicationCatalogRoute(parsedUrl, req, res));
 appRouter.get('/api/netstore', (req, res, parsedUrl) => handleNetStoreApplicationsRoute(parsedUrl, req, res));
 appRouter.post('/api/applications/install', (req, res, parsedUrl) => handleInstallApplicationRoute(parsedUrl, req, res));
 appRouter.post('/api/applications/uninstall', (req, res, parsedUrl) => handleUninstallApplicationRoute(parsedUrl, req, res));
@@ -100,7 +101,7 @@ appRouter.all('/api/apps/db', (req, res, parsedUrl) => handleAppDatabaseRoute(pa
  */
 export function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
     const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-    
+
     // Check if it's a proxied app request: /api/<appId>/...
     const match = parsedUrl.pathname.match(/^\/api\/([^\/]+)(?:\/|$)/);
     if (match) {
@@ -137,7 +138,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
 
     // First, try to handle the request with the dynamic router
     const handled = appRouter.handle(req, res, parsedUrl);
-    
+
     // If no route matched, fallback to static file serving
     if (!handled) {
         const pathname = parsedUrl.pathname;
@@ -156,9 +157,9 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
                     break;
                 }
             }
-            
+
             const absolutePath = path.join(applicationsDir, filePath);
-            
+
             if (!absolutePath.startsWith(applicationsDir)) {
                 res.writeHead(403);
                 res.end('Forbidden');

@@ -33,7 +33,7 @@ export function calculateDirectorySize(dirPath: string): number {
     return totalSize;
 }
 
-export function resolveLocalNetStorePath(...subPaths: string[]): string {
+export function resolveLocalNetStorePath(__dirname: string, ...subPaths: string[]): string {
     const candidates = [
         path.resolve(__dirname, '../../../../NetLink-NetStore', ...subPaths),
         path.resolve(__dirname, '../../../../../NetLink-NetStore', ...subPaths),
