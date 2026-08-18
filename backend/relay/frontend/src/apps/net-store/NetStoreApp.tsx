@@ -1,14 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Box,
-  Paper,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
   Typography,
-  TextField,
   Button,
   Card,
   Chip,
@@ -18,19 +11,11 @@ import {
   DialogActions,
   LinearProgress,
   IconButton,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Tooltip
 } from '@mui/material';
 import {
-  Store,
   ShoppingBag,
-  LayoutGrid,
-  CheckCircle2,
   RefreshCw,
-  Search,
   Star,
   Download,
   ExternalLink,
@@ -40,8 +25,6 @@ import {
   Pin,
   PinOff,
   Wrench,
-  AlertTriangle,
-  Server
 } from 'lucide-react';
 import './NetStoreApp.css';
 import { useWindowStore } from '../../store/useWindowStore';
