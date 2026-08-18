@@ -21,7 +21,6 @@ export interface AppItem {
 
 export type MainTab = 'discover' | 'all' | 'installed' | 'updates';
 export type BranchType = 'main' | 'dev' | 'local-debug';
-
 export interface NetStoreAppProps {
     token?: string;
     target?: string;

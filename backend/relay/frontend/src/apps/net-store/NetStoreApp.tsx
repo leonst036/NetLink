@@ -48,6 +48,7 @@ import { useWindowStore } from '../../store/useWindowStore';
 import AppIcon from '../../components/AppIcon';
 import { useAppManager } from './AppManager';
 import { type AppItem, type NetStoreAppProps, type MainTab } from './types'
+import StoreSidebar from './components/StoreSidebar';
 
 function getAppIcon(app: any) {
   if (typeof app.icon === 'object' && app.icon !== null) {
@@ -64,7 +65,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   const [selectedApp, setSelectedApp] = useState<AppItem | null>(null);
   const [storeCatalog, setStoreCatalog] = useState<AppItem[]>([]);
 
-  // Branch aus URL-Query, Fallback auf localStorage oder 'main'
   const [selectedBranch, setSelectedBranch] = useState<'main' | 'dev' | 'local-debug'>(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -78,7 +78,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     return 'main';
   });
 
-  // Synchronisation in localStorage und URL-Query (?branch=xxxx)
   useEffect(() => {
     try {
       localStorage.setItem('netstore_selected_branch', selectedBranch);
@@ -238,13 +237,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     return Boolean(installedVer && app.version && installedVer !== app.version);
   }).length;
 
-  const tabs = [
-    { id: 'discover', label: 'Discover', icon: <ShoppingBag size={18} /> },
-    { id: 'all', label: 'All Applications', icon: <LayoutGrid size={18} /> },
-    { id: 'installed', label: `Installed (${installedCount})`, icon: <CheckCircle2 size={18} /> },
-    { id: 'updates', label: `Updates (${updatesCount})`, icon: <RefreshCw size={18} /> },
-  ];
-
   const categories = ['All', 'Monitoring', 'Security', 'Remote Access', 'Utilities', 'Developer Tools', 'System', 'Gaming'];
 
   const filteredApps = storeCatalog.filter((app) => {
@@ -274,186 +266,27 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   return (
     <Box className="netstore-root">
       {/* Sidebar */}
-      <Paper className="netstore-sidebar" elevation={0}>
-        <Box className="netstore-sidebar-header">
-          <Store size={24} color="#ec4899" />
-          <Box>
-            <Typography variant="subtitle1" className="netstore-sidebar-title">
-              NetStore
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Application Market
-            </Typography>
-          </Box>
-        </Box>
-
-        {/* Search */}
-        <Box className="netstore-sidebar-search">
-          <TextField
-            size="small"
-            placeholder="Search store..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            fullWidth
-            slotProps={{
-              input: {
-                startAdornment: <Search size={16} style={{ marginRight: 8, color: '#94a3b8' }} />
-              }
-            }}
-          />
-        </Box>
-
-        {/* Branch Selector */}
-        <Box sx={{ px: 2, pb: 1.5 }}>
-          <FormControl fullWidth size="small" variant="outlined">
-            <InputLabel id="branch-select-label" sx={{ fontSize: '0.8rem' }}>Store Channel</InputLabel>
-            <Select
-              labelId="branch-select-label"
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value as 'main' | 'dev' | 'local-debug')}
-              label="Store Channel"
-              sx={{ fontSize: '0.85rem' }}
-            >
-              <MenuItem value="main">Stable (main)</MenuItem>
-              <MenuItem value="dev">Developer (dev)</MenuItem>
-              <MenuItem value="local-debug">🛠️ Local Debug (Docker)</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-
-        {/* Debug Controls */}
-        {selectedBranch === 'local-debug' && (
-          <Box sx={{ px: 2, pb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {/* Status Bar */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'rgba(255, 255, 255, 0.03)', p: 1, borderRadius: 1, border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-              {debugConnected === true ? (
-                <Chip
-                  size="small"
-                  icon={<CheckCircle2 size={12} style={{ color: '#10b981' }} />}
-                  label="Docker Online"
-                  sx={{ bgcolor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontSize: '0.75rem', fontWeight: 600, height: 24, border: '1px solid rgba(16, 185, 129, 0.25)' }}
-                />
-              ) : (
-                <Tooltip title="Start Docker debug server: ./start-debug.sh in NetLink-NetStore" arrow>
-                  <Chip
-                    size="small"
-                    icon={<AlertTriangle size={12} style={{ color: '#f43f5e' }} />}
-                    label="Docker Offline"
-                    sx={{ bgcolor: 'rgba(244, 63, 94, 0.15)', color: '#fb7185', fontSize: '0.75rem', fontWeight: 600, height: 24, border: '1px solid rgba(244, 63, 94, 0.25)' }}
-                  />
-                </Tooltip>
-              )}
-              <IconButton size="small" onClick={() => setRefreshIndex(prev => prev + 1)} sx={{ color: '#94a3b8', p: 0.5 }}>
-                <RefreshCw size={14} />
-              </IconButton>
-            </Box>
-
-            {/* Local Branch Select */}
-            <FormControl fullWidth size="small" variant="outlined">
-              <InputLabel id="local-branch-label" sx={{ fontSize: '0.8rem' }}>Local Branch</InputLabel>
-              <Select
-                labelId="local-branch-label"
-                value={selectedLocalBranch}
-                onChange={(e) => setSelectedLocalBranch(e.target.value)}
-                label="Local Branch"
-                sx={{ fontSize: '0.82rem' }}
-              >
-                {debugBranches.map(b => (
-                  <MenuItem key={b} value={b} sx={{ fontSize: '0.85rem' }}>
-                    {b === 'workspace' ? '📁 workspace (live)' : `🌿 ${b}`}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {/* Docker Server URL */}
-            <TextField
-              size="small"
-              label="Docker Store URL"
-              value={debugStoreUrl}
-              onChange={(e) => setDebugStoreUrl(e.target.value)}
-              fullWidth
-              slotProps={{
-                input: {
-                  sx: { fontSize: '0.8rem' },
-                  startAdornment: <Server size={13} style={{ marginRight: 6, color: '#94a3b8' }} />
-                }
-              }}
-            />
-          </Box>
-        )}
-
-        {/* Sidebar Menu List */}
-        <List className="netstore-sidebar-list">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <ListItem key={tab.id} disablePadding className="netstore-tab-item">
-                <ListItemButton
-                  className="netstore-tab-button"
-                  selected={isActive}
-                  onClick={() => {
-                    setActiveTab(tab.id as MainTab);
-                    if (tab.id !== 'all') setSelectedCategory('All');
-                  }}
-                >
-                  <ListItemIcon className="netstore-tab-icon" sx={{ color: isActive ? 'primary.main' : 'inherit' }}>
-                    {tab.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={tab.label}
-                    slotProps={{
-                      primary: {
-                        variant: 'body2',
-                        sx: {
-                          fontWeight: isActive ? 'bold' : 'normal',
-                          color: isActive ? 'primary.main' : 'inherit'
-                        }
-                      }
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            );
-          })}
-        </List>
-
-        {/* Category Filters */}
-        <Typography className="netstore-sidebar-section-label">
-          Categories
-        </Typography>
-        <List className="netstore-sidebar-list" sx={{ pt: 0 }}>
-          {categories.map((cat) => {
-            const isActive = selectedCategory === cat;
-            return (
-              <ListItem key={cat} disablePadding className="netstore-tab-item">
-                <ListItemButton
-                  className="netstore-tab-button"
-                  selected={isActive}
-                  onClick={() => {
-                    setSelectedCategory(cat);
-                    if (activeTab === 'discover') setActiveTab('all');
-                  }}
-                >
-                  <ListItemText
-                    primary={cat}
-                    slotProps={{
-                      primary: {
-                        variant: 'body2',
-                        sx: {
-                          fontSize: '0.825rem',
-                          fontWeight: isActive ? 'bold' : 'normal',
-                          color: isActive ? 'primary.main' : 'text.secondary'
-                        }
-                      }
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            );
-          })}
-        </List>
-      </Paper>
+      <StoreSidebar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        selectedBranch={selectedBranch}
+        onBranchChange={setSelectedBranch}
+        selectedLocalBranch={selectedLocalBranch}
+        onLocalBranchChange={setSelectedLocalBranch}
+        debugStoreUrl={debugStoreUrl}
+        onDebugStoreUrlChange={setDebugStoreUrl}
+        debugConnected={debugConnected}
+        debugBranches={debugBranches}
+        onRefresh={() => setRefreshIndex((prev) => prev + 1)}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        selectedCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
+        installedCount={installedCount}
+        updatesCount={updatesCount}
+        categories={categories}
+        netlink_debug={true}
+      />
 
       {/* Main Content Area */}
       <Box className="netstore-main">
