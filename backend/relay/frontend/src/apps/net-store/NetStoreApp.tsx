@@ -47,34 +47,7 @@ import './NetStoreApp.css';
 import { useWindowStore } from '../../store/useWindowStore';
 import AppIcon from '../../components/AppIcon';
 import { useAppManager } from './AppManager';
-
-export interface AppItem {
-  id: string;
-  name: string;
-  author: string;
-  category: 'Utilities' | 'Security' | 'Remote Access' | 'Monitoring' | 'Developer Tools' | 'System';
-  rating: number;
-  downloads: string;
-  size: string;
-  version: string;
-  nativeKey?: 'graph' | 'terminal' | 'vnc' | 'sftp' | 'settings';
-  color: string;
-  icon: React.ReactNode;
-  rawIcon?: string;
-  shortDesc: string;
-  fullDesc: string;
-  features: string[];
-  isFeatured?: boolean;
-  entrypoint?: string;
-  main?: string;
-}
-
-type MainTab = 'discover' | 'all' | 'installed' | 'updates';
-
-interface NetStoreAppProps {
-  token?: string;
-  target?: string;
-}
+import { type AppItem, type NetStoreAppProps, type MainTab } from './types'
 
 function getAppIcon(app: any) {
   if (typeof app.icon === 'object' && app.icon !== null) {
