@@ -46,8 +46,9 @@ import {
 import './NetStoreApp.css';
 import { useWindowStore } from '../../store/useWindowStore';
 import AppIcon from '../../components/AppIcon';
+import { useAppManager } from './AppManager';
 
-interface AppItem {
+export interface AppItem {
   id: string;
   name: string;
   author: string;
@@ -131,8 +132,8 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     } catch (e) { }
   }, [debugStoreUrl]);
 
-  const [debugConnected, setDebugConnected] = useState<boolean | null>(null);
-  const [debugBranches, setDebugBranches] = useState<string[]>(['workspace', 'main', 'dev']);
+  const [debugConnected] = useState<boolean | null>(null);
+  const [debugBranches] = useState<string[]>(['workspace', 'main', 'dev']);
   const [selectedLocalBranch, setSelectedLocalBranch] = useState<string>(() => {
     try {
       return localStorage.getItem('netstore_local_branch') || 'workspace';
@@ -235,107 +236,20 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     );
   };
 
+  const { handleInstall, handleUninstall } = useAppManager({
+    target: props.target,
+    token: props.token,
+    selectedBranch,
+    selectedLocalBranch,
+    debugStoreUrl,
+    installingMap,
+    setInstallingMap,
+    setInstalledAppIds,
+    setInstalledVersions,
+    notifyUser
+  });
+
   const [runInBackground, setRunInBackground] = useState<boolean>(false);
-
-  const handleInstall = (app: AppItem, e?: React.MouseEvent, runInBg: boolean = false) => {
-    if (e) e.stopPropagation();
-    if (installingMap[app.id]) return;
-
-    setInstallingMap((prev) => ({ ...prev, [app.id]: 15 }));
-
-    const targetId = props.target || "local-server";
-    const isDebug = selectedBranch === 'local-debug';
-    const effectiveBranch = isDebug ? (selectedLocalBranch || 'workspace') : selectedBranch;
-    const effectiveCustomStoreUrl = isDebug ? debugStoreUrl : undefined;
-
-    fetch('/api/applications/install', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
-      },
-      body: JSON.stringify({
-        appId: app.id,
-        target: targetId,
-        branch: effectiveBranch,
-        runInBackground: runInBg,
-        customStoreUrl: effectiveCustomStoreUrl
-      })
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'Failed to install application');
-        }
-        return res.json();
-      })
-      .then(() => {
-        setInstallingMap((prev) => {
-          const copy = { ...prev };
-          delete copy[app.id];
-          return copy;
-        });
-        setInstalledAppIds((prev) => Array.from(new Set([...prev, app.id])));
-        setInstalledVersions((prev) => ({ ...prev, [app.id]: app.version || 'v1.0.0' }));
-        windowStore.registerAppMetadata([{
-          id: app.id,
-          title: app.name,
-          icon: app.rawIcon,
-          color: app.color
-        }]);
-        notifyUser(`${app.name} installed / updated successfully!`, 'success');
-        window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
-      })
-      .catch((err) => {
-        console.error(err);
-        notifyUser(`Failed to install ${app.name}: ${err.message}`, 'warning');
-        setInstallingMap((prev) => {
-          const copy = { ...prev };
-          delete copy[app.id];
-          return copy;
-        });
-      });
-  };
-
-  const handleUninstall = (app: AppItem, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (app.nativeKey) {
-      notifyUser(`System app ${app.name} cannot be uninstalled.`, 'warning');
-      return;
-    }
-
-    const targetId = props.target || "local-server";
-
-    fetch('/api/applications/uninstall', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(props.token ? { 'Authorization': `Bearer ${props.token}` } : {})
-      },
-      body: JSON.stringify({ appId: app.id, target: targetId })
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'Failed to uninstall application');
-        }
-        return res.json();
-      })
-      .then(() => {
-        setInstalledAppIds((prev) => prev.filter((id) => id !== app.id));
-        setInstalledVersions((prev) => {
-          const copy = { ...prev };
-          delete copy[app.id];
-          return copy;
-        });
-        notifyUser(`${app.name} was uninstalled.`, 'info');
-        window.dispatchEvent(new CustomEvent('netlink_apps_updated', { detail: { appId: app.id } }));
-      })
-      .catch((err) => {
-        console.error(err);
-        notifyUser(`Failed to uninstall ${app.name}: ${err.message}`, 'warning');
-      });
-  };
 
   const handleOpenApp = (app: AppItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
