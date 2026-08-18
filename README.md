@@ -99,6 +99,7 @@ Here are all the ways you can configure both servers. You can put these in a `.e
 | `SSL_KEY_PATH` | `key.pem` | Path to the SSL key (if `USE_SSL` is true). |
 | `SSL_CERT_PATH`| `cert.pem`| Path to the SSL cert (if `USE_SSL` is true). |
 | `FRONTEND_PATH`| *(auto)* | Path to the compiled frontend files. Usually auto-detects `frontend/dist`. |
+| `GITHUB_TOKEN`| *empty* | Token for github api (without it you have a rate limit from 60 requests per hour) |
 
 ### Local Server Variables (`backend/local_server`)
 | Variable | Default | What it does |
