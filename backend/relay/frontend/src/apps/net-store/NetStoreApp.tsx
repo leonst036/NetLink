@@ -36,7 +36,6 @@ import {
   ExternalLink,
   X,
   Sparkles,
-  Key,
   Trash2,
   Pin,
   PinOff,
@@ -135,24 +134,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     } catch (e) { }
   }, [selectedLocalBranch]);
 
-  const [githubToken, setGithubToken] = useState<string>(() => {
-    try {
-      return localStorage.getItem('netlink_github_token') || '';
-    } catch {
-      return '';
-    }
-  });
-
-  useEffect(() => {
-    try {
-      if (githubToken) {
-        localStorage.setItem('netlink_github_token', githubToken);
-      } else {
-        localStorage.removeItem('netlink_github_token');
-      }
-    } catch (e) { }
-  }, [githubToken]);
-
   const [installedVersions, setInstalledVersions] = useState<Record<string, string>>({});
   const [refreshIndex, setRefreshIndex] = useState<number>(0);
 
@@ -164,61 +145,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         if (!res.ok) throw new Error('Failed to fetch store applications');
         const localData = await res.json();
 
-        let catalogData: any[] = [];
-
-        if (selectedBranch === 'local-debug') {
-          // Fetch from local Docker debug server
-          try {
-            const cleanUrl = debugStoreUrl.replace(/\/$/, '');
-            const healthRes = await fetch(`${cleanUrl}/health`).catch(() => null);
-            if (healthRes && healthRes.ok) {
-              setDebugConnected(true);
-              const healthData = await healthRes.json().catch(() => ({}));
-              if (Array.isArray(healthData.branches)) {
-                setDebugBranches(healthData.branches);
-              }
-            } else {
-              setDebugConnected(false);
-            }
-
-            const catRes = await fetch(`${cleanUrl}/applications/applications.json?ref=${encodeURIComponent(selectedLocalBranch)}`).catch(() => null);
-            if (catRes && catRes.ok) {
-              catalogData = await catRes.json();
-            } else {
-              console.warn(`Failed to fetch catalog from local debug store: ${cleanUrl}`);
-            }
-          } catch (e) {
-            setDebugConnected(false);
-            console.warn('Failed to connect to local debug store:', e);
-          }
-        } else {
-          // Fetch from GitHub
-          try {
-            let ghRes: Response;
-            if (githubToken) {
-              ghRes = await fetch(
-                `https://api.github.com/repos/leonst036/NetLink-NetStore/contents/applications/applications.json?ref=${selectedBranch}`,
-                {
-                  headers: {
-                    'Authorization': `token ${githubToken}`,
-                    'Accept': 'application/vnd.github.v3.raw'
-                  }
-                }
-              );
-            } else {
-              ghRes = await fetch(
-                `https://raw.githubusercontent.com/leonst036/NetLink-NetStore/refs/heads/${selectedBranch}/applications/applications.json`
-              );
-            }
-            if (ghRes.ok) {
-              catalogData = await ghRes.json();
-            } else {
-              console.warn(`Failed to fetch branch ${selectedBranch}`);
-            }
-          } catch (e) {
-            console.warn('Failed to fetch github branch data', e);
-          }
-        }
+        let catalogData: any[] = []; // TODO: Implement fetching from backend, setDebugBranches must be defined.
 
         const mergedMap = new Map();
         for (const app of catalogData) {
@@ -277,7 +204,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     };
 
     fetchApps();
-  }, [props.target, selectedBranch, selectedLocalBranch, debugStoreUrl, githubToken, refreshIndex]);
+  }, [props.target, selectedBranch, selectedLocalBranch, debugStoreUrl, refreshIndex]);
 
   // Installed App State
   const [installedAppIds, setInstalledAppIds] = useState<string[]>([]);
@@ -316,7 +243,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         appId: app.id,
         target: targetId,
         branch: effectiveBranch,
-        githubToken,
         runInBackground: runInBg,
         customStoreUrl: effectiveCustomStoreUrl
       })
@@ -493,8 +419,8 @@ export default function NetStoreApp(props: NetStoreAppProps) {
           </FormControl>
         </Box>
 
-        {/* Debug or GitHub Token Controls */}
-        {selectedBranch === 'local-debug' ? (
+        {/* Debug Controls */}
+        {selectedBranch === 'local-debug' && (
           <Box sx={{ px: 2, pb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {/* Status Bar */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'rgba(255, 255, 255, 0.03)', p: 1, borderRadius: 1, border: '1px solid rgba(255, 255, 255, 0.06)' }}>
@@ -549,24 +475,6 @@ export default function NetStoreApp(props: NetStoreAppProps) {
                 input: {
                   sx: { fontSize: '0.8rem' },
                   startAdornment: <Server size={13} style={{ marginRight: 6, color: '#94a3b8' }} />
-                }
-              }}
-            />
-          </Box>
-        ) : (
-          /* GitHub Token Field */
-          <Box sx={{ px: 2, pb: 2 }}>
-            <TextField
-              size="small"
-              type="password"
-              label="GitHub Token (Optional)"
-              placeholder="ghp_xxxxxxxxxxxx"
-              value={githubToken}
-              onChange={(e) => setGithubToken(e.target.value)}
-              fullWidth
-              slotProps={{
-                input: {
-                  startAdornment: <Key size={14} style={{ marginRight: 6, color: '#94a3b8' }} />
                 }
               }}
             />
