@@ -24,6 +24,44 @@ export interface StoreSidebarProps {
     netlink_debug?: boolean;
 }
 
+interface SidebarSearchProps {
+    searchQuery: string;
+    onSearchChange: (query: string) => void;
+}
+
+interface SidebarBranchSelectorProps {
+    selectedBranch: BranchType;
+    onBranchChange: (branch: BranchType) => void;
+}
+
+interface SidebarDebugControlsProps {
+    netlink_debug?: boolean;
+    selectedBranch: BranchType;
+    debugConnected: boolean | null;
+    onRefresh: () => void;
+    selectedLocalBranch: string;
+    onLocalBranchChange: (branch: string) => void;
+    debugBranches: string[];
+    debugStoreUrl: string;
+    onDebugStoreUrlChange: (url: string) => void;
+}
+
+interface SidebarMenuListProps {
+    activeTab: MainTab;
+    onTabChange: (tab: MainTab) => void;
+    onCategoryChange: (category: string) => void;
+    installedCount: number;
+    updatesCount: number;
+}
+
+interface SidebarCategoryFilterProps {
+    categories: string[];
+    selectedCategory: string;
+    onCategoryChange: (category: string) => void;
+    activeTab: MainTab;
+    onTabChange: (tab: MainTab) => void;
+}
+
 const SidebarHeader = () => {
     return (
         <Box className="netstore-sidebar-header">
@@ -37,10 +75,10 @@ const SidebarHeader = () => {
                 </Typography>
             </Box>
         </Box>
-    )
-}
+    );
+};
 
-const SidebarSearch = ({ searchQuery, onSearchChange }: StoreSidebarProps) => {
+const SidebarSearch = ({ searchQuery, onSearchChange }: SidebarSearchProps) => {
     return (
         <Box className="netstore-sidebar-search">
             <TextField
@@ -56,10 +94,10 @@ const SidebarSearch = ({ searchQuery, onSearchChange }: StoreSidebarProps) => {
                 }}
             />
         </Box>
-    )
-}
+    );
+};
 
-const SidebarBranchSelector = ({ selectedBranch, onBranchChange }: StoreSidebarProps) => {
+const SidebarBranchSelector = ({ selectedBranch, onBranchChange }: SidebarBranchSelectorProps) => {
     return (
         <Box sx={{ px: 2, pb: 1.5 }}>
             <FormControl fullWidth size="small" variant="outlined">
@@ -77,8 +115,8 @@ const SidebarBranchSelector = ({ selectedBranch, onBranchChange }: StoreSidebarP
                 </Select>
             </FormControl>
         </Box>
-    )
-}
+    );
+};
 
 const SidebarDebugControls = ({
     netlink_debug = false,
@@ -90,7 +128,7 @@ const SidebarDebugControls = ({
     debugBranches,
     debugStoreUrl,
     onDebugStoreUrlChange,
-}: StoreSidebarProps) => {
+}: SidebarDebugControlsProps) => {
     if (!netlink_debug) return null;
 
     if (selectedBranch !== 'local-debug') return null;
@@ -154,8 +192,8 @@ const SidebarDebugControls = ({
                 }}
             />
         </Box>
-    )
-}
+    );
+};
 
 const SidebarMenuList = ({
     activeTab,
@@ -163,7 +201,7 @@ const SidebarMenuList = ({
     onCategoryChange,
     installedCount,
     updatesCount,
-}: StoreSidebarProps) => {
+}: SidebarMenuListProps) => {
     const tabs = [
         { id: 'discover', label: 'Discover', icon: <ShoppingBag size={18} /> },
         { id: 'all', label: 'All Applications', icon: <LayoutGrid size={18} /> },
@@ -214,7 +252,7 @@ const SidebarCategoryFilter = ({
     onCategoryChange,
     activeTab,
     onTabChange,
-}: StoreSidebarProps) => {
+}: SidebarCategoryFilterProps) => {
     return (
         <>
             <Typography className="netstore-sidebar-section-label">
@@ -255,17 +293,43 @@ const SidebarCategoryFilter = ({
     );
 };
 
-{/*Export Sidebar with all components*/ }
-
 export const StoreSidebar = (props: StoreSidebarProps) => {
     return (
         <Paper className="netstore-sidebar" elevation={0}>
             <SidebarHeader />
-            <SidebarSearch {...props} />
-            <SidebarBranchSelector {...props} />
-            <SidebarDebugControls {...props} />
-            <SidebarMenuList {...props} />
-            <SidebarCategoryFilter {...props} />
+            <SidebarSearch
+                searchQuery={props.searchQuery}
+                onSearchChange={props.onSearchChange}
+            />
+            <SidebarBranchSelector
+                selectedBranch={props.selectedBranch}
+                onBranchChange={props.onBranchChange}
+            />
+            <SidebarDebugControls
+                netlink_debug={props.netlink_debug}
+                selectedBranch={props.selectedBranch}
+                debugConnected={props.debugConnected}
+                onRefresh={props.onRefresh}
+                selectedLocalBranch={props.selectedLocalBranch}
+                onLocalBranchChange={props.onLocalBranchChange}
+                debugBranches={props.debugBranches}
+                debugStoreUrl={props.debugStoreUrl}
+                onDebugStoreUrlChange={props.onDebugStoreUrlChange}
+            />
+            <SidebarMenuList
+                activeTab={props.activeTab}
+                onTabChange={props.onTabChange}
+                onCategoryChange={props.onCategoryChange}
+                installedCount={props.installedCount}
+                updatesCount={props.updatesCount}
+            />
+            <SidebarCategoryFilter
+                categories={props.categories}
+                selectedCategory={props.selectedCategory}
+                onCategoryChange={props.onCategoryChange}
+                activeTab={props.activeTab}
+                onTabChange={props.onTabChange}
+            />
         </Paper>
     );
 };

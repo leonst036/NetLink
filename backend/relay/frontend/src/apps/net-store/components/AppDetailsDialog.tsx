@@ -28,6 +28,7 @@ export interface AppDetailsDialogProps {
     isInstalled: boolean;
     isPinned: boolean;
     installedVersion?: string;
+    installProgress?: number;
     onOpenApp: (app: AppItem, e?: React.MouseEvent) => void;
     onInstall: (app: AppItem, e?: React.MouseEvent, runInBackground?: boolean) => void;
     onUninstall: (app: AppItem, e?: React.MouseEvent) => void;
@@ -41,6 +42,7 @@ export const AppDetailsDialog = ({
     isInstalled,
     isPinned,
     installedVersion,
+    installProgress,
     onOpenApp,
     onInstall,
     onUninstall,
@@ -54,6 +56,8 @@ export const AppDetailsDialog = ({
     };
 
     if (!app) return null;
+
+    const isInstalling = installProgress !== undefined;
 
     return (
         <Dialog
@@ -157,16 +161,20 @@ export const AppDetailsDialog = ({
                     {app.fullDesc}
                 </Typography>
 
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    Features
-                </Typography>
-                <Box component="ul" sx={{ pl: 2.5, m: 0 }}>
-                    {app.features.map((feat, i) => (
-                        <Typography key={i} component="li" variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                            {feat}
+                {app.features && app.features.length > 0 && (
+                    <>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                            Features
                         </Typography>
-                    ))}
-                </Box>
+                        <Box component="ul" sx={{ pl: 2.5, m: 0 }}>
+                            {app.features.map((feat, i) => (
+                                <Typography key={i} component="li" variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                    {feat}
+                                </Typography>
+                            ))}
+                        </Box>
+                    </>
+                )}
             </DialogContent>
 
             <DialogActions
@@ -201,6 +209,7 @@ export const AppDetailsDialog = ({
                                 size="small"
                                 variant="outlined"
                                 color="error"
+                                disabled={isInstalling}
                                 startIcon={<Trash2 size={16} />}
                                 onClick={(e) => {
                                     onUninstall(app, e);
@@ -214,15 +223,18 @@ export const AppDetailsDialog = ({
                                 size="small"
                                 variant="outlined"
                                 color="info"
-                                startIcon={<RefreshCw size={16} />}
+                                disabled={isInstalling}
+                                startIcon={<RefreshCw size={16} className={isInstalling ? "spin-icon" : undefined} />}
                                 onClick={(e) => {
                                     onInstall(app, e);
                                 }}
                                 sx={{ whiteSpace: 'nowrap' }}
                             >
-                                {installedVersion && app.version && installedVersion !== app.version
-                                    ? 'Update App'
-                                    : 'Reinstall App'}
+                                {isInstalling
+                                    ? 'Updating...'
+                                    : (installedVersion && app.version && installedVersion !== app.version
+                                        ? 'Update App'
+                                        : 'Reinstall App')}
                             </Button>
                         </>
                     )}
@@ -235,6 +247,7 @@ export const AppDetailsDialog = ({
                                 type="checkbox"
                                 id="runInBackground"
                                 checked={runInBackground}
+                                disabled={isInstalling}
                                 onChange={(e) => setRunInBackground(e.target.checked)}
                                 style={{ marginRight: '8px', cursor: 'pointer', accentColor: '#38bdf8' }}
                             />
@@ -279,13 +292,14 @@ export const AppDetailsDialog = ({
                             size="small"
                             variant="contained"
                             color="primary"
-                            startIcon={<Download size={16} />}
+                            disabled={isInstalling}
+                            startIcon={<Download size={16} className={isInstalling ? "spin-icon" : undefined} />}
                             onClick={(e) => {
                                 onInstall(app, e, runInBackground);
                             }}
                             sx={{ whiteSpace: 'nowrap', fontWeight: 'bold' }}
                         >
-                            Install
+                            {isInstalling ? 'Installing...' : 'Install'}
                         </Button>
                     )}
                 </Box>
@@ -294,5 +308,4 @@ export const AppDetailsDialog = ({
     );
 };
 
-export const AppDeatilsDialog = AppDetailsDialog;
 export default AppDetailsDialog;

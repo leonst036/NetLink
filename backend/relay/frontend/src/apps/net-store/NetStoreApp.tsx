@@ -65,7 +65,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
     } catch (e) { }
   }, [debugStoreUrl]);
 
-  const [debugConnected] = useState<boolean | null>(null);
+  const [debugConnected, setDebugConnected] = useState<boolean | null>(null);
   const [debugBranches] = useState<string[]>(['workspace', 'main', 'dev']);
   const [selectedLocalBranch, setSelectedLocalBranch] = useState<string>(() => {
     try {
@@ -95,6 +95,12 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         const catalogUrl = `/api/netstore/catalog?branch=${encodeURIComponent(selectedBranch)}`;
         const catalogRes = await fetch(catalogUrl);
         const catalogData = catalogRes.ok ? await catalogRes.json() : [];
+
+        if (selectedBranch === 'local-debug') {
+          setDebugConnected(catalogRes.ok && Array.isArray(catalogData) && catalogData.length > 0);
+        } else {
+          setDebugConnected(null);
+        }
 
         const mergedMap = new Map();
         for (const app of (Array.isArray(catalogData) ? catalogData : [])) {
@@ -149,6 +155,9 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         setInstalledAppIds(backendInstalledIds);
       } catch (err: any) {
         console.warn('Store fetch error:', err.message);
+        if (selectedBranch === 'local-debug') {
+          setDebugConnected(false);
+        }
       }
     };
 
@@ -304,6 +313,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         isInstalled={selectedApp ? installedAppIds.includes(selectedApp.id) : false}
         isPinned={selectedApp ? windowStore.isPinned(selectedApp.id) : false}
         installedVersion={selectedApp ? installedVersions[selectedApp.id] : undefined}
+        installProgress={selectedApp ? installingMap[selectedApp.id] : undefined}
         onOpenApp={handleOpenApp}
         onInstall={handleInstall}
         onUninstall={handleUninstall}
