@@ -11,7 +11,7 @@ import { handleNetStoreApplicationsRoute, handleInstallApplicationRoute, handleU
 import { handleTunnelRoutes } from './routes/tunnelRoutes.js';
 import { handleDockRoute } from './routes/dockRoutes.js';
 import { handleAppDatabaseRoute } from './routes/appDatabaseRoutes.js';
-
+import { handleNotificationSoundRoute } from './routes/soundRoutes.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -61,6 +61,9 @@ appRouter.post('/api/auth/ticket', (req, res, parsedUrl) => handleTicketRoute(re
 appRouter.get('/api/install.sh', handleInstallScriptRoute);
 appRouter.get('/api/demo.sh', handleDemoScriptRoute);
 appRouter.get('/api/demo-setup', handleDemoSetupRoute);
+
+// Sound Routes
+appRouter.get('/api/sounds/notification', handleNotificationSoundRoute);
 
 // Server & Devices routes
 appRouter.get('/api/server-logins', (req, res, parsedUrl) => handleServerLoginsRoute(parsedUrl, req, res));
