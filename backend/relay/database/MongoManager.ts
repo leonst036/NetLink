@@ -43,11 +43,15 @@ export function getMongoClient(): mongoDB.MongoClient | null {
     return activeClient;
 }
 
-export async function StoreToken(client: mongoDB.MongoClient, token: string) {
+export async function StoreToken(client: mongoDB.MongoClient, token: string, targetId?: string) {
     const db: mongoDB.Db = client.db("NetLink");
     try {
         const collection: mongoDB.Collection = db.collection("tokens");
-        await collection.insertOne({ token, timestamp: new Date() });
+        const doc: Record<string, any> = { token, timestamp: new Date() };
+        if (targetId) {
+            doc.targetId = targetId;
+        }
+        await collection.insertOne(doc);
     } catch (error) {
         console.error('Failed to store token', error);
     }

@@ -5,7 +5,8 @@
   "description": "",
   "main": "main.ts",
   "scripts": {
-    "start": "node main.ts"
+    "start": "node main.ts",
+    "build": "tsc --outDir dist"
   },
   "keywords": [],
   "author": "",

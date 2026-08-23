@@ -10,6 +10,48 @@ const JWT_SECRET = 'dev_secret_key_change_in_production';
 // Pre-generated JWT token signed with JWT_SECRET containing payload { deviceId: "local-server" }
 const RELAY_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6ImxvY2FsLXNlcnZlciIsImlhdCI6MTc4NjE0ODk1M30.LYcW99CQ4nfekI73qy5hwkzZLmlrbOx3MPa9huMt4pI';
 
+function parsePortArg() {
+    const args = process.argv.slice(2);
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === '--port' || arg === '-p') {
+            const val = args[i + 1];
+            if (val && !val.startsWith('-')) {
+                const port = parseInt(val, 10);
+                if (!isNaN(port) && port > 0 && port <= 65535) {
+                    return port;
+                }
+                console.error(`❌ Invalid port "${val}". Using default port 5173.`);
+            } else {
+                console.warn(`⚠️ No port number provided for ${arg}. Using default port 5173.`);
+            }
+        } else if (arg.startsWith('--port=')) {
+            const val = arg.slice('--port='.length);
+            const port = parseInt(val, 10);
+            if (!isNaN(port) && port > 0 && port <= 65535) {
+                return port;
+            }
+            console.error(`❌ Invalid port "${val}". Using default port 5173.`);
+        } else if (arg.startsWith('-p=')) {
+            const val = arg.slice('-p='.length);
+            const port = parseInt(val, 10);
+            if (!isNaN(port) && port > 0 && port <= 65535) {
+                return port;
+            }
+            console.error(`❌ Invalid port "${val}". Using default port 5173.`);
+        }
+    }
+    if (process.env.PORT) {
+        const port = parseInt(process.env.PORT, 10);
+        if (!isNaN(port) && port > 0 && port <= 65535) {
+            return port;
+        }
+    }
+    return 5173;
+}
+
+const vitePort = parsePortArg();
+
 let relayProcess = null;
 let viteProcess = null;
 let localProcess = null;
@@ -72,7 +114,12 @@ function startViteProcess() {
     }
     const viteBin = path.join(__dirname, 'backend/relay/frontend/node_modules/vite/bin/vite.js');
 
-    viteProcess = spawn('node', [viteBin, '--host', '0.0.0.0'], {
+    const viteArgs = [viteBin, '--host', '0.0.0.0'];
+    if (vitePort) {
+        viteArgs.push('--port', vitePort.toString());
+    }
+
+    viteProcess = spawn('node', viteArgs, {
         cwd: path.join(__dirname, 'backend/relay/frontend'),
         env: process.env,
         stdio: ['ignore', 'pipe', 'pipe']
@@ -143,7 +190,7 @@ function startProcesses() {
 
         console.log('===========================================================');
         console.log(' NetLink Dev Environment Running!');
-        console.log(' 🌐 Web UI (Vite Dev / Hot Reload): http://localhost:5173');
+        console.log(` 🌐 Web UI (Vite Dev / Hot Reload): http://localhost:${vitePort}`);
         console.log(' 🌐 Relay Backend API:             http://localhost:4535');
         console.log(' 🛠️ NetStore Docker Debug:         http://localhost:4540 (optional)');
         console.log(' 🔑 Login: admin / admin');

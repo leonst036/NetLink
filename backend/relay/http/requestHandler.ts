@@ -3,6 +3,7 @@ import { URL } from 'url';
 import { handleLogin } from '../auth/login.js';
 import { getMongoClient } from '../database/MongoManager.js';
 import { handleRegisterRoute, handleValidateTargetRoute, handleTicketRoute } from './routes/authRoutes.js';
+import { handleDeviceCodeRoute, handleDeviceTokenRoute, handleDeviceSessionInfoRoute, handleDeviceApproveRoute } from './routes/deviceAuthRoutes.js';
 import { handleUsersRoute } from './routes/userRoutes.js';
 import { handleServerLoginsRoute } from './routes/serverRoutes.js';
 import { handleInstallScriptRoute, handleDemoScriptRoute, handleDemoSetupRoute } from './routes/scriptRoutes.js';
@@ -12,12 +13,14 @@ import { handleTunnelRoutes } from './routes/tunnelRoutes.js';
 import { handleDockRoute } from './routes/dockRoutes.js';
 import { handleAppDatabaseRoute } from './routes/appDatabaseRoutes.js';
 import { handleNotificationSoundRoute } from './routes/soundRoutes.js';
+import { handleNetConnectPingRoute } from './routes/netConnectRoutes.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { Router } from './Router.js';
 import httpProxy from 'http-proxy';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
+import { consumeTicket } from '../auth/ticketManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,8 +57,14 @@ appRouter.post('/api/login', handleLogin);
 appRouter.post('/login', handleLogin);
 appRouter.post('/api/register', (req, res) => handleRegisterRoute(req, res));
 appRouter.post('/register', (req, res) => handleRegisterRoute(req, res));
-appRouter.post('/api/validate-target', (req, res, parsedUrl) => handleValidateTargetRoute(parsedUrl, req, res));
+appRouter.all('/api/validate-target', (req, res, parsedUrl) => handleValidateTargetRoute(parsedUrl, req, res));
 appRouter.post('/api/auth/ticket', (req, res, parsedUrl) => handleTicketRoute(req, res, parsedUrl));
+
+// Device Authorization routes (RFC 8628 style)
+appRouter.post('/api/auth/device/code', (req, res, parsedUrl) => handleDeviceCodeRoute(req, res, parsedUrl));
+appRouter.post('/api/auth/device/token', (req, res) => handleDeviceTokenRoute(req, res));
+appRouter.get('/api/auth/device/session', (req, res, parsedUrl) => handleDeviceSessionInfoRoute(req, res, parsedUrl));
+appRouter.post('/api/auth/device/approve', (req, res, parsedUrl) => handleDeviceApproveRoute(req, res, parsedUrl));
 
 // Script routes
 appRouter.get('/api/install.sh', handleInstallScriptRoute);
@@ -98,6 +107,9 @@ appRouter.post('/api/dock', (req, res, parsedUrl) => handleDockRoute(parsedUrl, 
 appRouter.all('/api/db', (req, res, parsedUrl) => handleAppDatabaseRoute(parsedUrl, req, res));
 appRouter.all('/api/apps/db', (req, res, parsedUrl) => handleAppDatabaseRoute(parsedUrl, req, res));
 
+// NetConnect routes
+appRouter.all('/api/netconnect/ping', (req, res, parsedUrl) => handleNetConnectPingRoute(req, res, parsedUrl));
+
 
 /**
  * Main HTTP Request Handler - routes incoming HTTP requests to dedicated route controllers.
@@ -110,20 +122,36 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     if (match) {
         const appId = match[1] as string;
         // Exclude system api routes like login, register, servers etc.
-        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'tunnels'];
+        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'tunnels', 'netconnect'];
         if (!systemRoutes.includes(appId)) {
             let userId = 'unknown';
             try {
-                // Manually parse token to get userId for routing (avoids async DB lookup)
                 const cookieHeader = req.headers.cookie || '';
                 const matchToken = cookieHeader.match(/netlink_token=([^;]+)/);
-                const token = matchToken ? matchToken[1] : (req.headers.authorization?.split(' ')[1] || parsedUrl.searchParams.get('token'));
-                if (token) {
-                    const parts = token.split('.');
-                    if (parts.length >= 2 && parts[1]) {
-                        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-                        if (payload && payload.userId) {
-                            userId = payload.userId;
+                const authHeader = req.headers.authorization || '';
+                const ticketParam = parsedUrl.searchParams.get('ticket');
+
+                // 1. Check Ticket authentication first
+                if (authHeader.startsWith('Ticket ') || ticketParam) {
+                    const ticketId = authHeader.startsWith('Ticket ') ? authHeader.substring(7).trim() : (ticketParam || '');
+                    if (ticketId) {
+                        const ticketData = consumeTicket(ticketId);
+                        if (ticketData && ticketData.userId) {
+                            userId = ticketData.userId;
+                        }
+                    }
+                }
+
+                // 2. Fallback to JWT token parsing
+                if (userId === 'unknown') {
+                    const token = matchToken ? matchToken[1] : (authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : (authHeader.split(' ')[1] || parsedUrl.searchParams.get('token')));
+                    if (token) {
+                        const parts = token.split('.');
+                        if (parts.length >= 2 && parts[1]) {
+                            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                            if (payload && (payload.userId || payload.deviceId)) {
+                                userId = payload.userId || payload.deviceId;
+                            }
                         }
                     }
                 }
@@ -131,7 +159,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
                 // Ignore parse errors, will just fail to route
             }
 
-            const app = denoSandbox.getApp(`${userId}_${appId}`);
+            const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId) || denoSandbox.getApp(`admin_${appId}`);
             if (app) {
                 proxy.web(req, res, { target: `http://localhost:${app.port}` });
                 return;

@@ -16,8 +16,8 @@ export const useNotificationStore = create<NotificationState>((set) => ({
         const id = Date.now().toString() + Math.random().toString();
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const item: AppNotification = { id, message, type, timestamp };
-        // Play noftification sound
-        if (!message.startsWith("Opening") && localStorage.getItem("netlink_sounds").toString() == "true") {
+        // Play notification sound
+        if (!message.startsWith("Opening") && localStorage.getItem("netlink_sounds") === "true") {
             fetch('/api/sounds/notification').then(res => res.blob()).then(blob => {
                 const url = URL.createObjectURL(blob);
                 new Audio(url).play().catch(() => { });

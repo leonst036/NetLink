@@ -71,8 +71,8 @@ export async function handleDemoSetupRoute(req: http.IncomingMessage, res: http.
 
     try {
         await CreateUser(mongoClient, userData);
-        const token = await GenerateToken({ deviceId: targetId }, process.env.JWT_SECRET || 'default_secret');
-        await StoreToken(mongoClient, token);
+        const token = await GenerateToken({ deviceId: targetId, userId: username, role: userData.role, permissions: userData.permissions }, process.env.JWT_SECRET || 'default_secret');
+        await StoreToken(mongoClient, token, targetId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ username, password, targetId, jwtToken: token }));
     } catch (err) {

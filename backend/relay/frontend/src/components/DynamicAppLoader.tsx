@@ -57,7 +57,7 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
   const isSecure = window.location.protocol === 'https:';
   const protocol = isSecure ? 'https:' : 'http:';
   let host = window.location.host;
-  if (host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535';
+  if (import.meta.env.DEV || host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535';
 
   const searchParams = new URLSearchParams();
   searchParams.set('ticket', ticket);

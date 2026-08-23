@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import Desktop from './Desktop';
 import GeminiLoader from './components/GeminiLoader';
+import { DeviceAuthorizeView } from './components/DeviceAuthorizeView';
 import { getAppTheme } from './theme';
 import { getCookie, setCookie, deleteCookie, isJwtExpired, parseJwt } from './utils/cookieUtils';
 import './App.css';
@@ -161,6 +162,32 @@ function App() {
       setLoading(false);
     }
   };
+
+  const isDeviceAuthorizeRoute = typeof window !== 'undefined' && (
+    window.location.pathname === '/devices/authorize' ||
+    window.location.pathname.startsWith('/devices/authorize')
+  );
+
+  if (isDeviceAuthorizeRoute) {
+    return (
+      <ThemeProvider theme={getAppTheme('Dark')}>
+        <CssBaseline />
+        <DeviceAuthorizeView
+          token={token}
+          onLogin={(newToken, newTargets) => {
+            setCookie('netlink_token', newToken, 1);
+            localStorage.setItem('netlink_token', newToken);
+            if (newTargets && newTargets.length > 0) {
+              setAllowedTargets(newTargets);
+              localStorage.setItem('netlink_allowed_targets', JSON.stringify(newTargets));
+            }
+            setToken(newToken);
+          }}
+          onLogout={handleLogout}
+        />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={getAppTheme('Dark')}>

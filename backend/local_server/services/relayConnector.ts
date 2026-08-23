@@ -1,3 +1,4 @@
+import net from "net";
 import { WebSocket } from 'ws';
 import { sendApplicationJson } from '../NetStore/NetStore.js';
 
@@ -20,7 +21,7 @@ function getRelayUrl(): string {
  * Creates a WebSocket connection to the relay server.
  * Defaults to secure wss:// connection.
  */
-export function connectToRelay(token: string): WebSocket {
+export function connectToRelay(token: string, sessionId?: string): WebSocket {
     const relayUrl = getRelayUrl();
 
     // Support self-signed certs in development (if REJECT_UNAUTHORIZED=false)
@@ -28,7 +29,8 @@ export function connectToRelay(token: string): WebSocket {
         rejectUnauthorized: process.env.REJECT_UNAUTHORIZED?.trim().toLowerCase() !== 'false'
     };
 
-    const ws = new WebSocket(`${relayUrl}/connect?token=${token}`, options);
+    const url = sessionId ? `${relayUrl}/connect?token=${token}&sessionId=${sessionId}` : `${relayUrl}/connect?token=${token}`;
+    const ws = new WebSocket(url, options);
     return ws;
 }
 
@@ -84,6 +86,38 @@ export function handleRelayConnection(token: string): void {
                     }
                 }).catch(err => {
                     console.error('Failed to import NetStore.js:', err);
+                });
+            } else if (message.type === 'init_lan_stream' && message.sessionId && message.destIP && message.destPort) {
+                const { sessionId, destIP, destPort } = message;
+                console.log(`[LAN Forwarder] Forwarding LAN stream request for ${destIP}:${destPort} (Session: ${sessionId})`);
+                const targetSocket = net.createConnection({ host: destIP, port: destPort }, () => {
+                    console.log(`[LAN Forwarder] Connected to LAN target ${destIP}:${destPort}`);
+                    const dataWs = connectToRelay(token, sessionId);
+                    
+                    dataWs.on('open', () => {
+                        targetSocket.on('data', (chunk) => {
+                            if (dataWs.readyState === WebSocket.OPEN) {
+                                dataWs.send(chunk);
+                            }
+                        });
+                        dataWs.on('message', (chunk: any) => {
+                            targetSocket.write(chunk);
+                        });
+                    });
+
+                    const cleanup = () => {
+                        if (!targetSocket.destroyed) targetSocket.destroy();
+                        if (dataWs.readyState === WebSocket.OPEN) dataWs.close();
+                    };
+
+                    targetSocket.on('error', cleanup);
+                    targetSocket.on('close', cleanup);
+                    dataWs.on('error', cleanup);
+                    dataWs.on('close', cleanup);
+                });
+
+                targetSocket.on('error', (err) => {
+                    console.error(`[LAN Forwarder] Failed to connect to LAN target ${destIP}:${destPort}:`, err);
                 });
             } else if (message.type === 'uninstall_application' && message.appId) {
                 console.log(`Relay requested uninstallation of app: ${message.appId} for user: ${message.userId}`);

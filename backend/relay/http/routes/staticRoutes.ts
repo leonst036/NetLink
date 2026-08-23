@@ -88,6 +88,22 @@ export function handleStaticFileRoute(pathname: string, res: http.ServerResponse
     fs.readFile(filePath, (error, content) => {
         if (error) {
             if (error.code === 'ENOENT') {
+                // SPA fallback for HTML5 history API routes (e.g. /devices/authorize)
+                if (!ext || ext === '.html' || pathname.startsWith('/devices/')) {
+                    const spaIndex = path.join(frontendPath, 'index.html');
+                    if (fs.existsSync(spaIndex)) {
+                        fs.readFile(spaIndex, (spaErr, spaContent) => {
+                            if (!spaErr) {
+                                res.writeHead(200, { 'Content-Type': 'text/html' });
+                                res.end(spaContent, 'utf-8');
+                                return;
+                            }
+                            res.writeHead(404, { 'Content-Type': 'text/plain' });
+                            res.end('404 Not Found\n');
+                        });
+                        return;
+                    }
+                }
                 res.writeHead(404, { 'Content-Type': 'text/plain' });
                 res.end('404 Not Found\n');
             } else {

@@ -83,7 +83,8 @@ export async function authenticateToken(
             const tokenExists = await CheckToken(mongoClient, token);
             if (!tokenExists) {
                 const { StoreToken } = await import('../database/MongoManager.js');
-                await StoreToken(mongoClient, token);
+                const targetId = typeof decoded === "object" && decoded !== null ? ((decoded as any).deviceId || (decoded as any).targetId || (decoded as any).target) : undefined;
+                await StoreToken(mongoClient, token, targetId);
             }
         }
         return decoded;

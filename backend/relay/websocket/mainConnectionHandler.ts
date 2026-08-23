@@ -1,3 +1,5 @@
+import crypto from "crypto";
+import { pendingSessions, controlConnections } from "./connectionManager.js";
 import { WebSocket, WebSocket as WsClient } from 'ws';
 import http from 'http';
 import { URL } from 'url';
@@ -45,7 +47,47 @@ export const handleMainConnection = async (
 
         console.log(`Connection established at path: ${pathname} (Identifier: ${identifier})`);
 
-        if (pathname === '/connect') {
+        if (pathname === '/netconnect/stream') {
+            const destIP = reqUrl.searchParams.get('destIP') || '127.0.0.1';
+            const destPort = reqUrl.searchParams.get('destPort') || '80';
+            const targetId = target || 'local-server';
+
+            let controlWs = controlConnections.get(targetId);
+            if (!controlWs && controlConnections.size > 0) {
+                controlWs = controlConnections.values().next().value;
+            }
+
+            if (!controlWs || controlWs.readyState !== WebSocket.OPEN) {
+                console.warn(`[NetConnect] No active local server for stream destination ${destIP}:${destPort}`);
+                ws.close(1011, 'Local server not online');
+                return;
+            }
+
+            const streamSessionId = crypto.randomUUID();
+            pendingSessions.set(streamSessionId, ws);
+            console.log(`[NetConnect] Forwarding stream request to local server for ${destIP}:${destPort} (Session: ${streamSessionId})`);
+
+            controlWs.send(JSON.stringify({
+                type: 'init_lan_stream',
+                sessionId: streamSessionId,
+                destIP,
+                destPort: parseInt(destPort, 10)
+            }));
+
+            const timeoutId = setTimeout(() => {
+                if (pendingSessions.has(streamSessionId)) {
+                    console.warn(`[NetConnect] Stream session ${streamSessionId} timed out`);
+                    pendingSessions.delete(streamSessionId);
+                    ws.close(4008, 'LAN stream connection timed out');
+                }
+            }, 15000);
+
+            ws.on('close', () => {
+                clearTimeout(timeoutId);
+                pendingSessions.delete(streamSessionId);
+            });
+            return;
+        } else if (pathname === '/connect') {
             handleLocalServerConnection(ws, identifier, rawToken, sessionId);
         } else if (pathname === '/client') {
             const targetId = target || identifier; // If target is not specified, assume target is the token/identifier itself
