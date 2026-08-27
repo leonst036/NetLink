@@ -22,14 +22,14 @@ COPY sandbox/ ./sandbox/
 RUN npx tsc --outDir dist
 
 # Stage 2: Clean production runtime image
-FROM node:22-alpine AS runner
+FROM node:22-slim AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install openssl and glibc compatibility for Deno binary
-RUN apk add --no-cache openssl gcompat libc6-compat
+# Install openssl and ca-certificates
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install deno
 COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
