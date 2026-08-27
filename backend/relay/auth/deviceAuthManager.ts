@@ -12,6 +12,7 @@ export interface DeviceSession {
     token?: string;
     target_id?: string;
     username?: string;
+    userUuid?: string;
     createdAt: number;
     expiresAt: number;
     expires_in: number;
@@ -115,6 +116,7 @@ export function pollDeviceToken(deviceCode: string): {
     token?: string | undefined;
     target_id?: string | undefined;
     username?: string | undefined;
+    userUuid?: string | undefined;
 } {
     const session = deviceSessionStore.get(deviceCode);
     if (!session) {
@@ -132,6 +134,7 @@ export function pollDeviceToken(deviceCode: string): {
             token: session.token,
             target_id: session.target_id,
             username: session.username,
+            userUuid: session.userUuid,
         };
     }
 
@@ -145,7 +148,8 @@ export async function approveDeviceSession(
     permissions: string[],
     targetId: string,
     secretKey: string,
-    mongoClient: mongoDB.MongoClient | null
+    mongoClient: mongoDB.MongoClient | null,
+    userUuidParam?: string
 ): Promise<{ success: boolean; status: string; error?: string }> {
     const session = getDeviceSession(code);
     if (!session) {
@@ -161,8 +165,31 @@ export async function approveDeviceSession(
         return { success: false, status: session.status, error: `Session already ${session.status}` };
     }
 
+    let userUuid = userUuidParam || "";
+    if (mongoClient && !userUuid && username) {
+        try {
+            const user = await mongoClient.db("NetLink").collection("users").findOne({
+                $or: [{ username }, { email: username }]
+            });
+            if (user) {
+                if (!user.uuid) {
+                    userUuid = crypto.randomUUID();
+                    await mongoClient.db("NetLink").collection("users").updateOne(
+                        { _id: user._id },
+                        { $set: { uuid: userUuid } }
+                    );
+                } else {
+                    userUuid = user.uuid;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to query user UUID for device approval:", e);
+        }
+    }
+
     const tokenPayload = {
         userId: username,
+        userUuid: userUuid || undefined,
         deviceId: targetId,
         targetId: targetId,
         role: role || "user",
@@ -176,12 +203,38 @@ export async function approveDeviceSession(
 
     if (mongoClient) {
         await StoreToken(mongoClient, token, targetId);
+        try {
+            await mongoClient.db("NetLink").collection("devices").updateOne(
+                { targetId: targetId },
+                {
+                    $set: {
+                        targetId: targetId,
+                        deviceId: targetId,
+                        deviceName: session.device_name,
+                        clientType: session.client_type,
+                        username: username,
+                        userUuid: userUuid || "",
+                        deviceCode: session.device_code,
+                        status: "authorized",
+                        authorizedAt: new Date(),
+                        updatedAt: new Date()
+                    },
+                    $setOnInsert: {
+                        createdAt: new Date()
+                    }
+                },
+                { upsert: true }
+            );
+        } catch (e) {
+            console.error("Failed to save authorized device in database:", e);
+        }
     }
 
     session.status = "approved";
     session.token = token;
     session.target_id = targetId;
     session.username = username;
+    session.userUuid = userUuid;
 
     return { success: true, status: "approved" };
 }

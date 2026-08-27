@@ -13,7 +13,7 @@ import { handleTunnelRoutes } from './routes/tunnelRoutes.js';
 import { handleDockRoute } from './routes/dockRoutes.js';
 import { handleAppDatabaseRoute } from './routes/appDatabaseRoutes.js';
 import { handleNotificationSoundRoute } from './routes/soundRoutes.js';
-import { handleNetConnectPingRoute } from './routes/netConnectRoutes.js';
+import { handleNetConnectListRoute, handleNetConnectPingRoute } from './routes/netConnectRoutes.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -109,6 +109,7 @@ appRouter.all('/api/apps/db', (req, res, parsedUrl) => handleAppDatabaseRoute(pa
 
 // NetConnect routes
 appRouter.all('/api/netconnect/ping', (req, res, parsedUrl) => handleNetConnectPingRoute(req, res, parsedUrl));
+appRouter.all('/api/netconnect/list', (req, res, parsedUrl) => handleNetConnectListRoute(req, res, parsedUrl));
 
 
 /**

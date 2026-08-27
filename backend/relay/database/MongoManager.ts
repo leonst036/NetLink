@@ -1,4 +1,5 @@
 import * as mongoDB from "mongodb";
+import crypto from "crypto";
 
 let activeClient: mongoDB.MongoClient | null = null;
 
@@ -96,7 +97,9 @@ export async function RegisterUser(client: mongoDB.MongoClient, userData: any) {
     if (existing) {
         throw new Error("User or email already exists");
     }
-    return client.db("NetLink").collection("users").insertOne({
+    const uuid = userData.uuid || crypto.randomUUID();
+    const result = await client.db("NetLink").collection("users").insertOne({
+        uuid,
         username,
         email,
         password,
@@ -106,12 +109,14 @@ export async function RegisterUser(client: mongoDB.MongoClient, userData: any) {
         createdAt: new Date(),
         updatedAt: new Date()
     });
+    return { ...result, uuid };
 }
 
 
 export async function CreateUser(client: mongoDB.MongoClient, userData: any) {
     const { username, password, role, permissions, expiresAt } = userData;
     const userDoc: any = {
+        uuid: userData.uuid || crypto.randomUUID(),
         username,
         password,
         role: role || 'user',

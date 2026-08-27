@@ -33,9 +33,9 @@ export async function handleRegisterRoute(req: http.IncomingMessage, res: http.S
                 res.end(JSON.stringify({ error: "Database not available" }));
                 return;
             }
-            await RegisterUser(mongoClient, parsedBody);
+            const result = await RegisterUser(mongoClient, parsedBody);
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ success: true }));
+            res.end(JSON.stringify({ success: true, uuid: result.uuid }));
         } catch (err: any) {
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: err.message || "Failed to register user" }));
