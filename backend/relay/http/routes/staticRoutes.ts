@@ -136,7 +136,7 @@ export default { WindowLayout };
     });
 }
 
-export function handleAppFrontendRoute(pathname: string, res: http.ServerResponse): void {
+export function handleAppFrontendRoute(pathname: string, res: http.ServerResponse, req?: http.IncomingMessage): void {
     // pathname like /apps/{userId}/{appId}/frontend/... or /apps/{userId}/{appId}/...
     const parts = pathname.split('/');
     if (parts.length < 4 || parts[1] !== 'apps') {
@@ -360,6 +360,15 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
                 let fileContent = content.toString('utf-8');
                 // Backwards compatibility for old absolute paths in apps
                 fileContent = fileContent.replace(new RegExp(`/apps/${appId}/`, 'g'), `/apps/${userId}/${appId}/`);
+                if (ext === '.css') {
+                    const isModuleImport = req?.headers['sec-fetch-dest'] === 'script' || (req?.headers.accept && !req.headers.accept.includes('text/css'));
+                    if (isModuleImport) {
+                        const jsCss = `const css = ${JSON.stringify(fileContent)};\nconst style = document.createElement('style');\nstyle.setAttribute('data-injected-from', '${safeSuffix}');\nstyle.textContent = css;\ndocument.head.appendChild(style);\nexport default css;`;
+                        res.writeHead(200, { 'Content-Type': 'application/javascript', ...noCacheHeaders });
+                        res.end(jsCss, 'utf-8');
+                        return;
+                    }
+                }
                 if (ext === '.html') {
                     fileContent = fileContent.replace(/="\/assets\//g, '="./assets/');
                     fileContent = fileContent.replace(/="\/src\//g, '="./src/');
@@ -380,7 +389,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
       "@emotion/styled": "https://esm.sh/@emotion/styled@11.11.0",
       "@mui/material": "https://esm.sh/@mui/material@5.14.0",
       "@mui/icons-material": "https://esm.sh/@mui/icons-material@5.14.0",
-      "@xyflow/react/dist/style.css": "https://esm.sh/@xyflow/react@12.0.0/dist/style.css",
+      "@xyflow/react/dist/style.css": "data:text/javascript,const s=document.createElement('link');s.rel='stylesheet';s.href='https://esm.sh/@xyflow/react@12.0.0/dist/style.css';document.head.appendChild(s);export default '';",
       "@netlink/ui": "/assets/netlink-ui.js"
     }
   }

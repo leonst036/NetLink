@@ -236,7 +236,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
         }
 
         if (pathname.startsWith('/apps/')) {
-            handleAppFrontendRoute(pathname, res);
+            handleAppFrontendRoute(pathname, res, req);
         } else {
             handleStaticFileRoute(pathname, res);
         }
