@@ -155,10 +155,14 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
         }
     }
 
-    // Fallback if dist/index.html was requested but frontend/index.html exists directly
+    // Fallback if dist/... was requested but frontend/... exists directly
     if (!fs.existsSync(filePath) && (safeSuffix === 'dist/index.html' || safeSuffix.startsWith('dist/'))) {
         const fallbackPath = path.join(RELAY_APPS_DIR, userId, appId, 'frontend', safeSuffix.replace(/^dist[\/\\]/, ''));
-        if (fs.existsSync(fallbackPath)) {
+        if (fs.existsSync(fallbackPath) || 
+            fs.existsSync(fallbackPath + '.tsx') || 
+            fs.existsSync(fallbackPath + '.ts') || 
+            fs.existsSync(fallbackPath + '.jsx') || 
+            fs.existsSync(fallbackPath + '.js')) {
             filePath = fallbackPath;
         }
     }
@@ -172,6 +176,14 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
             filePath += '.jsx';
         } else if (fs.existsSync(filePath + '.js')) {
             filePath += '.js';
+        } else if (fs.existsSync(path.join(filePath, 'index.tsx'))) {
+            filePath = path.join(filePath, 'index.tsx');
+        } else if (fs.existsSync(path.join(filePath, 'index.ts'))) {
+            filePath = path.join(filePath, 'index.ts');
+        } else if (fs.existsSync(path.join(filePath, 'index.jsx'))) {
+            filePath = path.join(filePath, 'index.jsx');
+        } else if (fs.existsSync(path.join(filePath, 'index.js'))) {
+            filePath = path.join(filePath, 'index.js');
         }
     }
 
