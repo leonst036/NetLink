@@ -19,6 +19,8 @@ COPY http/ ./http/
 COPY assets/ ./assets/
 COPY NetStore/ ./NetStore/
 COPY sandbox/ ./sandbox/
+COPY tunnels/ ./tunnels/
+COPY NetConnect/ ./NetConnect/
 
 # Compile TS code to the "dist" directory
 RUN npx tsc --outDir dist
