@@ -13,7 +13,6 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY main.ts ./
 COPY httpServer.ts ./
-COPY protocols/ ./protocols/
 COPY services/ ./services/
 COPY NetStore/ ./NetStore/
 COPY sandbox/ ./sandbox/
