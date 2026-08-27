@@ -48,6 +48,25 @@ export function handleFaviconRoute(res: http.ServerResponse): void {
 }
 
 export function handleStaticFileRoute(pathname: string, res: http.ServerResponse): void {
+    if (pathname === '/assets/netlink-ui.js') {
+        res.writeHead(200, {
+            'Content-Type': 'application/javascript',
+            'Cache-Control': 'no-cache'
+        });
+        res.end(`import React from 'react';
+export * from 'https://esm.sh/@mui/material@5.14.0';
+export const WindowLayout = ({ children, style, ...props }) => {
+    return React.createElement('div', {
+        className: 'netlink-window-layout',
+        style: { width: '100%', height: '100%', display: 'flex', flexDirection: 'column', flex: 1, ...style },
+        ...props
+    }, children);
+};
+export default { WindowLayout };
+`);
+        return;
+    }
+
     // Normalize pathname to prevent directory traversal
     const safeSuffix = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     let filePath = path.join(frontendPath, safeSuffix);
@@ -350,7 +369,9 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
       "@emotion/react": "https://esm.sh/@emotion/react@11.11.0",
       "@emotion/styled": "https://esm.sh/@emotion/styled@11.11.0",
       "@mui/material": "https://esm.sh/@mui/material@5.14.0",
-      "@mui/icons-material": "https://esm.sh/@mui/icons-material@5.14.0"
+      "@mui/icons-material": "https://esm.sh/@mui/icons-material@5.14.0",
+      "@xyflow/react/dist/style.css": "https://esm.sh/@xyflow/react@12.0.0/dist/style.css",
+      "@netlink/ui": "/assets/netlink-ui.js"
     }
   }
   </script>\n`;
