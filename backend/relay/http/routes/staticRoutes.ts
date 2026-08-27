@@ -209,14 +209,31 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     try {
         const stat = fs.statSync(filePath);
         if (stat.isDirectory()) {
+            const noCacheHeaders = {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            };
             if (fs.existsSync(path.join(filePath, 'index.ts'))) {
-                filePath = path.join(filePath, 'index.ts');
+                const targetPath = pathname.endsWith('/') ? pathname + 'index.ts' : pathname + '/index.ts';
+                res.writeHead(307, { 'Location': targetPath, ...noCacheHeaders });
+                res.end();
+                return;
             } else if (fs.existsSync(path.join(filePath, 'index.tsx'))) {
-                filePath = path.join(filePath, 'index.tsx');
+                const targetPath = pathname.endsWith('/') ? pathname + 'index.tsx' : pathname + '/index.tsx';
+                res.writeHead(307, { 'Location': targetPath, ...noCacheHeaders });
+                res.end();
+                return;
             } else if (fs.existsSync(path.join(filePath, 'index.js'))) {
-                filePath = path.join(filePath, 'index.js');
+                const targetPath = pathname.endsWith('/') ? pathname + 'index.js' : pathname + '/index.js';
+                res.writeHead(307, { 'Location': targetPath, ...noCacheHeaders });
+                res.end();
+                return;
             } else if (fs.existsSync(path.join(filePath, 'index.jsx'))) {
-                filePath = path.join(filePath, 'index.jsx');
+                const targetPath = pathname.endsWith('/') ? pathname + 'index.jsx' : pathname + '/index.jsx';
+                res.writeHead(307, { 'Location': targetPath, ...noCacheHeaders });
+                res.end();
+                return;
             } else {
                 filePath = path.join(filePath, 'index.html');
             }
