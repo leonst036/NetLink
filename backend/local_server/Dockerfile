@@ -28,8 +28,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install openssl in the production container for certificate auto-generation
-RUN apk add --no-cache openssl
+# Install openssl and glibc compatibility for Deno binary
+RUN apk add --no-cache openssl gcompat libc6-compat
 
 # Install deno
 COPY --from=denoland/deno:bin /deno /usr/local/bin/deno

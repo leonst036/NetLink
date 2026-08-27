@@ -11,7 +11,7 @@ function getRelayUrl(): string {
         return process.env.RELAY_URL;
     }
     const host = process.env.RELAY_HOST || process.env.RELAY_IP || process.env.RELAY_DOMAIN || 'localhost';
-    const port = process.env.RELAY_PORT || '4536';
+    const port = process.env.RELAY_PORT || '4535';
     const ssl = process.env.RELAY_SSL !== 'false';
     const protocol = ssl ? 'wss' : 'ws';
     return `${protocol}://${host}:${port}`;
