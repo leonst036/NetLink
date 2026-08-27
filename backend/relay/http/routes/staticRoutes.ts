@@ -209,7 +209,17 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     try {
         const stat = fs.statSync(filePath);
         if (stat.isDirectory()) {
-            filePath = path.join(filePath, 'index.html');
+            if (fs.existsSync(path.join(filePath, 'index.ts'))) {
+                filePath = path.join(filePath, 'index.ts');
+            } else if (fs.existsSync(path.join(filePath, 'index.tsx'))) {
+                filePath = path.join(filePath, 'index.tsx');
+            } else if (fs.existsSync(path.join(filePath, 'index.js'))) {
+                filePath = path.join(filePath, 'index.js');
+            } else if (fs.existsSync(path.join(filePath, 'index.jsx'))) {
+                filePath = path.join(filePath, 'index.jsx');
+            } else {
+                filePath = path.join(filePath, 'index.html');
+            }
         }
     } catch (e) {
         // Fallback or ignore, handle in fs.readFile
