@@ -321,6 +321,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
                 fileContent = fileContent.replace(new RegExp(`/apps/${appId}/`, 'g'), `/apps/${userId}/${appId}/`);
                 if (ext === '.html') {
                     fileContent = fileContent.replace(/="\/assets\//g, '="./assets/');
+                    fileContent = fileContent.replace(/="\/src\//g, '="./src/');
                     
                     // Inject global netlink.css for glassmorphism and tailwind classes
                     if (!fileContent.includes('href="/netlink.css"')) {
