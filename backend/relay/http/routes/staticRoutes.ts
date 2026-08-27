@@ -357,8 +357,9 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
             if (isTypeScript) {
                 (async () => {
                     try {
+                        const loader = ext === '.ts' ? 'ts' : (ext === '.js' ? 'js' : 'tsx');
                         const transpiled = await esbuild.transform(content.toString('utf-8'), {
-                            loader: 'tsx',
+                            loader,
                             target: 'es2022',
                             format: 'esm'
                         });
