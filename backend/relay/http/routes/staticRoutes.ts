@@ -323,6 +323,32 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
                     fileContent = fileContent.replace(/="\/assets\//g, '="./assets/');
                     fileContent = fileContent.replace(/="\/src\//g, '="./src/');
                     
+                    // Inject importmap if not present to resolve standard React and UI packages
+                    if (!fileContent.includes('type="importmap"')) {
+                        const importMap = `  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.2.0",
+      "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+      "react-dom": "https://esm.sh/react-dom@18.2.0",
+      "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+      "lucide-react": "https://esm.sh/lucide-react@0.344.0",
+      "@xyflow/react": "https://esm.sh/@xyflow/react@12.0.0",
+      "@emotion/react": "https://esm.sh/@emotion/react@11.11.0",
+      "@emotion/styled": "https://esm.sh/@emotion/styled@11.11.0",
+      "@mui/material": "https://esm.sh/@mui/material@5.14.0",
+      "@mui/icons-material": "https://esm.sh/@mui/icons-material@5.14.0"
+    }
+  }
+  </script>\n`;
+                        if (fileContent.includes('<head>')) {
+                            fileContent = fileContent.replace('<head>', '<head>\n' + importMap);
+                        } else {
+                            fileContent = importMap + fileContent;
+                        }
+                    }
+                    
                     // Inject global netlink.css for glassmorphism and tailwind classes
                     if (!fileContent.includes('href="/netlink.css"')) {
                         fileContent = fileContent.replace('</head>', '  <link rel="stylesheet" href="/netlink.css">\n</head>');
