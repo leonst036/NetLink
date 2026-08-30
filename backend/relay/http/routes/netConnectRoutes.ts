@@ -3,6 +3,7 @@ import { URL } from "url";
 import crypto from "crypto";
 import { authenticateToken, extractTokenFromRequest } from "../../auth/authenticator.js";
 import { getMongoClient } from "../../database/MongoManager.js";
+import { magicDnsRegistry } from "../../dns/MagicDnsRegistry.js";
 
 async function updateNetConnectDevice(
     mongoClient: any,
@@ -67,6 +68,15 @@ function setCorsHeaders(res: http.ServerResponse): void {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
+function getDnsConfig(req: http.IncomingMessage) {
+    return {
+        enabled: true,
+        server: process.env.MAGIC_DNS_HOST || req.headers.host?.split(':')[0] || '127.0.0.1',
+        port: process.env.DNS_PORT ? parseInt(process.env.DNS_PORT, 10) : 53,
+        suffix: 'netlink'
+    };
+}
+
 // Handle ping request for NetConnect
 export async function handleNetConnectPingRoute(req: http.IncomingMessage, res: http.ServerResponse, parsedUrl: URL): Promise<void> {
     setCorsHeaders(res);
@@ -87,7 +97,11 @@ export async function handleNetConnectPingRoute(req: http.IncomingMessage, res: 
         await updateNetConnectDevice(mongoClient, decoded, req);
 
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ message: "pong", deviceId }));
+        res.end(JSON.stringify({ 
+            message: "pong", 
+            deviceId,
+            dns: getDnsConfig(req)
+        }));
     } catch (err: any) {
         console.log(`Received unauthorized ping from netconnect: ${err.message}`);
         res.writeHead(401, { "Content-Type": "application/json" });
@@ -145,11 +159,24 @@ export async function handleNetConnectListRoute(req: http.IncomingMessage, res: 
             ? await mongoClient.db("NetLink").collection("devices").find(filter).toArray()
             : [];
 
+        const enrichedDevices = devices.map((d: any) => {
+            const devId = d.targetId || d.deviceId;
+            const domain = magicDnsRegistry.getDomainForDevice(devId) || `${(d.deviceName || devId || '').toLowerCase().replace(/[^a-z0-9-]/g, '-')}.netlink`;
+            return {
+                ...d,
+                domain
+            };
+        });
+
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
             success: true,
             userUuid: userUuid || undefined,
-            devices: devices
+            devices: enrichedDevices,
+            dns: {
+                ...getDnsConfig(req),
+                records: magicDnsRegistry.getAllRecords()
+            }
         }));
     } catch (err: any) {
         console.log(`Received unauthorized list from netconnect: ${err.message}`);

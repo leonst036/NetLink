@@ -88,7 +88,8 @@ export const handleMainConnection = async (
             });
             return;
         } else if (pathname === '/connect') {
-            handleLocalServerConnection(ws, identifier, rawToken, sessionId);
+            const reqIp = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || '127.0.0.1';
+            handleLocalServerConnection(ws, identifier, rawToken, sessionId, decodedPayload, reqIp);
         } else if (pathname === '/client') {
             const targetId = target || identifier; // If target is not specified, assume target is the token/identifier itself
             handleClientConnection(ws, identifier, targetId, sessionId);

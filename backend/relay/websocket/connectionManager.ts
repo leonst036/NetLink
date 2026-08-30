@@ -36,3 +36,40 @@ export function bridgeSockets(ws1: WebSocket, ws2: WebSocket): void {
     ws1.on('error', closeAll);
     ws2.on('error', closeAll);
 }
+
+/**
+ * Broadcasts a message to all connected frontend clients (or filtered by target identifier).
+ */
+export function broadcast(message: any, filterTargetId?: string): void {
+    const payload = typeof message === 'string' ? message : JSON.stringify(message);
+
+    if (filterTargetId) {
+        const clients = frontendClients.get(filterTargetId);
+        if (clients) {
+            for (const client of clients) {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(payload);
+                }
+            }
+        }
+        return;
+    }
+
+    for (const clientSet of frontendClients.values()) {
+        for (const client of clientSet) {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(payload);
+            }
+        }
+    }
+}
+
+export const connectionManager = {
+    controlConnections,
+    pendingSessions,
+    serverApplications,
+    frontendClients,
+    bridgeSockets,
+    broadcast
+};
+

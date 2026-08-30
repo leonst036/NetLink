@@ -6,6 +6,8 @@ import { initializeDatabase } from './database/MongoManager.js';
 import { createServer } from './websocket/httpsHelper.js';
 import { handleRequest } from './http/requestHandler.js';
 import { handleMainConnection } from './websocket/mainConnectionHandler.js';
+import { MagicDnsServer } from './dns/MagicDnsServer.js';
+import { magicDnsRegistry } from './dns/MagicDnsRegistry.js';
 
 dotenv.config();
 
@@ -34,4 +36,10 @@ wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
 
 httpServer.listen(HTTP_PORT, () => {
     console.log(`Relay server (HTTP & WS) started on port ${HTTP_PORT}`);
+});
+
+// Start MagicDNS UDP server alongside HTTP/WS
+const dnsServer = new MagicDnsServer(magicDnsRegistry);
+dnsServer.start(process.env.DNS_PORT ? parseInt(process.env.DNS_PORT, 10) : 53).catch((err) => {
+    console.error('[MagicDNS] Failed to start DNS server:', err);
 });

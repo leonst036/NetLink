@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node start-dev.js",
-    "build": "npm run build --prefix backend/relay && npm run build --prefix backend/local_server"
+    "build": "npm run build --prefix backend/relay && npm run build --prefix backend/local_server",
+    "allow-dns-port": "sudo setcap 'cap_net_bind_service=+ep' $(which node)"
   },
   "keywords": [],
   "author": "",

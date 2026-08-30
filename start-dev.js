@@ -85,6 +85,7 @@ function startRelayProcess() {
         ...process.env,
         HTTP_PORT: '4535',
         WS_PORT: '4536',
+        DNS_PORT: process.env.DNS_PORT || '53',
         JWT_SECRET: JWT_SECRET,
         ADMIN_USERNAME: 'admin',
         ADMIN_PASSWORD: 'admin',

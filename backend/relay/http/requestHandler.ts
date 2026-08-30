@@ -14,6 +14,7 @@ import { handleDockRoute } from './routes/dockRoutes.js';
 import { handleAppDatabaseRoute } from './routes/appDatabaseRoutes.js';
 import { handleNotificationSoundRoute } from './routes/soundRoutes.js';
 import { handleNetConnectListRoute, handleNetConnectPingRoute } from './routes/netConnectRoutes.js';
+import { handleMagicDnsRoutes } from './routes/magicDnsRoutes.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -111,6 +112,12 @@ appRouter.all('/api/apps/db', (req, res, parsedUrl) => handleAppDatabaseRoute(pa
 appRouter.all('/api/netconnect/ping', (req, res, parsedUrl) => handleNetConnectPingRoute(req, res, parsedUrl));
 appRouter.all('/api/netconnect/list', (req, res, parsedUrl) => handleNetConnectListRoute(req, res, parsedUrl));
 
+// MagicDNS routes
+appRouter.all('/api/dns', (req, res, parsedUrl) => handleMagicDnsRoutes(req, res, parsedUrl));
+appRouter.all('/api/dns/status', (req, res, parsedUrl) => handleMagicDnsRoutes(req, res, parsedUrl));
+appRouter.all('/api/dns/config', (req, res, parsedUrl) => handleMagicDnsRoutes(req, res, parsedUrl));
+appRouter.all('/api/dns/records', (req, res, parsedUrl) => handleMagicDnsRoutes(req, res, parsedUrl));
+
 
 /**
  * Main HTTP Request Handler - routes incoming HTTP requests to dedicated route controllers.
@@ -123,7 +130,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     if (match) {
         const appId = match[1] as string;
         // Exclude system api routes like login, register, servers etc.
-        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'tunnels', 'netconnect'];
+        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'tunnels', 'netconnect', 'dns'];
         if (!systemRoutes.includes(appId)) {
             let userId = 'unknown';
             try {

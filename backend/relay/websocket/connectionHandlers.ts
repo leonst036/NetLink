@@ -5,8 +5,11 @@ import {
     pendingSessions,
     serverApplications,
     bridgeSockets,
-    frontendClients
+    frontendClients,
+    broadcast,
+    connectionManager
 } from './connectionManager.js';
+import { magicDnsRegistry } from '../dns/MagicDnsRegistry.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -69,7 +72,9 @@ export function handleLocalServerConnection(
     ws: WebSocket, 
     identifier: string, 
     token: string | null, 
-    sessionId: string | null
+    sessionId: string | null,
+    decodedPayload?: any,
+    reqIp?: string
 ): void {
     if (sessionId) {
         // Dedicated data session channel requested by the relay
@@ -89,11 +94,26 @@ export function handleLocalServerConnection(
         // Control connection
         controlConnections.set(identifier, ws);
 
-        console.log(`Registered local server connection: ${identifier}`);
+        const deviceId = decodedPayload?.deviceId || decodedPayload?.targetId || identifier;
+        const deviceName = decodedPayload?.deviceName || identifier;
+        const assignedIp = decodedPayload?.assignedIp || decodedPayload?.ip || reqIp || '127.0.0.1';
+
+        const domain = magicDnsRegistry.registerDevice(deviceId, deviceName, assignedIp);
+        connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'ADD', domain, ip: assignedIp });
+
+        console.log(`Registered local server connection: ${identifier} (Domain: ${domain}, IP: ${assignedIp})`);
 
         ws.on('message', async (data: any) => {
             try {
                 const message = JSON.parse(data.toString());
+
+                if (message.type === 'device_handshake' || message.type === 'handshake' || message.type === 'register_device') {
+                    const devId = message.deviceId || deviceId;
+                    const devName = message.deviceName || deviceName;
+                    const ip = message.assignedIp || message.ip || assignedIp;
+                    const updatedDomain = magicDnsRegistry.registerDevice(devId, devName, ip);
+                    connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'ADD', domain: updatedDomain, ip });
+                }
 
                 if ((message.type === 'applications' || message.type === 'application_json') && Array.isArray(message.applications)) {
                     console.log(`Received ${message.applications.length} applications from local server: ${identifier}`);
@@ -285,7 +305,30 @@ export function handleLocalServerConnection(
                 controlConnections.delete(identifier);
                 serverApplications.delete(identifier);
             }
+            const removedDomain = magicDnsRegistry.unregisterDevice(deviceId);
+            if (removedDomain) {
+                connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'REMOVE', domain: removedDomain, deviceId });
+            }
         });
+    }
+}
+
+/**
+ * Helper to handle device handshake and register DNS record.
+ */
+export function handleDeviceHandshake(deviceId: string, deviceName: string, assignedIp: string): string {
+    const domain = magicDnsRegistry.registerDevice(deviceId, deviceName, assignedIp);
+    connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'ADD', domain, ip: assignedIp });
+    return domain;
+}
+
+/**
+ * Helper to handle device disconnect and unregister DNS record.
+ */
+export function handleDeviceDisconnect(deviceId: string): void {
+    const domain = magicDnsRegistry.unregisterDevice(deviceId);
+    if (domain) {
+        connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'REMOVE', domain, deviceId });
     }
 }
 
