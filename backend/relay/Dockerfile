@@ -16,6 +16,7 @@ COPY auth/ ./auth/
 COPY database/ ./database/
 COPY websocket/ ./websocket/
 COPY http/ ./http/
+COPY dns/ ./dns/
 COPY assets/ ./assets/
 COPY NetStore/ ./NetStore/
 COPY sandbox/ ./sandbox/
@@ -62,7 +63,7 @@ COPY --from=builder /app/assets ./assets
 COPY --from=builder /app/frontend/dist ./frontend/dist
 
 # Expose the relay server ports
-EXPOSE 4535 4536
+EXPOSE 4535 4536 53/udp 53/tcp
 
 # Run the compiled application
 CMD ["node", "main.js"]

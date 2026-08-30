@@ -40,6 +40,6 @@ httpServer.listen(HTTP_PORT, () => {
 
 // Start MagicDNS UDP server alongside HTTP/WS
 const dnsServer = new MagicDnsServer(magicDnsRegistry);
-dnsServer.start(process.env.DNS_PORT ? parseInt(process.env.DNS_PORT, 10) : 53).catch((err) => {
+dnsServer.start(process.env.DNS_PORT ? parseInt(process.env.DNS_PORT, 10) : 53).catch((err: any) => {
     console.error('[MagicDNS] Failed to start DNS server:', err);
 });
