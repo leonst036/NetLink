@@ -45,6 +45,15 @@ function saveGrantedPermissions(perms: Record<string, any>) {
     fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
 }
 
+export function saveAppPermissions(appId: string, permissions: any): void {
+    if (!fs.existsSync(NET_STORE_DIR)) {
+        fs.mkdirSync(NET_STORE_DIR, { recursive: true });
+    }
+    const current = getGrantedPermissions();
+    current[appId] = permissions;
+    saveGrantedPermissions(current);
+}
+
 // Create directory if missing
 export function InitNetStore(): void {
     if (!fs.existsSync(NET_STORE_DIR)) {

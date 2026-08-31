@@ -135,8 +135,31 @@ export function handleRelayConnection(token: string): void {
                 }).catch(err => {
                     console.error('Failed to import NetStore.js:', err);
                 });
+            } else if (message.type === 'grant_permissions' && message.appId) {
+                console.log(`Relay granted permissions for app: ${message.appId}`);
+                import('../NetStore/NetStore.js').then((ns) => {
+                    if (ns.saveAppPermissions) {
+                        ns.saveAppPermissions(message.appId, message.permissions);
+                    }
+                    if (ns.StartLocalApps) {
+                        ns.StartLocalApps(undefined, true).then(() => {
+                            ns.sendApplicationJson(controlWs);
+                        });
+                    }
+                }).catch(err => {
+                    console.error('Failed to import NetStore.js:', err);
+                });
+            } else if (message.type === 'sync_app') {
+                import('../NetStore/NetStore.js').then((ns) => {
+                    if (ns.StartLocalApps) {
+                        ns.StartLocalApps(undefined, true).then(() => {
+                            ns.sendApplicationJson(controlWs);
+                        });
+                    }
+                }).catch(err => {
+                    console.error('Failed to import NetStore.js:', err);
+                });
             }
-
         } catch (err) {
             console.error('Error handling relay control message:', err);
         }

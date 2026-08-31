@@ -419,10 +419,14 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
                     };
                     saveGrantedPermissions(perms);
                     
-                    // Request the local server to resync the app which will trigger start
+                    // Send grant_permissions to local server so it saves perms and starts local sandbox
                     const controlWs = controlConnections.get(targetId);
                     if (controlWs && controlWs.readyState === WebSocket.OPEN) {
-                        controlWs.send(JSON.stringify({ type: 'sync_app', appId: message.appId }));
+                        controlWs.send(JSON.stringify({
+                            type: 'grant_permissions',
+                            appId: message.appId,
+                            permissions: perms[message.appId]
+                        }));
                     }
                 } else {
                     console.log(`Permission denied for app ${message.appId}`);
