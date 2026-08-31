@@ -71,8 +71,8 @@ export function getAppImportMap(): string {
       "xterm/": "https://esm.sh/xterm@5.3.0/",
       "xterm/css/xterm.css": "data:text/javascript,const s=document.createElement('link');s.rel='stylesheet';s.href='https://esm.sh/xterm@5.3.0/css/xterm.css';document.head.appendChild(s);export default '';",
       "xterm-addon-fit": "https://esm.sh/xterm-addon-fit@0.8.0?external=xterm",
-      "@novnc/novnc": "https://esm.sh/@novnc/novnc@1.4.0",
-      "@novnc/novnc/core/rfb": "https://esm.sh/@novnc/novnc@1.4.0/core/rfb.js",
+      "@novnc/novnc": "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js/+esm",
+      "@novnc/novnc/core/rfb": "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js/+esm",
       "date-fns": "https://esm.sh/date-fns@2.30.0",
       "date-fns/": "https://esm.sh/date-fns@2.30.0/",
       "@netlink/ui": "/assets/netlink-ui.js"
