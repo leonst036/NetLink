@@ -9,7 +9,8 @@ export class MagicDnsRegistry {
             .replace(/^-+|-+$/g, '');
 
         const domain = `${slug}.netlink`;
-        this.records.set(domain, ip);
+        const cleanIp = (ip || '').replace(/^::ffff:/, '');
+        this.records.set(domain, cleanIp);
         return domain;
     }
 

@@ -47,6 +47,43 @@ export function handleFaviconRoute(res: http.ServerResponse): void {
     }
 }
 
+export function getAppImportMap(): string {
+    return `  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.2.0",
+      "react/": "https://esm.sh/react@18.2.0/",
+      "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+      "react/jsx-dev-runtime": "https://esm.sh/react@18.2.0/jsx-dev-runtime",
+      "react-dom": "https://esm.sh/react-dom@18.2.0",
+      "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+      "@emotion/react": "https://esm.sh/@emotion/react@11.11.0?external=react,react-dom",
+      "@emotion/styled": "https://esm.sh/@emotion/styled@11.11.0?external=react,react-dom",
+      "@mui/material": "https://esm.sh/@mui/material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled",
+      "@mui/material/": "https://esm.sh/@mui/material@5.14.0/?external=react,react-dom,@emotion/react,@emotion/styled",
+      "@mui/material/styles": "https://esm.sh/@mui/material@5.14.0/styles?external=react,react-dom,@emotion/react,@emotion/styled",
+      "@mui/icons-material": "https://esm.sh/@mui/icons-material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled",
+      "@mui/icons-material/": "https://esm.sh/@mui/icons-material@5.14.0/?external=react,react-dom,@emotion/react,@emotion/styled",
+      "lucide-react": "https://esm.sh/lucide-react@0.344.0?external=react,react-dom",
+      "@xyflow/react": "https://esm.sh/@xyflow/react@12.0.0?external=react,react-dom",
+      "@xyflow/react/": "https://esm.sh/@xyflow/react@12.0.0/?external=react,react-dom",
+      "@xyflow/react/dist/style.css": "data:text/javascript,const s=document.createElement('link');s.rel='stylesheet';s.href='https://esm.sh/@xyflow/react@12.0.0/dist/style.css';document.head.appendChild(s);export default '';",
+      "xterm": "https://esm.sh/xterm@5.3.0",
+      "xterm/": "https://esm.sh/xterm@5.3.0/",
+      "xterm/css/xterm.css": "data:text/javascript,const s=document.createElement('link');s.rel='stylesheet';s.href='https://esm.sh/xterm@5.3.0/css/xterm.css';document.head.appendChild(s);export default '';",
+      "xterm-addon-fit": "https://esm.sh/xterm-addon-fit@0.8.0?external=xterm",
+      "@novnc/novnc": "https://esm.sh/@novnc/novnc@1.4.0",
+      "@novnc/novnc/": "https://esm.sh/@novnc/novnc@1.4.0/",
+      "@novnc/novnc/core/rfb": "https://esm.sh/@novnc/novnc@1.4.0/core/rfb.js",
+      "date-fns": "https://esm.sh/date-fns@2.30.0",
+      "date-fns/": "https://esm.sh/date-fns@2.30.0/",
+      "@netlink/ui": "/assets/netlink-ui.js"
+    }
+  }
+  </script>`;
+}
+
 export function handleStaticFileRoute(pathname: string, res: http.ServerResponse): void {
     if (pathname === '/assets/netlink-ui.js') {
         res.writeHead(200, {
@@ -54,15 +91,65 @@ export function handleStaticFileRoute(pathname: string, res: http.ServerResponse
             'Cache-Control': 'no-cache'
         });
         res.end(`import React from 'react';
-export * from 'https://esm.sh/@mui/material@5.14.0';
-export const WindowLayout = ({ children, style, ...props }) => {
-    return React.createElement('div', {
-        className: 'netlink-window-layout',
-        style: { width: '100%', height: '100%', display: 'flex', flexDirection: 'column', flex: 1, ...style },
-        ...props
-    }, children);
+import { ThemeProvider, CssBaseline, Box } from 'https://esm.sh/@mui/material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled';
+import { createTheme } from 'https://esm.sh/@mui/material@5.14.0/styles?external=react,react-dom,@emotion/react,@emotion/styled';
+
+export * from 'https://esm.sh/@mui/material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled';
+export * from 'https://esm.sh/@mui/material@5.14.0/styles?external=react,react-dom,@emotion/react,@emotion/styled';
+
+export const getAppTheme = (themeName = 'Dark') => {
+    const isDark = themeName?.toLowerCase() !== 'light';
+    return createTheme({
+        palette: {
+            mode: isDark ? 'dark' : 'light',
+            primary: { main: '#38bdf8' },
+            background: { default: '#020617', paper: '#0f172a' }
+        }
+    });
 };
-export default { WindowLayout };
+
+export function WindowLayout({ children, themeName = 'Dark', padding = '20px', style, ...props }) {
+  const theme = getAppTheme(themeName);
+  return React.createElement(
+    ThemeProvider,
+    { theme },
+    React.createElement(CssBaseline, null),
+    React.createElement(
+      Box,
+      {
+        sx: {
+          width: '100%',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          background: theme.palette.background.default,
+          color: theme.palette.text.primary,
+          overflow: 'hidden',
+          ...style
+        },
+        ...props
+      },
+      React.createElement(
+        Box,
+        {
+          sx: { flexGrow: 1, padding, overflowY: 'auto', display: 'flex', flexDirection: 'column' }
+        },
+        children
+      )
+    )
+  );
+}
+
+export function GeminiLoader({ size = 48 }) {
+  return React.createElement(
+    Box,
+    { className: 'loader-container', style: { width: size, height: size } },
+    React.createElement('div', { className: 'gemini-blob' }),
+    React.createElement('div', { className: 'gemini-core' })
+  );
+}
+
+export default { getAppTheme, WindowLayout, GeminiLoader };
 `);
         return;
     }
@@ -263,16 +350,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="/netlink.css">
-  <script type="importmap">
-  {
-    "imports": {
-      "react": "https://esm.sh/react@18.2.0",
-      "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
-      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-      "react-dom": "https://esm.sh/react-dom@18.2.0"
-    }
-  }
-  </script>
+${getAppImportMap()}
 </head>
 <body>
   <div class="bg-glow"></div>
@@ -299,7 +377,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
         }
     }).catch(err => {
         console.error('Failed to load application entrypoint:', err);
-        document.getElementById('root').innerHTML = '<div style="color:red;padding:20px;">Failed to load application entrypoint</div>';
+        document.getElementById('root').innerHTML = '<div style="color:red;padding:20px;">Failed to load application entrypoint: ' + (err?.message || err) + '</div>';
     });
   </script>
 </body>
@@ -347,6 +425,33 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     fs.readFile(filePath, (error, content) => {
         if (error) {
             if (error.code === 'ENOENT') {
+                if (ext === '.html' || !ext || pathname.endsWith('index.html')) {
+                    const fallbackHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="/netlink.css">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; text-align: center; }
+    .card { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 32px; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
+    h2 { margin-top: 0; color: #38bdf8; font-size: 20px; font-weight: 600; }
+    p { color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 12px 0 20px; }
+    button { background: #38bdf8; color: #020617; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #0ea5e9; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Application Not Installed</h2>
+    <p>The application <strong>${appId}</strong> is not installed on this target device.</p>
+    <button onclick="window.parent.postMessage({ type: 'open_app', appId: 'store' }, '*')">Open NetStore to Install</button>
+  </div>
+</body>
+</html>`;
+                    res.writeHead(200, { 'Content-Type': 'text/html', ...noCacheHeaders });
+                    res.end(fallbackHtml);
+                    return;
+                }
                 res.writeHead(404, { 'Content-Type': 'text/plain' });
                 res.end('404 Not Found\n');
             } else {
@@ -393,25 +498,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
                     
                     // Inject importmap if not present to resolve standard React and UI packages
                     if (!fileContent.includes('type="importmap"')) {
-                        const importMap = `  <script type="importmap">
-  {
-    "imports": {
-      "react": "https://esm.sh/react@18.2.0",
-      "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
-      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-      "react-dom": "https://esm.sh/react-dom@18.2.0",
-      "react-dom/": "https://esm.sh/react-dom@18.2.0/",
-      "lucide-react": "https://esm.sh/lucide-react@0.344.0",
-      "@xyflow/react": "https://esm.sh/@xyflow/react@12.0.0",
-      "@emotion/react": "https://esm.sh/@emotion/react@11.11.0",
-      "@emotion/styled": "https://esm.sh/@emotion/styled@11.11.0",
-      "@mui/material": "https://esm.sh/@mui/material@5.14.0",
-      "@mui/icons-material": "https://esm.sh/@mui/icons-material@5.14.0",
-      "@xyflow/react/dist/style.css": "data:text/javascript,const s=document.createElement('link');s.rel='stylesheet';s.href='https://esm.sh/@xyflow/react@12.0.0/dist/style.css';document.head.appendChild(s);export default '';",
-      "@netlink/ui": "/assets/netlink-ui.js"
-    }
-  }
-  </script>\n`;
+                        const importMap = getAppImportMap() + '\n';
                         if (fileContent.includes('<head>')) {
                             fileContent = fileContent.replace('<head>', '<head>\n' + importMap);
                         } else {
