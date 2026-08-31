@@ -61,20 +61,17 @@ export function getAppImportMap(): string {
       "@emotion/react": "https://esm.sh/@emotion/react@11.11.0?external=react,react-dom",
       "@emotion/styled": "https://esm.sh/@emotion/styled@11.11.0?external=react,react-dom",
       "@mui/material": "https://esm.sh/@mui/material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled",
-      "@mui/material/": "https://esm.sh/@mui/material@5.14.0/?external=react,react-dom,@emotion/react,@emotion/styled",
       "@mui/material/styles": "https://esm.sh/@mui/material@5.14.0/styles?external=react,react-dom,@emotion/react,@emotion/styled",
+      "@mui/material/colors": "https://esm.sh/@mui/material@5.14.0/colors?external=react,react-dom,@emotion/react,@emotion/styled",
       "@mui/icons-material": "https://esm.sh/@mui/icons-material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled",
-      "@mui/icons-material/": "https://esm.sh/@mui/icons-material@5.14.0/?external=react,react-dom,@emotion/react,@emotion/styled",
       "lucide-react": "https://esm.sh/lucide-react@0.344.0?external=react,react-dom",
       "@xyflow/react": "https://esm.sh/@xyflow/react@12.0.0?external=react,react-dom",
-      "@xyflow/react/": "https://esm.sh/@xyflow/react@12.0.0/?external=react,react-dom",
       "@xyflow/react/dist/style.css": "data:text/javascript,const s=document.createElement('link');s.rel='stylesheet';s.href='https://esm.sh/@xyflow/react@12.0.0/dist/style.css';document.head.appendChild(s);export default '';",
       "xterm": "https://esm.sh/xterm@5.3.0",
       "xterm/": "https://esm.sh/xterm@5.3.0/",
       "xterm/css/xterm.css": "data:text/javascript,const s=document.createElement('link');s.rel='stylesheet';s.href='https://esm.sh/xterm@5.3.0/css/xterm.css';document.head.appendChild(s);export default '';",
       "xterm-addon-fit": "https://esm.sh/xterm-addon-fit@0.8.0?external=xterm",
       "@novnc/novnc": "https://esm.sh/@novnc/novnc@1.4.0",
-      "@novnc/novnc/": "https://esm.sh/@novnc/novnc@1.4.0/",
       "@novnc/novnc/core/rfb": "https://esm.sh/@novnc/novnc@1.4.0/core/rfb.js",
       "date-fns": "https://esm.sh/date-fns@2.30.0",
       "date-fns/": "https://esm.sh/date-fns@2.30.0/",
@@ -466,7 +463,8 @@ ${getAppImportMap()}
                         const transpiled = await esbuild.transform(content.toString('utf-8'), {
                             loader,
                             target: 'es2022',
-                            format: 'esm'
+                            format: 'esm',
+                            jsx: 'automatic'
                         });
                         let transpiledCode = transpiled.code;
                         // Backwards compatibility for old absolute paths in apps
