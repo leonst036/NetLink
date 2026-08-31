@@ -88,15 +88,21 @@ export function handleStaticFileRoute(pathname: string, res: http.ServerResponse
             'Cache-Control': 'no-cache'
         });
         res.end(`import React from 'react';
-import { ThemeProvider, CssBaseline, Box } from 'https://esm.sh/@mui/material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled';
-import { createTheme } from 'https://esm.sh/@mui/material@5.14.0/styles?external=react,react-dom,@emotion/react,@emotion/styled';
+import * as MuiMaterial from 'https://esm.sh/@mui/material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled';
+import * as MuiStyles from 'https://esm.sh/@mui/material@5.14.0/styles?external=react,react-dom,@emotion/react,@emotion/styled';
 
 export * from 'https://esm.sh/@mui/material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled';
-export * from 'https://esm.sh/@mui/material@5.14.0/styles?external=react,react-dom,@emotion/react,@emotion/styled';
+export const createTheme = MuiStyles.createTheme;
+export const useTheme = MuiStyles.useTheme;
+export const styled = MuiStyles.styled;
+export const alpha = MuiStyles.alpha;
+export const darken = MuiStyles.darken;
+export const lighten = MuiStyles.lighten;
+export const StyledEngineProvider = MuiStyles.StyledEngineProvider;
 
 export const getAppTheme = (themeName = 'Dark') => {
     const isDark = themeName?.toLowerCase() !== 'light';
-    return createTheme({
+    return MuiStyles.createTheme({
         palette: {
             mode: isDark ? 'dark' : 'light',
             primary: { main: '#38bdf8' },
@@ -108,11 +114,11 @@ export const getAppTheme = (themeName = 'Dark') => {
 export function WindowLayout({ children, themeName = 'Dark', padding = '20px', style, ...props }) {
   const theme = getAppTheme(themeName);
   return React.createElement(
-    ThemeProvider,
+    MuiMaterial.ThemeProvider,
     { theme },
-    React.createElement(CssBaseline, null),
+    React.createElement(MuiMaterial.CssBaseline, null),
     React.createElement(
-      Box,
+      MuiMaterial.Box,
       {
         sx: {
           width: '100%',
@@ -127,7 +133,7 @@ export function WindowLayout({ children, themeName = 'Dark', padding = '20px', s
         ...props
       },
       React.createElement(
-        Box,
+        MuiMaterial.Box,
         {
           sx: { flexGrow: 1, padding, overflowY: 'auto', display: 'flex', flexDirection: 'column' }
         },
@@ -139,14 +145,14 @@ export function WindowLayout({ children, themeName = 'Dark', padding = '20px', s
 
 export function GeminiLoader({ size = 48 }) {
   return React.createElement(
-    Box,
+    MuiMaterial.Box,
     { className: 'loader-container', style: { width: size, height: size } },
     React.createElement('div', { className: 'gemini-blob' }),
     React.createElement('div', { className: 'gemini-core' })
   );
 }
 
-export default { getAppTheme, WindowLayout, GeminiLoader };
+export default { getAppTheme, WindowLayout, GeminiLoader, createTheme: MuiStyles.createTheme };
 `);
         return;
     }
