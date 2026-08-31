@@ -497,8 +497,11 @@ ${getAppImportMap()}
                     }
                 }
                 if (ext === '.html') {
-                    fileContent = fileContent.replace(/="\/assets\//g, '="./assets/');
-                    fileContent = fileContent.replace(/="\/src\//g, '="./src/');
+                    const baseAppPath = `/apps/${userId}/${appId}/frontend/`;
+                    fileContent = fileContent.replace(/="\/src\//g, `="${baseAppPath}src/`);
+                    fileContent = fileContent.replace(/="\.\/src\//g, `="${baseAppPath}src/`);
+                    fileContent = fileContent.replace(/="\/assets\//g, `="${baseAppPath}assets/`);
+                    fileContent = fileContent.replace(/="\.\/assets\//g, `="${baseAppPath}assets/`);
                     
                     // Inject importmap if not present to resolve standard React and UI packages
                     if (!fileContent.includes('type="importmap"')) {
