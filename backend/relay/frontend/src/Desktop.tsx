@@ -65,7 +65,9 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
         const handleIframeMessage = (e: MessageEvent) => {
             if (e.data && e.data.type === 'open_app') {
                 const { appId, title, extraParams, icon, color } = e.data;
-                if (appId) {
+                if (appId === 'store' || appId === 'net-store') {
+                    useWindowStore.getState().setStoreWindow({ isOpen: true, isMinimized: false });
+                } else if (appId) {
                     useWindowStore.getState().openDynamicApp(appId, title || appId, extraParams, icon, color);
                 }
             } else if (e.data && e.data.type === 'netlink_setting_changed') {
