@@ -81,6 +81,13 @@ export async function handleMagicDnsRoutes(req: http.IncomingMessage, res: http.
                 const deviceId = item.deviceId || item.targetId || item.id;
                 if (!ip) return [];
 
+                // Filter out Docker container IPs and internal Coolify domains
+                const isDockerIp = ip.startsWith('10.0.1.') || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip);
+                const isDockerDomain = (hostname && typeof hostname === 'string' && (hostname.includes('-coolify') || /^[0-9a-f]{12}$/i.test(hostname)));
+                if ((isDockerIp || isDockerDomain) && deviceId !== 'local-server') {
+                    return [];
+                }
+
                 const registered: string[] = [];
                 // If nickname exists, register it
                 if (nickname && typeof nickname === 'string' && nickname.trim()) {
@@ -101,6 +108,8 @@ export async function handleMagicDnsRoutes(req: http.IncomingMessage, res: http.
                 }
                 return registered;
             };
+
+            magicDnsRegistry.cleanDockerRecords();
 
             // Support Array of devices/records
             if (Array.isArray(body)) {
@@ -153,6 +162,13 @@ export async function handleMagicDnsRoutes(req: http.IncomingMessage, res: http.
             const body = await parseJsonBody(req);
             const domainParam = parsedUrl.searchParams.get('domain') || body.domain;
             const deviceIdParam = parsedUrl.searchParams.get('deviceId') || body.deviceId;
+
+            if (parsedUrl.searchParams.get('cleanDocker') === 'true' || body.cleanDocker === true) {
+                const cleanedCount = magicDnsRegistry.cleanDockerRecords();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, cleanedCount }));
+                return;
+            }
 
             if (deviceIdParam) {
                 const removedDomain = magicDnsRegistry.unregisterDevice(deviceIdParam);

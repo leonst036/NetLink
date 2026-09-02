@@ -165,8 +165,11 @@ export class MagicDnsServer {
                     const rawName = question.name.toLowerCase();
                     const normalizedName = rawName.endsWith('.') ? rawName.slice(0, -1) : rawName;
 
-                    if (question.type === 'A' && normalizedName.endsWith('.netlink')) {
-                        const ip = this.registry.resolve(normalizedName);
+                    if (question.type === 'A') {
+                        let ip = this.registry.resolve(normalizedName);
+                        if (!ip && !normalizedName.endsWith('.netlink')) {
+                            ip = this.registry.resolve(`${normalizedName}.netlink`);
+                        }
                         if (ip) {
                             answers.push({
                                 type: 'A',
@@ -175,6 +178,25 @@ export class MagicDnsServer {
                                 ttl: this.ttl,
                                 data: ip
                             });
+                        } else {
+                            rcode = 3;
+                        }
+                    } else if (question.type === 'PTR') {
+                        const arpaMatch = normalizedName.match(/^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)\.in-addr\.arpa$/);
+                        if (arpaMatch) {
+                            const ip = `${arpaMatch[4]}.${arpaMatch[3]}.${arpaMatch[2]}.${arpaMatch[1]}`;
+                            const domain = this.registry.resolveReverse(ip);
+                            if (domain) {
+                                answers.push({
+                                    type: 'PTR',
+                                    name: question.name,
+                                    class: 'IN',
+                                    ttl: this.ttl,
+                                    data: domain.endsWith('.') ? domain : `${domain}.`
+                                });
+                            } else {
+                                rcode = 3;
+                            }
                         } else {
                             rcode = 3;
                         }
