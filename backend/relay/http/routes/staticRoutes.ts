@@ -353,6 +353,9 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="/netlink.css">
+  <style>
+    html, body, #root { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }
+  </style>
 ${getAppImportMap()}
 </head>
 <body>

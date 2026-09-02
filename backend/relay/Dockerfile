@@ -41,8 +41,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install openssl and ca-certificates
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# Install openssl, ca-certificates, ping and ip tools for network diagnostics
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates iputils-ping iproute2 && rm -rf /var/lib/apt/lists/*
 
 # Install deno
 COPY --from=denoland/deno:bin /deno /usr/local/bin/deno

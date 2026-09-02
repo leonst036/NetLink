@@ -88,7 +88,7 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
   const srcUrl = `${protocol}//${host}/apps/${userId}/${appId}/${entrypoint}?${searchParams.toString()}`;
 
   return (
-    <Box sx={{ width: '100%', height: '100%', background: '#fff' }}>
+    <Box sx={{ width: '100%', height: '100%', background: 'transparent' }}>
       <iframe 
         src={srcUrl}
         style={{ width: '100%', height: '100%', border: 'none' }}
