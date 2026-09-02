@@ -47,6 +47,10 @@ export class DenoSandbox {
 
         const cleanEnv: Record<string, string> = {
             PORT: port.toString(),
+            HTTP_PORT: (process.env.HTTP_PORT || '4535').toString(),
+            RELAY_PORT: (process.env.HTTP_PORT || '4535').toString(),
+            RELAY_HOST: process.env.RELAY_HOST || '127.0.0.1',
+            SCAN_CIDR: process.env.SCAN_CIDR || '',
             PATH: process.env.PATH || '',
             HOME: process.env.HOME || '',
             TMPDIR: process.env.TMPDIR || '/tmp'

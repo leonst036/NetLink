@@ -3,10 +3,12 @@ export class MagicDnsRegistry {
     private deviceToDomain = new Map<string, string>();
 
     public registerNode(rawHostname: string, ip: string): string {
-        const slug = rawHostname
+        const slug = (rawHostname || '')
             .toLowerCase()
             .replace(/[^a-z0-9-]/g, '-')
             .replace(/^-+|-+$/g, '');
+
+        if (!slug) return '';
 
         const domain = `${slug}.netlink`;
         const cleanIp = (ip || '').replace(/^::ffff:/, '');
@@ -21,8 +23,27 @@ export class MagicDnsRegistry {
         }
 
         const domain = this.registerNode(deviceName || deviceId, assignedIp);
-        this.deviceToDomain.set(deviceId, domain);
+        if (domain) {
+            this.deviceToDomain.set(deviceId, domain);
+        }
         return domain;
+    }
+
+    public registerDeviceAliases(deviceId: string, ip: string, names: (string | undefined | null)[]): string[] {
+        const registered: string[] = [];
+        for (const name of names) {
+            if (name && typeof name === 'string' && name.trim()) {
+                const domain = this.registerNode(name.trim(), ip);
+                if (domain && !registered.includes(domain)) {
+                    registered.push(domain);
+                }
+            }
+        }
+        const first = registered[0];
+        if (deviceId && first) {
+            this.deviceToDomain.set(deviceId, first);
+        }
+        return registered;
     }
 
     public unregisterNode(domain: string): void {
