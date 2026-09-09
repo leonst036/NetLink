@@ -112,7 +112,14 @@ export class MagicDnsRegistry {
     }
 
     public resolve(domain: string): string | undefined {
-        return this.records.get(domain.toLowerCase().replace(/\.$/, ''));
+        const clean = domain.toLowerCase().replace(/\.$/, '');
+        const direct = this.records.get(clean);
+        if (direct) return direct;
+        if (clean.endsWith('.netlik')) {
+            const corrected = clean.slice(0, -7) + '.netlink';
+            return this.records.get(corrected);
+        }
+        return undefined;
     }
 
     public resolveReverse(ip: string): string | undefined {
