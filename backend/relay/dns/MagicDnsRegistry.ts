@@ -1,10 +1,11 @@
 export class MagicDnsRegistry {
     private records = new Map<string, string>();
-    private deviceToDomain = new Map<string, string>();
+    private deviceToDomains = new Map<string, Set<string>>();
     private ipToDomain = new Map<string, string>();
 
     public registerNode(rawHostname: string, ip: string): string {
-        const slug = (rawHostname || '')
+        const stripped = (rawHostname || '').replace(/\.netlink\.?$/i, '');
+        const slug = stripped
             .toLowerCase()
             .replace(/[^a-z0-9-]/g, '-')
             .replace(/^-+|-+$/g, '');
@@ -13,26 +14,27 @@ export class MagicDnsRegistry {
 
         const domain = `${slug}.netlink`;
         const cleanIp = (ip || '').replace(/^::ffff:/, '');
+
+        // Clean up old IP reverse mapping if this domain had a different IP previously
+        const oldIp = this.records.get(domain);
+        if (oldIp && oldIp !== cleanIp && this.ipToDomain.get(oldIp) === domain) {
+            this.ipToDomain.delete(oldIp);
+        }
+
         this.records.set(domain, cleanIp);
         this.ipToDomain.set(cleanIp, domain);
         return domain;
     }
 
     public registerDevice(deviceId: string, deviceName: string, assignedIp: string): string {
-        const existingDomain = this.deviceToDomain.get(deviceId);
-        if (existingDomain) {
-            this.records.delete(existingDomain);
-        }
-
-        const domain = this.registerNode(deviceName || deviceId, assignedIp);
-        if (domain) {
-            this.deviceToDomain.set(deviceId, domain);
-        }
-        return domain;
+        const domains = this.registerDeviceAliases(deviceId, assignedIp, [deviceName || deviceId]);
+        return domains[0] || '';
     }
 
     public registerDeviceAliases(deviceId: string, ip: string, names: (string | undefined | null)[]): string[] {
+        const existingDomains = this.deviceToDomains.get(deviceId);
         const registered: string[] = [];
+
         for (const name of names) {
             if (name && typeof name === 'string' && name.trim()) {
                 const domain = this.registerNode(name.trim(), ip);
@@ -41,34 +43,55 @@ export class MagicDnsRegistry {
                 }
             }
         }
-        const first = registered[0];
-        if (deviceId && first) {
-            this.deviceToDomain.set(deviceId, first);
+
+        // Remove any old domains for this device that are no longer in aliases
+        if (existingDomains) {
+            for (const oldDomain of existingDomains) {
+                if (!registered.includes(oldDomain)) {
+                    this.unregisterNode(oldDomain);
+                }
+            }
+        }
+
+        if (deviceId && registered.length > 0) {
+            this.deviceToDomains.set(deviceId, new Set(registered));
         }
         return registered;
     }
 
     public unregisterNode(domain: string): void {
-        const cleanDomain = domain.toLowerCase();
+        const cleanDomain = domain.toLowerCase().replace(/\.$/, '');
         const ip = this.records.get(cleanDomain);
         this.records.delete(cleanDomain);
+
         if (ip && this.ipToDomain.get(ip) === cleanDomain) {
             this.ipToDomain.delete(ip);
+            // Restore reverse lookup if another domain points to the same IP
+            for (const [otherDom, otherIp] of this.records.entries()) {
+                if (otherIp === ip) {
+                    this.ipToDomain.set(ip, otherDom);
+                    break;
+                }
+            }
         }
-        for (const [devId, dom] of this.deviceToDomain.entries()) {
-            if (dom === cleanDomain) {
-                this.deviceToDomain.delete(devId);
-                break;
+
+        for (const [devId, doms] of this.deviceToDomains.entries()) {
+            doms.delete(cleanDomain);
+            if (doms.size === 0) {
+                this.deviceToDomains.delete(devId);
             }
         }
     }
 
     public unregisterDevice(deviceId: string): string | undefined {
-        const domain = this.deviceToDomain.get(deviceId);
-        if (domain) {
-            this.unregisterNode(domain);
-            this.deviceToDomain.delete(deviceId);
-            return domain;
+        const domains = this.deviceToDomains.get(deviceId);
+        if (domains && domains.size > 0) {
+            const first = Array.from(domains)[0];
+            for (const domain of domains) {
+                this.unregisterNode(domain);
+            }
+            this.deviceToDomains.delete(deviceId);
+            return first;
         }
         return undefined;
     }
@@ -78,7 +101,7 @@ export class MagicDnsRegistry {
         for (const [domain, ip] of this.records.entries()) {
             if (domain === 'local-server.netlink') continue;
             // Detect docker container records
-            const isDockerDomain = domain.includes('-coolify.netlink') || /^[0-9a-f]{12}\.netlink$/i.test(domain);
+            const isDockerDomain = domain.includes('-coolify.netlink') || /^[0-9a-f]{12,64}\.netlink$/i.test(domain);
             const isDockerIp = ip.startsWith('10.0.1.') || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip);
             if (isDockerDomain || isDockerIp) {
                 this.unregisterNode(domain);
@@ -89,7 +112,7 @@ export class MagicDnsRegistry {
     }
 
     public resolve(domain: string): string | undefined {
-        return this.records.get(domain.toLowerCase());
+        return this.records.get(domain.toLowerCase().replace(/\.$/, ''));
     }
 
     public resolveReverse(ip: string): string | undefined {
@@ -98,7 +121,16 @@ export class MagicDnsRegistry {
     }
 
     public getDomainForDevice(deviceId: string): string | undefined {
-        return this.deviceToDomain.get(deviceId);
+        const domains = this.deviceToDomains.get(deviceId);
+        if (domains && domains.size > 0) {
+            return Array.from(domains)[0];
+        }
+        return undefined;
+    }
+
+    public getDomainsForDevice(deviceId: string): string[] {
+        const domains = this.deviceToDomains.get(deviceId);
+        return domains ? Array.from(domains) : [];
     }
 
     public getAllRecords(): Record<string, string> {

@@ -21,6 +21,8 @@ export interface MagicDnsServerOptions {
     host?: string;
     registry?: MagicDnsRegistry;
     ttl?: number;
+    upstreamDns?: string;
+    enableTcp?: boolean;
 }
 
 export interface DnsUpdateMessage {

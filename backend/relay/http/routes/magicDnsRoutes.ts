@@ -83,28 +83,28 @@ export async function handleMagicDnsRoutes(req: http.IncomingMessage, res: http.
 
                 // Filter out Docker container IPs and internal Coolify domains
                 const isDockerIp = ip.startsWith('10.0.1.') || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip);
-                const isDockerDomain = (hostname && typeof hostname === 'string' && (hostname.includes('-coolify') || /^[0-9a-f]{12}$/i.test(hostname)));
+                const isDockerDomain = (hostname && typeof hostname === 'string' && (hostname.includes('-coolify') || /^[0-9a-f]{12,64}$/i.test(hostname)));
                 if ((isDockerIp || isDockerDomain) && deviceId !== 'local-server') {
                     return [];
                 }
 
+                const names: (string | undefined | null)[] = [
+                    nickname,
+                    hostname,
+                    item.domain,
+                    deviceId
+                ];
+
+                if (deviceId) {
+                    return magicDnsRegistry.registerDeviceAliases(deviceId, ip, names);
+                }
+
                 const registered: string[] = [];
-                // If nickname exists, register it
-                if (nickname && typeof nickname === 'string' && nickname.trim()) {
-                    const nickDomain = magicDnsRegistry.registerNode(nickname.trim(), ip);
-                    if (nickDomain && !registered.includes(nickDomain)) registered.push(nickDomain);
-                }
-                // If hostname exists, register it as well (so BOTH are available if both exist)
-                if (hostname && typeof hostname === 'string' && hostname.trim()) {
-                    const hostDomain = magicDnsRegistry.registerNode(hostname.trim(), ip);
-                    if (hostDomain && !registered.includes(hostDomain)) registered.push(hostDomain);
-                }
-                if (registered.length === 0 && (deviceId || item.domain)) {
-                    const d = magicDnsRegistry.registerNode(item.domain || deviceId, ip);
-                    if (d) registered.push(d);
-                }
-                if (deviceId && registered.length > 0) {
-                    magicDnsRegistry.registerDevice(deviceId, nickname || hostname || deviceId, ip);
+                for (const name of names) {
+                    if (name && typeof name === 'string' && name.trim()) {
+                        const d = magicDnsRegistry.registerNode(name.trim(), ip);
+                        if (d && !registered.includes(d)) registered.push(d);
+                    }
                 }
                 return registered;
             };
