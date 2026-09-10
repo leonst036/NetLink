@@ -9,6 +9,7 @@ import { consumeTicket } from '../auth/ticketManager.js';
 import { handleLocalServerConnection, handleClientConnection, handleDesktopConnection } from './connectionHandlers.js';
 import { appRouter } from '../http/requestHandler.js';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
+import { DomainRouteDemuxer } from './domainRouteDemuxer.js';
 
 export const handleMainConnection = async (
     ws: WebSocket, 
@@ -87,6 +88,51 @@ export const handleMainConnection = async (
                 pendingSessions.delete(streamSessionId);
             });
             return;
+        } else if (pathname === '/netconnect/domainroute' || pathname === '/api/domainroute/tunnel') {
+            const targetId = target || reqUrl.searchParams.get('target');
+
+            if (targetId && targetId !== 'relay') {
+                let controlWs = controlConnections.get(targetId);
+                if (!controlWs && targetId === 'local-server' && controlConnections.size > 0) {
+                    controlWs = controlConnections.values().next().value;
+                }
+
+                if (controlWs && controlWs.readyState === WebSocket.OPEN) {
+                    const domainRouteSessionId = crypto.randomUUID();
+                    (ws as any).skipCredentialsHandshake = true;
+                    (ws as any).isBinaryStream = true;
+                    pendingSessions.set(domainRouteSessionId, ws);
+                    console.log(`[DomainRoute] Forwarding tunnel request to target ${targetId} (Session: ${domainRouteSessionId})`);
+
+                    controlWs.send(JSON.stringify({
+                        type: 'init_domainroute',
+                        sessionId: domainRouteSessionId
+                    }));
+
+                    const timeoutId = setTimeout(() => {
+                        if (pendingSessions.has(domainRouteSessionId)) {
+                            console.warn(`[DomainRoute] Session ${domainRouteSessionId} timed out`);
+                            pendingSessions.delete(domainRouteSessionId);
+                            ws.close(4008, 'DomainRoute tunnel connection timed out');
+                        }
+                    }, 15000);
+
+                    ws.on('close', () => {
+                        clearTimeout(timeoutId);
+                        pendingSessions.delete(domainRouteSessionId);
+                    });
+                    return;
+                } else {
+                    console.warn(`[DomainRoute] Target ${targetId} not online, falling back to direct relay egress`);
+                }
+            }
+
+            console.log(`[DomainRoute] Starting demuxer on relay server (Identifier: ${identifier})`);
+            const demuxer = new DomainRouteDemuxer(ws);
+            ws.on('close', () => {
+                demuxer.destroy();
+            });
+            return;
         } else if (pathname === '/connect') {
             const reqIp = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || '127.0.0.1';
             handleLocalServerConnection(ws, identifier, rawToken, sessionId, decodedPayload, reqIp);
@@ -106,7 +152,7 @@ export const handleMainConnection = async (
                 const appId = match[1] as string;
                 const userId = decodedPayload?.userId || decodedPayload?.sub || identifier || 'admin';
                 const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId);
-                const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps'];
+                const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'domainroute'];
                 if (app && !systemRoutes.includes(appId)) {
                     // Bridge websocket to Deno
                     const targetUrl = `ws://localhost:${app.port}${req.url}`;

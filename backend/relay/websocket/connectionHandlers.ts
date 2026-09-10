@@ -85,7 +85,9 @@ export function handleLocalServerConnection(
             bridgeSockets(ws, clientWs);
             
             // Notify the client that the backend bridge is ready
-            clientWs.send(JSON.stringify({ type: 'ready_for_credentials' }));
+            if (!(clientWs as any).skipCredentialsHandshake && !(clientWs as any).isBinaryStream) {
+                clientWs.send(JSON.stringify({ type: 'ready_for_credentials' }));
+            }
         } else {
             console.warn(`No pending client session or client disconnected for session: ${sessionId}`);
             ws.close(1008, 'Session expired or client disconnected');

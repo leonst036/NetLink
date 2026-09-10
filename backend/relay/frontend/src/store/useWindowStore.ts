@@ -10,6 +10,7 @@ interface AppMetadataItem {
 interface WindowState {
     activeWindow: string | null;
     storeWindow: { isOpen: boolean; isMinimized: boolean; zIndex: number };
+    domainRouteWindow: { isOpen: boolean; isMinimized: boolean; zIndex: number };
     dynamicWindows: DynamicAppInstance[];
     pinnedApps: PinnedApp[];
     maximizedWindows: string[];
@@ -19,6 +20,7 @@ interface WindowState {
 
     setActiveWindow: (id: string | null) => void;
     setStoreWindow: (state: Partial<WindowState['storeWindow']>) => void;
+    setDomainRouteWindow: (state: Partial<WindowState['domainRouteWindow']>) => void;
 
     registerAppMetadata: (apps: Array<{ id: string; title?: string; name?: string; icon?: string; color?: string }>) => void;
     fetchAppMetadata: () => Promise<void>;
@@ -40,6 +42,7 @@ interface WindowState {
 export const useWindowStore = create<WindowState>((set, get) => ({
     activeWindow: 'store',
     storeWindow: { isOpen: false, isMinimized: false, zIndex: 1 },
+    domainRouteWindow: { isOpen: false, isMinimized: false, zIndex: 1 },
     dynamicWindows: [],
     pinnedApps: [],
     maximizedWindows: [],
@@ -96,8 +99,14 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     setActiveWindow: (id) => set({ activeWindow: id }),
 
     setStoreWindow: (state) => set((prev) => ({ storeWindow: { ...prev.storeWindow, ...state } })),
+    setDomainRouteWindow: (state) => set((prev) => ({ domainRouteWindow: { ...prev.domainRouteWindow, ...state } })),
 
     openDynamicApp: (appId, title, extraParams = {}, icon, color) => {
+        if (appId === 'domain-route' || appId === 'domainroute') {
+            get().setDomainRouteWindow({ isOpen: true, isMinimized: false });
+            get().bringToFront('domain-route');
+            return;
+        }
         const existing = get().dynamicWindows.find(w => w.appId === appId);
         if (existing) {
             get().minimizeDynamicApp(existing.id, false);
@@ -134,6 +143,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
                 } else {
                     // Inject default pinned apps if empty
                     const defaultPinned: PinnedApp[] = [
+                        { appId: 'domain-route', title: 'DomainRoute', icon: 'Route', color: '#38bdf8' },
                         { appId: 'net-graph', title: 'Network Graph', icon: 'Network', color: '#10b981' },
                         { appId: 'net-terminal', title: 'Remote Terminal', icon: 'Terminal', color: '#f59e0b' },
                         { appId: 'sftp-client', title: 'SFTP Client', icon: 'Folder', color: '#ec4899' },
@@ -199,6 +209,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     bringToFront: (id) => {
         set({ activeWindow: id });
         if (id === 'store') get().setStoreWindow({ isMinimized: false });
+        else if (id === 'domain-route') get().setDomainRouteWindow({ isMinimized: false });
         else if (id.startsWith('dynamic-')) get().minimizeDynamicApp(id, false);
     }
 }));

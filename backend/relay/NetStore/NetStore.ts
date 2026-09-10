@@ -1,6 +1,21 @@
 import http from 'http';
 import { serverApplications } from '../websocket/connectionManager.js';
 
+export const DOMAIN_ROUTE_APP = {
+    id: 'domain-route',
+    name: 'DomainRoute',
+    title: 'DomainRoute',
+    description: 'Smart domain-based selective routing and transparent proxy tunnel',
+    icon: 'Route',
+    color: '#38bdf8',
+    category: 'Network',
+    version: '1.0.0',
+    installed: true,
+    runInBackground: true,
+    builtin: true,
+    entrypoint: 'frontend/dist/index.html'
+};
+
 // Get applications received from local server(s)
 export function getApplicationJson(targetId?: string, userId?: string): any[] {
     let allApps: any[] = [];
@@ -15,6 +30,17 @@ export function getApplicationJson(targetId?: string, userId?: string): any[] {
     let filteredApps = allApps;
     if (userId) {
         filteredApps = allApps.filter(app => !app.installed || app.userId === userId);
+    }
+
+    const hasDomainRoute = filteredApps.some(app => app.id === 'domain-route');
+    if (!hasDomainRoute) {
+        filteredApps = [
+            {
+                ...DOMAIN_ROUTE_APP,
+                userId: userId || 'system'
+            },
+            ...filteredApps
+        ];
     }
 
     return filteredApps;

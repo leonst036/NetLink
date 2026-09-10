@@ -8,9 +8,9 @@ import AppIcon from './AppIcon';
 
 export default function Dock() {
     const {
-        storeWindow, activeWindow,
+        storeWindow, domainRouteWindow, activeWindow,
         dynamicWindows, pinnedApps, maximizedWindows,
-        setStoreWindow, bringToFront,
+        setStoreWindow, setDomainRouteWindow, bringToFront,
         openDynamicApp, closeDynamicApp,
         pinApp, unpinApp, isPinned
     } = useWindowStore();
@@ -41,7 +41,8 @@ export default function Dock() {
         instanceId?: string
     ) => {
         e.preventDefault();
-        const running = Boolean(instanceId || dynamicWindows.some(w => w.appId === appId));
+        const isDomainRoute = appId === 'domain-route';
+        const running = Boolean(instanceId || (isDomainRoute ? domainRouteWindow.isOpen : dynamicWindows.some(w => w.appId === appId)));
         const pinned = isPinned(appId);
         setContextMenu({
             mouseX: e.clientX - 2,
@@ -71,6 +72,20 @@ export default function Dock() {
             setStoreWindow({ isMinimized: true });
         } else {
             bringToFront('store');
+        }
+    };
+
+    const handleDomainRouteClick = () => {
+        if (!domainRouteWindow.isOpen) {
+            setDomainRouteWindow({ isOpen: true, isMinimized: false, zIndex: 1 });
+            bringToFront('domain-route');
+        } else if (domainRouteWindow.isMinimized) {
+            setDomainRouteWindow({ isMinimized: false });
+            bringToFront('domain-route');
+        } else if (activeWindow === 'domain-route') {
+            setDomainRouteWindow({ isMinimized: true });
+        } else {
+            bringToFront('domain-route');
         }
     };
 
@@ -114,10 +129,15 @@ export default function Dock() {
 
                 {/* Pinned Apps */}
                 {pinnedApps.map((pinned: PinnedApp) => {
-                    const runningInstance = dynamicWindows.find(w => w.appId === pinned.appId);
-                    const isRunning = Boolean(runningInstance);
-                    const isOpen = isRunning && activeWindow === runningInstance!.id && !runningInstance!.isMinimized;
-                    const isMinimized = isRunning ? runningInstance!.isMinimized : false;
+                    const isDomainRoute = pinned.appId === 'domain-route';
+                    const runningInstance = !isDomainRoute ? dynamicWindows.find(w => w.appId === pinned.appId) : null;
+                    const isRunning = isDomainRoute ? domainRouteWindow.isOpen : Boolean(runningInstance);
+                    const isOpen = isDomainRoute
+                        ? (domainRouteWindow.isOpen && activeWindow === 'domain-route' && !domainRouteWindow.isMinimized)
+                        : (isRunning && activeWindow === runningInstance!.id && !runningInstance!.isMinimized);
+                    const isMinimized = isDomainRoute
+                        ? (domainRouteWindow.isOpen && domainRouteWindow.isMinimized)
+                        : (isRunning ? runningInstance!.isMinimized : false);
 
                     return (
                         <DockIcon
@@ -128,21 +148,43 @@ export default function Dock() {
                             isMinimized={isMinimized}
                             isPinned={true}
                             onClick={() => {
-                                if (runningInstance) {
+                                if (isDomainRoute) {
+                                    handleDomainRouteClick();
+                                } else if (runningInstance) {
                                     handleDynamicDockClick(runningInstance);
                                 } else {
                                     openDynamicApp(pinned.appId, pinned.title, undefined, pinned.icon, pinned.color);
                                 }
                             }}
                             onContextMenu={(e) =>
-                                handleContextMenu(e, pinned.appId, pinned.title, pinned.icon, pinned.color, runningInstance?.id)
+                                handleContextMenu(
+                                    e,
+                                    pinned.appId,
+                                    pinned.title,
+                                    pinned.icon,
+                                    pinned.color,
+                                    isDomainRoute ? (domainRouteWindow.isOpen ? 'domain-route' : undefined) : runningInstance?.id
+                                )
                             }
                         />
                     );
                 })}
 
                 {/* Unpinned Running Dynamic Apps */}
-                {unpinnedRunningApps.length > 0 && <Box className="dock-divider" />}
+                {(unpinnedRunningApps.length > 0 || (domainRouteWindow.isOpen && !isPinned('domain-route'))) && <Box className="dock-divider" />}
+                {domainRouteWindow.isOpen && !isPinned('domain-route') && (
+                    <DockIcon
+                        key="unpinned-domain-route"
+                        icon={<AppIcon appId="domain-route" icon="Route" color="#38bdf8" size={24} />}
+                        label="DomainRoute"
+                        isOpen={activeWindow === 'domain-route' && !domainRouteWindow.isMinimized}
+                        isMinimized={domainRouteWindow.isMinimized}
+                        onClick={handleDomainRouteClick}
+                        onContextMenu={(e) =>
+                            handleContextMenu(e, 'domain-route', 'DomainRoute', 'Route', '#38bdf8', 'domain-route')
+                        }
+                    />
+                )}
                 {unpinnedRunningApps.map((dyn: DynamicAppInstance) => (
                     <DockIcon
                         key={dyn.id}
@@ -172,11 +214,15 @@ export default function Dock() {
                         <>
                             <MenuItem
                                 onClick={() => {
-                                    const instance = dynamicWindows.find(w => w.appId === contextMenu.appId);
-                                    if (instance) {
-                                        handleDynamicDockClick(instance);
+                                    if (contextMenu.appId === 'domain-route') {
+                                        handleDomainRouteClick();
                                     } else {
-                                        openDynamicApp(contextMenu.appId, contextMenu.title, undefined, contextMenu.icon, contextMenu.color);
+                                        const instance = dynamicWindows.find(w => w.appId === contextMenu.appId);
+                                        if (instance) {
+                                            handleDynamicDockClick(instance);
+                                        } else {
+                                            openDynamicApp(contextMenu.appId, contextMenu.title, undefined, contextMenu.icon, contextMenu.color);
+                                        }
                                     }
                                     handleCloseContextMenu();
                                 }}
@@ -212,10 +258,14 @@ export default function Dock() {
                                 </MenuItem>
                             )}
 
-                            {contextMenu.isRunning && contextMenu.instanceId && (
+                            {contextMenu.isRunning && (contextMenu.instanceId || contextMenu.appId === 'domain-route') && (
                                 <MenuItem
                                     onClick={() => {
-                                        closeDynamicApp(contextMenu.instanceId!);
+                                        if (contextMenu.appId === 'domain-route') {
+                                            setDomainRouteWindow({ isOpen: false });
+                                        } else if (contextMenu.instanceId) {
+                                            closeDynamicApp(contextMenu.instanceId);
+                                        }
                                         handleCloseContextMenu();
                                     }}
                                     sx={{ color: 'error.main' }}

@@ -15,6 +15,7 @@ import { handleAppDatabaseRoute } from './routes/appDatabaseRoutes.js';
 import { handleNotificationSoundRoute } from './routes/soundRoutes.js';
 import { handleNetConnectListRoute, handleNetConnectPingRoute } from './routes/netConnectRoutes.js';
 import { handleMagicDnsRoutes } from './routes/magicDnsRoutes.js';
+import { handleDomainRouteRoutes } from './routes/domainRouteRoutes.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -118,6 +119,11 @@ appRouter.all('/api/dns/status', (req, res, parsedUrl) => handleMagicDnsRoutes(r
 appRouter.all('/api/dns/config', (req, res, parsedUrl) => handleMagicDnsRoutes(req, res, parsedUrl));
 appRouter.all('/api/dns/records', (req, res, parsedUrl) => handleMagicDnsRoutes(req, res, parsedUrl));
 
+// DomainRoute routes
+appRouter.all('/api/domainroute/config', (req, res, parsedUrl) => handleDomainRouteRoutes(req, res, parsedUrl));
+appRouter.all('/api/domainroute/stats', (req, res, parsedUrl) => handleDomainRouteRoutes(req, res, parsedUrl));
+appRouter.all('/api/domainroute', (req, res, parsedUrl) => handleDomainRouteRoutes(req, res, parsedUrl));
+
 
 /**
  * Main HTTP Request Handler - routes incoming HTTP requests to dedicated route controllers.
@@ -130,7 +136,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     if (match) {
         const appId = match[1] as string;
         // Exclude system api routes like login, register, servers etc.
-        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'tunnels', 'netconnect', 'dns'];
+        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'tunnels', 'netconnect', 'dns', 'domainroute'];
         if (!systemRoutes.includes(appId)) {
             let userId = 'unknown';
             try {
