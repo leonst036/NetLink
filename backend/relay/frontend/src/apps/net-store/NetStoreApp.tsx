@@ -82,11 +82,13 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   }, [selectedLocalBranch]);
 
   const [installedVersions, setInstalledVersions] = useState<Record<string, string>>({});
+  const [loadingCatalog, setLoadingCatalog] = useState<boolean>(true);
   const [refreshIndex, setRefreshIndex] = useState<number>(0);
 
   useEffect(() => {
     const fetchApps = async () => {
       try {
+        setLoadingCatalog(true);
         const url = props.target ? `/api/applications?target=${encodeURIComponent(props.target)}` : '/api/applications';
         const res = await fetch(url);
         if (!res.ok) throw new Error('Failed to fetch store applications');
@@ -158,6 +160,8 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         if (selectedBranch === 'local-debug') {
           setDebugConnected(false);
         }
+      } finally {
+        setLoadingCatalog(false);
       }
     };
 
@@ -288,6 +292,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             installedVersions={installedVersions}
             installingMap={installingMap}
             isPinned={(id) => windowStore.isPinned(id)}
+            isLoading={loadingCatalog}
             onSelectApp={setSelectedApp}
             onOpenApp={handleOpenApp}
             onInstall={handleInstall}

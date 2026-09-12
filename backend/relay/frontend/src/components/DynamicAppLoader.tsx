@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Box } from '@mui/material';
 import GeminiLoader from './GeminiLoader';
 
@@ -7,12 +7,14 @@ interface DynamicAppLoaderProps {
   token: string;
   target: string;
   extraParams?: Record<string, string>;
-  isBuiltIn?: boolean; // If true, loads from static server, else from user's apps
+  isBuiltIn?: boolean;
 }
 
 export default function DynamicAppLoader({ appId, token, target, extraParams = {} }: DynamicAppLoaderProps) {
   const [ticket, setTicket] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [iframeLoading, setIframeLoading] = useState(true);
+  const mountTimeRef = useRef(Date.now());
 
   useEffect(() => {
     let isMounted = true;
@@ -46,12 +48,27 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
     };
   }, [token, target]);
 
+  // Fallback timeout to dismiss loader if iframe load event is delayed
+  useEffect(() => {
+    if (ticket) {
+      const timer = setTimeout(() => {
+        setIframeLoading(false);
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [ticket]);
+
+  const handleIframeLoad = () => {
+    const elapsed = Date.now() - mountTimeRef.current;
+    const minDisplayTime = 400;
+    const remainingTime = Math.max(0, minDisplayTime - elapsed);
+    setTimeout(() => {
+      setIframeLoading(false);
+    }, remainingTime);
+  };
+
   if (error) {
     return <Box sx={{ p: 2, color: 'error.main' }}>Failed to load app: {error}</Box>;
-  }
-
-  if (!ticket) {
-    return <Box className="loader-wrapper"><GeminiLoader /></Box>;
   }
 
   const isSecure = window.location.protocol === 'https:';
@@ -60,7 +77,9 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
   if (import.meta.env.DEV || host.includes('localhost:5173')) host = import.meta.env.VITE_RELAY_HOST || 'localhost:4535';
 
   const searchParams = new URLSearchParams();
-  searchParams.set('ticket', ticket);
+  if (ticket) {
+    searchParams.set('ticket', ticket);
+  }
   searchParams.set('target', target);
 
   let userId = 'unknown';
@@ -85,16 +104,44 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
   const entrypoint = extraParams.entrypoint || 'frontend/dist/index.html';
 
   // All apps are now served through the NetStore /apps/ routes, which handle asset path rewriting properly.
-  const srcUrl = `${protocol}//${host}/apps/${userId}/${appId}/${entrypoint}?${searchParams.toString()}`;
+  const srcUrl = ticket ? `${protocol}//${host}/apps/${userId}/${appId}/${entrypoint}?${searchParams.toString()}` : '';
+  const showLoader = !ticket || iframeLoading;
 
   return (
-    <Box sx={{ width: '100%', height: '100%', background: 'transparent' }}>
-      <iframe 
-        src={srcUrl}
-        style={{ width: '100%', height: '100%', border: 'none' }}
-        title={`App ${appId}`}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
-      />
+    <Box sx={{ position: 'relative', width: '100%', height: '100%', background: 'transparent', overflow: 'hidden' }}>
+      {showLoader && (
+        <Box 
+          className="loader-wrapper"
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: 'background.paper',
+            transition: 'opacity 0.3s ease',
+          }}
+        >
+          <GeminiLoader size={48} />
+        </Box>
+      )}
+
+      {ticket && (
+        <iframe 
+          src={srcUrl}
+          onLoad={handleIframeLoad}
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            border: 'none',
+            opacity: showLoader ? 0 : 1,
+            transition: 'opacity 0.3s ease'
+          }}
+          title={`App ${appId}`}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+        />
+      )}
     </Box>
   );
 }

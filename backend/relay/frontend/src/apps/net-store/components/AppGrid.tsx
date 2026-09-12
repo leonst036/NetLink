@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material';
 import { ShoppingBag } from 'lucide-react';
 import { type AppItem } from '../types';
 import AppCard from './AppCard';
+import GeminiLoader from '../../../components/GeminiLoader';
 
 export interface AppGridProps {
     apps: AppItem[];
@@ -15,6 +16,7 @@ export interface AppGridProps {
     onInstall: (app: AppItem, e: React.MouseEvent) => void;
     onUninstall: (app: AppItem, e: React.MouseEvent) => void;
     onTogglePin: (app: AppItem, e: React.MouseEvent) => void;
+    isLoading?: boolean;
 }
 
 export const AppGrid = ({
@@ -28,7 +30,16 @@ export const AppGrid = ({
     onInstall,
     onUninstall,
     onTogglePin,
+    isLoading = false,
 }: AppGridProps) => {
+    if (isLoading) {
+        return (
+            <Box className="netstore-empty" sx={{ py: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                <GeminiLoader size={48} />
+            </Box>
+        );
+    }
+
     if (apps.length === 0) {
         return (
             <Box className="netstore-empty">

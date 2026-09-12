@@ -3,7 +3,6 @@ import Window from './Window';
 import TopBar from './components/TopBar';
 import Dock from './components/Dock';
 import GeminiLoader from './components/GeminiLoader';
-import DynamicAppLoader from './components/DynamicAppLoader';
 import AppIcon from './components/AppIcon';
 import { StoreIcon, ShieldAlert } from 'lucide-react';
 import { Box, Alert, Typography, Button } from '@mui/material';
@@ -15,6 +14,7 @@ import { useNotificationStore } from './store/useNotificationStore';
 // Lazy loaded desktop applications for optimal code-splitting and small initial bundle size
 const NetStoreApp = lazy(() => import('./apps/net-store/NetStoreApp'));
 const DomainRouteApp = lazy(() => import('./apps/domain-route/DomainRouteApp'));
+const DynamicAppLoader = lazy(() => import('./components/DynamicAppLoader'));
 
 interface DesktopProps {
     token: string;
