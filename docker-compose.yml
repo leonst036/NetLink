@@ -1,10 +1,9 @@
 services:
   mongodb:
     image: mongo:7.0
-    container_name: netlink-mongodb
     restart: unless-stopped
-    ports:
-      - "27017:27017"
+    expose:
+      - "27017"
     environment:
       - MONGO_INITDB_DATABASE=NetLink
     volumes:
@@ -20,23 +19,28 @@ services:
     build:
       context: ./backend/relay
       dockerfile: Dockerfile
-    container_name: netlink-relay
     restart: unless-stopped
     ports:
-      - "4535:4535"
-      - "4536:4536"
-      - "${DNS_PORT:-53}:53/udp"
-      - "${DNS_PORT:-53}:53/tcp"
+      - "${PORT:-4535}:4535"
+      # To enable external MagicDNS, ensure port 53 is free on host (e.g. systemd-resolved) and uncomment:
+      # - "${DNS_BIND_PORT:-53}:53/udp"
+      # - "${DNS_BIND_PORT:-53}:53/tcp"
     environment:
       - HTTP_PORT=4535
-      - WS_PORT=4536
+      - WS_PORT=4535
       - DNS_PORT=53
       - UPSTREAM_DNS=1.1.1.1:53
       - MONGO_URI=mongodb://mongodb:27017/NetLink
-      - JWT_SECRET=dev_secret_key_change_in_production
-      - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=admin
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_key_change_in_production}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
       - USE_SSL=false
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"const http=require('http'); http.get('http://127.0.0.1:4535/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1));\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     depends_on:
       mongodb:
         condition: service_healthy
@@ -45,16 +49,16 @@ services:
     build:
       context: ./backend/local_server
       dockerfile: Dockerfile
-    container_name: netlink-local-server
     restart: unless-stopped
     environment:
       - RELAY_HOST=relay
       - RELAY_PORT=4535
       - RELAY_SSL=false
       - REJECT_UNAUTHORIZED=false
-      - RELAY_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6ImxvY2FsLXNlcnZlciIsImlhdCI6MTc4NjE0ODk1M30.LYcW99CQ4nfekI73qy5hwkzZLmlrbOx3MPa9huMt4pI
+      - RELAY_TOKEN=${RELAY_TOKEN:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6ImxvY2FsLXNlcnZlciIsImlhdCI6MTc4NjE0ODk1M30.LYcW99CQ4nfekI73qy5hwkzZLmlrbOx3MPa9huMt4pI}
     depends_on:
-      - relay
+      relay:
+        condition: service_healthy
 
 volumes:
   mongodb_data:

@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+dist
+.env
+tests
+backend/**/node_modules
+backend/**/dist
+backend/relay/frontend/node_modules
+backend/relay/frontend/dist
+backend/local_server/NetStore/Applications/**/node_modules
+backend/local_server/NetStore/Applications/**/dist

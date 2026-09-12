@@ -27,8 +27,9 @@ COPY domainroute/ ./domainroute/
 # Compile TS code to the "dist" directory
 RUN npx tsc --outDir dist
 
-# Copy frontend dependency manifests and install dependencies
+# Copy frontend dependency manifests and patches
 COPY frontend/package*.json ./frontend/
+COPY frontend/patches/ ./frontend/patches/
 RUN npm ci --prefix ./frontend
 
 # Copy frontend source files and build
@@ -57,14 +58,15 @@ RUN npm ci --omit=dev
 # Copy the compiled JavaScript files from the builder stage
 COPY --from=builder /app/dist ./
 
-# Copy assets
+# Copy assets and applications
 COPY --from=builder /app/assets ./assets
+COPY --from=builder /app/NetStore/Applications ./NetStore/Applications
 
 # Copy the frontend built files
 COPY --from=builder /app/frontend/dist ./frontend/dist
 
 # Expose the relay server ports
-EXPOSE 4535 4536 53/udp 53/tcp
+EXPOSE 4535 53/udp 53/tcp
 
 # Run the compiled application
 CMD ["node", "main.js"]

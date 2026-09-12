@@ -28,7 +28,15 @@ export async function initializeDatabase(): Promise<mongoDB.MongoClient | null> 
             
             // Create TTL index for temporary users
             await result.db("NetLink").collection("users").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-            
+
+            // Seed default local server pairing token if not present
+            const defaultToken = process.env.DEFAULT_LOCAL_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6ImxvY2FsLXNlcnZlciIsImlhdCI6MTc4NjE0ODk1M30.LYcW99CQ4nfekI73qy5hwkzZLmlrbOx3MPa9huMt4pI";
+            await result.db("NetLink").collection("tokens").updateOne(
+                { token: defaultToken },
+                { $setOnInsert: { token: defaultToken, deviceId: "local-server", timestamp: new Date() } },
+                { upsert: true }
+            );
+
             return result;
         } else {
             console.warn('MongoDB connection returned null, running in memory-only auth mode.');

@@ -43,5 +43,10 @@ RUN npm ci --omit=dev
 # Copy the compiled JavaScript files from the builder stage
 COPY --from=builder /app/dist ./
 
+# Copy NetStore applications and permissions
+COPY --from=builder /app/NetStore/Applications ./NetStore/Applications
+COPY --from=builder /app/NetStore/permissions.json ./NetStore/permissions.json
+COPY --from=builder /app/NetStore/permissions.json ./NetStore/Applications/permissions.json
+
 # Run the compiled application
 CMD ["node", "main.js"]
