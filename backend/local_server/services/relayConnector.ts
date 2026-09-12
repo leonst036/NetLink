@@ -1,7 +1,6 @@
 import net from "net";
 import { WebSocket } from 'ws';
 import { sendApplicationJson } from '../NetStore/NetStore.js';
-import { DomainRouteDemuxer } from './domainRouteDemuxer.js';
 
 function getRelayUrl(): string {
     if (process.env.RELAY_URL) {
@@ -139,22 +138,7 @@ export function handleRelayConnection(token: string): void {
                 targetSocket.on('error', (err) => {
                     console.error(`[LAN Forwarder] Failed to connect to LAN target ${destIP}:${destPort}:`, err);
                 });
-            } else if (message.type === 'init_domainroute' && message.sessionId) {
-                const { sessionId } = message;
-                console.log(`[DomainRoute] Relay requested egress session (Session: ${sessionId})`);
-                const dataWs = connectToRelay(token, sessionId);
 
-                dataWs.on('open', () => {
-                    console.log(`[DomainRoute] Egress session connected to relay (Session: ${sessionId})`);
-                    const demuxer = new DomainRouteDemuxer(dataWs);
-                    dataWs.on('close', () => {
-                        demuxer.destroy();
-                    });
-                });
-
-                dataWs.on('error', (err) => {
-                    console.error(`[DomainRoute] Egress session error (Session: ${sessionId}):`, err);
-                });
             } else if (message.type === 'uninstall_application' && message.appId) {
                 console.log(`Relay requested uninstallation of app: ${message.appId} for user: ${message.userId}`);
                 import('../NetStore/NetStore.js').then((ns) => {

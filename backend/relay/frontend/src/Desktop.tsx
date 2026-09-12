@@ -13,7 +13,6 @@ import { useNotificationStore } from './store/useNotificationStore';
 
 // Lazy loaded desktop applications for optimal code-splitting and small initial bundle size
 const NetStoreApp = lazy(() => import('./apps/net-store/NetStoreApp'));
-const DomainRouteApp = lazy(() => import('./apps/domain-route/DomainRouteApp'));
 const DynamicAppLoader = lazy(() => import('./components/DynamicAppLoader'));
 
 interface DesktopProps {
@@ -75,9 +74,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                 const { appId, title, extraParams, icon, color } = e.data;
                 if (appId === 'store' || appId === 'net-store') {
                     useWindowStore.getState().setStoreWindow({ isOpen: true, isMinimized: false });
-                } else if (appId === 'domain-route' || appId === 'domainroute') {
-                    useWindowStore.getState().setDomainRouteWindow({ isOpen: true, isMinimized: false });
-                    useWindowStore.getState().bringToFront('domain-route');
                 } else if (appId) {
                     useWindowStore.getState().openDynamicApp(appId, title || appId, extraParams, icon, color);
                 }
@@ -115,10 +111,8 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
     const {
         activeWindow,
         storeWindow,
-        domainRouteWindow,
         dynamicWindows,
         setStoreWindow,
-        setDomainRouteWindow,
         bringToFront,
         closeDynamicApp,
         minimizeDynamicApp,
@@ -323,24 +317,6 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                     </Window>
                 )}
 
-                {domainRouteWindow.isOpen && (
-                    <Window
-                        id="domain-route"
-                        title="DomainRoute"
-                        icon={<AppIcon appId="domain-route" icon="Route" color="#38bdf8" size={14} />}
-                        isActive={activeWindow === 'domain-route'}
-                        isMinimized={domainRouteWindow.isMinimized}
-                        onMinimize={() => setDomainRouteWindow({ isMinimized: true })}
-                        onFocus={() => bringToFront('domain-route')}
-                        onClose={() => setDomainRouteWindow({ isOpen: false })}
-                        defaultPosition={{ x: 180, y: 130 }}
-                        defaultSize={{ width: 880, height: 600 }}
-                    >
-                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
-                            <DomainRouteApp token={token} target={target} />
-                        </Suspense>
-                    </Window>
-                )}
 
                 {dynamicWindows.map(dyn => {
                     const builtInApps = ['net-graph', 'net-terminal', 'sftp-client', 'sys-settings', 'vnc-viewer'];
