@@ -3,10 +3,6 @@ import { WebSocket } from 'ws';
 import { sendApplicationJson } from '../NetStore/NetStore.js';
 import { DomainRouteDemuxer } from './domainRouteDemuxer.js';
 
-/**
- * Helper to construct the relay connection URL.
- * Supports direct RELAY_URL or combinations of RELAY_HOST/RELAY_IP/RELAY_DOMAIN, RELAY_PORT, and RELAY_SSL.
- */
 function getRelayUrl(): string {
     if (process.env.RELAY_URL) {
         return process.env.RELAY_URL;
@@ -18,10 +14,7 @@ function getRelayUrl(): string {
     return `${protocol}://${host}:${port}`;
 }
 
-/**
- * Creates a WebSocket connection to the relay server.
- * Defaults to secure wss:// connection.
- */
+
 export function connectToRelay(token: string, sessionId?: string): WebSocket {
     const relayUrl = getRelayUrl();
 
@@ -35,22 +28,27 @@ export function connectToRelay(token: string, sessionId?: string): WebSocket {
     return ws;
 }
 
-/**
- * Establishes a persistent control channel connection with the relay server.
- * Listens for 'init_session' events to spawn on-demand SSH data connections.
- */
+
 export function handleRelayConnection(token: string): void {
     console.log('Connecting to NetLink relay server...');
     const controlWs = connectToRelay(token);
     let pingInterval: NodeJS.Timeout;
+    let lastRelayHeartbeat = Date.now();
 
     controlWs.on('open', async () => {
         console.log('Successfully connected to relay server control channel.');
+        lastRelayHeartbeat = Date.now();
 
         // Keep-alive ping to prevent reverse proxies (e.g. Traefik/Nginx) from dropping idle connections
         pingInterval = setInterval(() => {
             if (controlWs.readyState === WebSocket.OPEN) {
                 controlWs.ping();
+            }
+
+            // Watchdog: If no message/ping/pong from relay for > 60s, terminate and reconnect
+            if (Date.now() - lastRelayHeartbeat > 60000) {
+                console.warn('No heartbeat from relay server for 60s. Terminating connection to reconnect...');
+                controlWs.terminate();
             }
         }, 30000);
 
@@ -62,18 +60,39 @@ export function handleRelayConnection(token: string): void {
         }
     });
 
+    controlWs.on('pong', () => {
+        lastRelayHeartbeat = Date.now();
+    });
+
+    controlWs.on('ping', () => {
+        lastRelayHeartbeat = Date.now();
+        if (controlWs.readyState === WebSocket.OPEN) {
+            controlWs.pong();
+        }
+    });
+
     controlWs.on('message', (data: any) => {
+        lastRelayHeartbeat = Date.now();
         try {
             const message = JSON.parse(data.toString());
+            if (message.type === 'ping') {
+                if (controlWs.readyState === WebSocket.OPEN) {
+                    controlWs.send(JSON.stringify({ type: 'pong' }));
+                }
+                return;
+            }
+            if (message.type === 'pong') {
+                return;
+            }
             if (message.type === 'install_application' && message.appId) {
                 console.log(`Relay requested installation of app: ${message.appId} for user: ${message.userId}`);
                 import('../NetStore/NetStore.js').then((ns) => {
                     if (ns.installApplication) {
                         ns.installApplication(
-                            message.appId, 
-                            message.branch || 'NetStore', 
-                            message.githubToken, 
-                            message.userId, 
+                            message.appId,
+                            message.branch || 'NetStore',
+                            message.githubToken,
+                            message.userId,
                             message.runInBackground,
                             message.customStoreUrl
                         ).then(() => {
@@ -94,7 +113,7 @@ export function handleRelayConnection(token: string): void {
                 const targetSocket = net.createConnection({ host: destIP, port: destPort }, () => {
                     console.log(`[LAN Forwarder] Connected to LAN target ${destIP}:${destPort}`);
                     const dataWs = connectToRelay(token, sessionId);
-                    
+
                     dataWs.on('open', () => {
                         targetSocket.on('data', (chunk) => {
                             if (dataWs.readyState === WebSocket.OPEN) {

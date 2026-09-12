@@ -7,7 +7,10 @@ import {
     bridgeSockets,
     frontendClients,
     broadcast,
-    connectionManager
+    connectionManager,
+    getTargetStatus,
+    setTargetStatus,
+    notifyTargetStatus
 } from './connectionManager.js';
 import { magicDnsRegistry } from '../dns/MagicDnsRegistry.js';
 import fs from 'fs';
@@ -95,6 +98,12 @@ export function handleLocalServerConnection(
     } else {
         // Control connection
         controlConnections.set(identifier, ws);
+        setTargetStatus(identifier, {
+            online: true,
+            blocked: false,
+            reason: undefined,
+            lastPing: Date.now()
+        });
 
         const deviceId = decodedPayload?.deviceId || decodedPayload?.targetId || identifier;
         const deviceName = decodedPayload?.deviceName || identifier;
@@ -105,9 +114,66 @@ export function handleLocalServerConnection(
 
         console.log(`Registered local server connection: ${identifier} (Domain: ${domain}, IP: ${assignedIp})`);
 
+        let isAlive = true;
+        let lastPing = Date.now();
+
+        const PING_INTERVAL_MS = parseInt(process.env.RELAY_PING_INTERVAL || '15000', 10);
+        const PING_TIMEOUT_MS = parseInt(process.env.RELAY_PING_TIMEOUT || '35000', 10);
+
+        const pingWatchdog = setInterval(() => {
+            const now = Date.now();
+            const timeSinceLastPing = now - lastPing;
+
+            // If local server did not respond to pings or send heartbeats within timeout
+            if (!isAlive || timeSinceLastPing > PING_TIMEOUT_MS) {
+                console.warn(`[Heartbeat] Local server ${identifier} unresponsive (no ping or pong for ${Math.round(timeSinceLastPing / 1000)}s). Blocking frontend.`);
+                setTargetStatus(identifier, {
+                    online: false,
+                    blocked: true,
+                    reason: `Local server is not responding to pings (last heartbeat: ${Math.round(timeSinceLastPing / 1000)}s ago)`
+                });
+                clearInterval(pingWatchdog);
+                ws.terminate();
+                return;
+            }
+
+            isAlive = false;
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.ping();
+            }
+        }, PING_INTERVAL_MS);
+        if (pingWatchdog.unref) {
+            pingWatchdog.unref();
+        }
+
+        ws.on('pong', () => {
+            isAlive = true;
+            lastPing = Date.now();
+        });
+
+        ws.on('ping', () => {
+            isAlive = true;
+            lastPing = Date.now();
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.pong();
+            }
+        });
+
         ws.on('message', async (data: any) => {
+            isAlive = true;
+            lastPing = Date.now();
             try {
                 const message = JSON.parse(data.toString());
+
+                if (message.type === 'ping') {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'pong' }));
+                    }
+                    return;
+                }
+                if (message.type === 'pong') {
+                    return;
+                }
 
                 if (message.type === 'device_handshake' || message.type === 'handshake' || message.type === 'register_device') {
                     const devId = message.deviceId || deviceId;
@@ -302,11 +368,17 @@ export function handleLocalServerConnection(
         });
 
         ws.on('close', () => {
+            clearInterval(pingWatchdog);
             console.log(`Local server disconnected: ${identifier}`);
             if (controlConnections.get(identifier) === ws) {
                 controlConnections.delete(identifier);
                 serverApplications.delete(identifier);
             }
+            setTargetStatus(identifier, {
+                online: false,
+                blocked: true,
+                reason: 'Local server disconnected'
+            });
             const removedDomain = magicDnsRegistry.unregisterDevice(deviceId);
             if (removedDomain) {
                 connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'REMOVE', domain: removedDomain, deviceId });
@@ -388,6 +460,18 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
     }
     clients.add(ws);
 
+    // Send immediate target server status to newly connected desktop
+    const currentStatus = getTargetStatus(targetId);
+    if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'server_status',
+            target: targetId,
+            online: currentStatus.online,
+            blocked: currentStatus.blocked,
+            reason: currentStatus.reason
+        }));
+    }
+
     // Replay any pending permission requests for this target to the newly connected desktop
     const targetPending = pendingPermissionRequests.get(targetId);
     if (targetPending && targetPending.size > 0) {
@@ -401,6 +485,17 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
     ws.on('message', async (data: any) => {
         try {
             const message = JSON.parse(data.toString());
+            if (message.type === 'get_server_status') {
+                const status = getTargetStatus(targetId);
+                ws.send(JSON.stringify({
+                    type: 'server_status',
+                    target: targetId,
+                    online: status.online,
+                    blocked: status.blocked,
+                    reason: status.reason
+                }));
+                return;
+            }
             if (message.type === 'permission_response' && message.appId) {
                 // Clear pending permission request
                 const pMap = pendingPermissionRequests.get(targetId);

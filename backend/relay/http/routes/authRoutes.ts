@@ -1,7 +1,7 @@
 import http from "http";
 import { URL } from "url";
 import { getMongoClient, RegisterUser, StoreToken } from "../../database/MongoManager.js";
-import { controlConnections } from "../../websocket/connectionManager.js";
+import { controlConnections, getTargetStatus } from "../../websocket/connectionManager.js";
 import { GenerateToken, VerifyToken } from "../../auth/tokenManager.js";
 import { generateTicket } from "../../auth/ticketManager.js";
 
@@ -189,6 +189,20 @@ export async function handleTicketRoute(req: http.IncomingMessage, res: http.Ser
                 const parsedBody = body ? JSON.parse(body) : {};
                 const target = parsedBody.target || parsedUrl.searchParams.get("target") || "";
                 
+                if (target) {
+                    const status = getTargetStatus(target);
+                    if (status.blocked || !status.online) {
+                        res.writeHead(503, { "Content-Type": "application/json" });
+                        res.end(JSON.stringify({ 
+                            error: "Target local server is blocked or not responding to pings",
+                            target,
+                            blocked: true,
+                            reason: status.reason
+                        }));
+                        return;
+                    }
+                }
+
                 const ticket = generateTicket(userId, target, decoded.role, decoded.permissions);
                 
                 res.writeHead(200, { "Content-Type": "application/json" });

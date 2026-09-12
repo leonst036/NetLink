@@ -11,6 +11,7 @@ interface TopBarProps {
     allowedTargets: string[];
     username: string;
     onLogout: () => void;
+    serverStatus?: { online: boolean; blocked: boolean; reason?: string };
 }
 
 function Clock() {
@@ -22,7 +23,7 @@ function Clock() {
     return <Typography variant="caption">{time.toLocaleTimeString()}</Typography>;
 }
 
-export default function TopBar({ target, setTarget, allowedTargets, username: _username, onLogout }: TopBarProps) {
+export default function TopBar({ target, setTarget, allowedTargets, username: _username, onLogout, serverStatus }: TopBarProps) {
     const { notifications, history, clearHistory } = useNotificationStore();
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,6 +94,24 @@ export default function TopBar({ target, setTarget, allowedTargets, username: _u
                                     </MenuItem>
                                 ))}
                             </Select>
+                            {serverStatus && (
+                                <Tooltip title={serverStatus.blocked ? (serverStatus.reason || 'Server is locked / unresponsive') : 'Server is online and responding'}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', ml: 1, gap: 0.5, cursor: 'default' }}>
+                                        <Box
+                                            sx={{
+                                                width: 8,
+                                                height: 8,
+                                                borderRadius: '50%',
+                                                bgcolor: serverStatus.blocked ? '#ef4444' : '#22c55e',
+                                                boxShadow: serverStatus.blocked ? '0 0 6px #ef4444' : '0 0 6px #22c55e'
+                                            }}
+                                        />
+                                        <Typography variant="caption" sx={{ color: serverStatus.blocked ? '#f87171' : '#86efac', fontSize: '0.7rem', fontWeight: 600 }}>
+                                            {serverStatus.blocked ? 'Locked' : 'Online'}
+                                        </Typography>
+                                    </Box>
+                                </Tooltip>
+                            )}
                         </Box>
                     )}
                 </Box>
