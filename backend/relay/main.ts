@@ -22,7 +22,7 @@ mongoClient = await initializeDatabase();
 const httpServer = createServer(handleRequest);
 
 // Attach WebSocketServer to the httpServer directly
-const wss = new WebSocketServer({ 
+const wss = new WebSocketServer({
     server: httpServer,
     handleProtocols: (protocols) => {
         // Echo back the first requested protocol, or false to reject

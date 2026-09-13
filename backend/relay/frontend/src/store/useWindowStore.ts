@@ -5,6 +5,7 @@ interface AppMetadataItem {
     title?: string;
     icon?: string;
     color?: string;
+    entrypoint?: string;
 }
 
 interface WindowState {
@@ -20,7 +21,7 @@ interface WindowState {
     setActiveWindow: (id: string | null) => void;
     setStoreWindow: (state: Partial<WindowState['storeWindow']>) => void;
 
-    registerAppMetadata: (apps: Array<{ id: string; title?: string; name?: string; icon?: string; color?: string }>) => void;
+    registerAppMetadata: (apps: Array<{ id: string; title?: string; name?: string; icon?: string; color?: string; entrypoint?: string }>) => void;
     fetchAppMetadata: () => Promise<void>;
 
     openDynamicApp: (appId: string, title: string, extraParams?: Record<string, string>, icon?: string, color?: string) => void;
@@ -53,7 +54,8 @@ export const useWindowStore = create<WindowState>((set, get) => ({
                 nextMeta[app.id] = {
                     title: app.title || app.name || nextMeta[app.id]?.title,
                     icon: app.icon || nextMeta[app.id]?.icon,
-                    color: app.color || nextMeta[app.id]?.color
+                    color: app.color || nextMeta[app.id]?.color,
+                    entrypoint: app.entrypoint || nextMeta[app.id]?.entrypoint
                 };
             }
             return { appMetadata: nextMeta };
@@ -73,7 +75,8 @@ export const useWindowStore = create<WindowState>((set, get) => ({
                         id: item.id,
                         title: item.name || item.title,
                         icon: typeof item.icon === 'string' ? item.icon : undefined,
-                        color: item.color
+                        color: item.color,
+                        entrypoint: item.entrypoint || item.main
                     })));
                 }
             }
@@ -107,11 +110,15 @@ export const useWindowStore = create<WindowState>((set, get) => ({
         const meta = get().appMetadata[appId];
         const resolvedIcon = icon || meta?.icon;
         const resolvedColor = color || meta?.color;
+        const resolvedParams = { ...extraParams };
+        if (!resolvedParams.entrypoint && meta?.entrypoint) {
+            resolvedParams.entrypoint = meta.entrypoint;
+        }
         const id = `dynamic-${appId}-${Date.now()}`;
         set((state) => ({
             dynamicWindows: [
                 ...state.dynamicWindows,
-                { id, appId, title, icon: resolvedIcon, color: resolvedColor, isMinimized: false, extraParams }
+                { id, appId, title, icon: resolvedIcon, color: resolvedColor, isMinimized: false, extraParams: resolvedParams }
             ],
             activeWindow: id
         }));

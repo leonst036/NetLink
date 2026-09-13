@@ -127,7 +127,8 @@ export default function NetStoreApp(props: NetStoreAppProps) {
           id: item.id,
           title: item.name,
           icon: typeof item.icon === 'string' ? item.icon : undefined,
-          color: item.color
+          color: item.color,
+          entrypoint: item.entrypoint || item.main
         })));
 
         const parsedCatalog: AppItem[] = finalData.map((item: any) => {
@@ -148,7 +149,9 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             shortDesc: item.shortDesc || item.shortDescription || '',
             fullDesc: item.fullDesc || item.fullDescription || '',
             features: item.features || [],
-            isFeatured: item.isFeatured
+            isFeatured: item.isFeatured,
+            entrypoint: item.entrypoint,
+            main: item.main
           };
         });
 
@@ -198,7 +201,10 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   const handleOpenApp = (app: AppItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     notifyUser(`Opening ${app.name}...`, 'success');
-    const entry = app.entrypoint || ((app as any).main ? ((app as any).main.startsWith('frontend/') ? (app as any).main : `frontend/${(app as any).main}`) : undefined);
+    let entry = app.entrypoint || ((app as any).main ? ((app as any).main.startsWith('frontend/') ? (app as any).main : `frontend/${(app as any).main}`) : undefined);
+    if (entry && (entry.endsWith('.tsx') || entry.endsWith('.jsx') || entry.endsWith('.ts'))) {
+      entry = 'frontend/index.html';
+    }
     windowStore.openDynamicApp(app.id, app.name, entry ? { entrypoint: entry } : undefined, app.rawIcon, app.color);
   };
 

@@ -33,11 +33,16 @@ export function calculateDirectorySize(dirPath: string): number {
     return totalSize;
 }
 
-export function resolveLocalNetStorePath(__dirname: string, ...subPaths: string[]): string {
+export function resolveLocalNetStorePath(baseDirOrSubPath: string, ...rest: string[]): string {
+    const isDir = path.isAbsolute(baseDirOrSubPath);
+    const baseDir = isDir ? baseDirOrSubPath : process.cwd();
+    const subPaths = isDir ? rest : [baseDirOrSubPath, ...rest];
     const candidates = [
-        path.resolve(__dirname, '../../../../NetLink-NetStore', ...subPaths),
-        path.resolve(__dirname, '../../../../../NetLink-NetStore', ...subPaths),
-        path.resolve(process.cwd(), '../NetLink-NetStore', ...subPaths)
+        path.resolve(baseDir, '../../../../NetLink-NetStore', ...subPaths),
+        path.resolve(baseDir, '../../../../../NetLink-NetStore', ...subPaths),
+        path.resolve(process.cwd(), '../NetLink-NetStore', ...subPaths),
+        path.resolve(process.cwd(), '../../NetLink-NetStore', ...subPaths),
+        path.resolve('/home/leon/dev/NetLink/NetLink-NetStore', ...subPaths)
     ];
     for (const cand of candidates) {
         if (fs.existsSync(cand)) return cand;

@@ -101,7 +101,10 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
     if (v) searchParams.set(k, v);
   });
 
-  const entrypoint = extraParams.entrypoint || 'frontend/dist/index.html';
+  let entrypoint = extraParams.entrypoint || 'frontend/dist/index.html';
+  if (entrypoint.endsWith('.tsx') || entrypoint.endsWith('.jsx') || entrypoint.endsWith('.ts')) {
+    entrypoint = 'frontend/index.html';
+  }
 
   // All apps are now served through the NetStore /apps/ routes, which handle asset path rewriting properly.
   const srcUrl = ticket ? `${protocol}//${host}/apps/${userId}/${appId}/${entrypoint}?${searchParams.toString()}` : '';

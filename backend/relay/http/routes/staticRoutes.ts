@@ -266,13 +266,38 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
 
     // Fallback if dist/... was requested but frontend/... exists directly
     if (!fs.existsSync(filePath) && (safeSuffix === 'dist/index.html' || safeSuffix.startsWith('dist/'))) {
-        const fallbackPath = path.join(RELAY_APPS_DIR, userId, appId, 'frontend', safeSuffix.replace(/^dist[\/\\]/, ''));
-        if (fs.existsSync(fallbackPath) || 
-            fs.existsSync(fallbackPath + '.tsx') || 
-            fs.existsSync(fallbackPath + '.ts') || 
-            fs.existsSync(fallbackPath + '.jsx') || 
-            fs.existsSync(fallbackPath + '.js')) {
-            filePath = fallbackPath;
+        const nonDistSuffix = safeSuffix.replace(/^dist[\/\\]/, '');
+        const fallbackCandidates = [
+            path.join(RELAY_APPS_DIR, userId, appId, 'frontend', nonDistSuffix),
+            path.join(__dirname, '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', nonDistSuffix),
+            path.join(__dirname, '..', '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', nonDistSuffix),
+            path.join(process.cwd(), '..', 'NetLink-NetStore', 'applications', appId, 'frontend', nonDistSuffix)
+        ];
+        for (const cand of fallbackCandidates) {
+            if (fs.existsSync(cand) || 
+                fs.existsSync(cand + '.tsx') || 
+                fs.existsSync(cand + '.ts') || 
+                fs.existsSync(cand + '.jsx') || 
+                fs.existsSync(cand + '.js')) {
+                filePath = cand;
+                break;
+            }
+        }
+    }
+
+    // Fallback if requested without dist/ prefix but file exists in dist/
+    if (!fs.existsSync(filePath)) {
+        const distCandidates = [
+            path.join(RELAY_APPS_DIR, userId, appId, 'frontend', 'dist', safeSuffix),
+            path.join(__dirname, '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', 'dist', safeSuffix),
+            path.join(__dirname, '..', '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', 'dist', safeSuffix),
+            path.join(process.cwd(), '..', 'NetLink-NetStore', 'applications', appId, 'frontend', 'dist', safeSuffix)
+        ];
+        for (const cand of distCandidates) {
+            if (fs.existsSync(cand)) {
+                filePath = cand;
+                break;
+            }
         }
     }
 
@@ -335,8 +360,14 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
 
     // Dynamic React Support
     if (path.basename(filePath) === 'index.html' && !fs.existsSync(filePath)) {
-        const indexJsonPath = path.join(RELAY_APPS_DIR, userId, appId, 'index.json');
-        if (fs.existsSync(indexJsonPath)) {
+        const indexJsonCandidates = [
+            path.join(RELAY_APPS_DIR, userId, appId, 'index.json'),
+            path.join(__dirname, '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'index.json'),
+            path.join(__dirname, '..', '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'index.json'),
+            path.join(process.cwd(), '..', 'NetLink-NetStore', 'applications', appId, 'index.json')
+        ];
+        const indexJsonPath = indexJsonCandidates.find(p => fs.existsSync(p));
+        if (indexJsonPath) {
             try {
                 const indexData = JSON.parse(fs.readFileSync(indexJsonPath, 'utf-8'));
                 if (indexData.main && (indexData.main.endsWith('.tsx') || indexData.main.endsWith('.jsx'))) {
@@ -425,7 +456,10 @@ ${getAppImportMap()}
     const noCacheHeaders = {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
-        'Expires': '0'
+        'Expires': '0',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*'
     };
 
     fs.readFile(filePath, (error, content) => {
@@ -500,7 +534,10 @@ ${getAppImportMap()}
                     }
                 }
                 if (ext === '.html') {
-                    const baseAppPath = `/apps/${userId}/${appId}/frontend/`;
+                    const isDist = safeSuffix.startsWith('dist/') || filePath.includes(path.sep + 'dist' + path.sep);
+                    const baseAppPath = isDist 
+                        ? `/apps/${userId}/${appId}/frontend/dist/` 
+                        : `/apps/${userId}/${appId}/frontend/`;
                     fileContent = fileContent.replace(/="\/src\//g, `="${baseAppPath}src/`);
                     fileContent = fileContent.replace(/="\.\/src\//g, `="${baseAppPath}src/`);
                     fileContent = fileContent.replace(/="\/assets\//g, `="${baseAppPath}assets/`);

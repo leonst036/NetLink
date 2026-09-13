@@ -16,12 +16,19 @@ const NET_STORE_DIR = __dirname.includes('dist')
 const PERMISSIONS_FILE = path.join(NET_STORE_DIR, 'permissions.json');
 
 function getGrantedPermissions(): Record<string, any> {
-    if (!fs.existsSync(PERMISSIONS_FILE)) return {};
-    try {
-        return JSON.parse(fs.readFileSync(PERMISSIONS_FILE, 'utf-8'));
-    } catch {
-        return {};
+    let perms: Record<string, any> = {};
+    const legacyPath = path.join(path.dirname(NET_STORE_DIR), 'permissions.json');
+    if (fs.existsSync(legacyPath)) {
+        try {
+            perms = { ...perms, ...JSON.parse(fs.readFileSync(legacyPath, 'utf-8')) };
+        } catch {}
     }
+    if (fs.existsSync(PERMISSIONS_FILE)) {
+        try {
+            perms = { ...perms, ...JSON.parse(fs.readFileSync(PERMISSIONS_FILE, 'utf-8')) };
+        } catch {}
+    }
+    return perms;
 }
 
 function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
@@ -209,7 +216,11 @@ export function getAppSyncFiles(targetUserId?: string): any[] {
         const entries = fs.readdirSync(userDir);
         const applicationFolders = entries.filter((folder) => {
             const fullPath = path.join(userDir, folder);
-            return fs.statSync(fullPath).isDirectory();
+            try {
+                return fs.statSync(fullPath).isDirectory() && fs.existsSync(path.join(fullPath, 'index.json'));
+            } catch {
+                return false;
+            }
         });
 
         for (const application of applicationFolders) {
@@ -218,27 +229,23 @@ export function getAppSyncFiles(targetUserId?: string): any[] {
 
             const walkSync = (dir: string, filelist: string[] = []) => {
                 if (!fs.existsSync(dir)) return filelist;
-                fs.readdirSync(dir).forEach(file => {
-                    if (file === 'node_modules' || file.startsWith('.')) return;
-                    const filePath = path.join(dir, file);
-                    if (fs.statSync(filePath).isDirectory()) {
-                        filelist = walkSync(filePath, filelist);
-                    } else {
-                        filelist.push(filePath);
-                    }
-                });
+                try {
+                    fs.readdirSync(dir).forEach(file => {
+                        if (file === 'node_modules' || file.startsWith('.')) return;
+                        const filePath = path.join(dir, file);
+                        try {
+                            if (fs.statSync(filePath).isDirectory()) {
+                                filelist = walkSync(filePath, filelist);
+                            } else {
+                                filelist.push(filePath);
+                            }
+                        } catch {}
+                    });
+                } catch {}
                 return filelist;
             };
 
-            const relayFiles = walkSync(path.join(appDirPath, 'relay'));
-            const frontendFiles = walkSync(path.join(appDirPath, 'frontend'));
-            const allFiles = [...relayFiles, ...frontendFiles];
-
-            // Also sync index.json to relay
-            const indexJsonPath = path.join(appDirPath, 'index.json');
-            if (fs.existsSync(indexJsonPath)) {
-                allFiles.push(indexJsonPath);
-            }
+            const allFiles = walkSync(appDirPath);
 
             for (const file of allFiles) {
                 const relativePath = path.relative(appDirPath, file).replace(/\\/g, '/');
@@ -349,7 +356,7 @@ export async function installApplication(
 
         if (!storeBaseUrl) {
             // Check if application exists in local dev workspace directly if no custom store URL
-            const localDevAppDir = resolveLocalNetStorePath('applications', appId);
+            const localDevAppDir = resolveLocalNetStorePath(__dirname, 'applications', appId);
             if (fs.existsSync(localDevAppDir) && (branch === 'main' || branch === 'workspace' || branch === 'local-debug')) {
                 console.log(`Installing ${appId} from local workspace (${localDevAppDir})...`);
                 fs.cpSync(localDevAppDir, appDir, { recursive: true });
