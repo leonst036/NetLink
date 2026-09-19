@@ -17,6 +17,10 @@ let mongoClient: mongoDB.MongoClient | null = null;
 
 // Initialize MongoDB database connection
 mongoClient = await initializeDatabase();
+if (mongoClient) {
+    magicDnsRegistry.setMongoClient(mongoClient);
+    await magicDnsRegistry.loadFromDatabase(mongoClient);
+}
 
 // Create HTTP(S) Server for serving the web app (frontend and health check)
 const httpServer = createServer(handleRequest);

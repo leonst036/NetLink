@@ -1,11 +1,71 @@
 import net from 'node:net';
+import type * as mongoDB from 'mongodb';
+
+export interface DnsRecordDoc {
+    domain: string;
+    ip: string;
+    deviceId?: string;
+    updatedAt: Date;
+}
 
 export class MagicDnsRegistry {
     private records = new Map<string, string>();
     private deviceToDomains = new Map<string, Set<string>>();
     private ipToDomain = new Map<string, string>();
+    private mongoClient: mongoDB.MongoClient | null = null;
 
-    public registerNode(rawHostname: string, ip: string): string {
+    public setMongoClient(client: mongoDB.MongoClient | null): void {
+        this.mongoClient = client;
+    }
+
+    public async loadFromDatabase(client?: mongoDB.MongoClient | null): Promise<void> {
+        const mongo = client || this.mongoClient;
+        if (!mongo) return;
+        this.mongoClient = mongo;
+
+        try {
+            const docs = await mongo.db("NetLink").collection<DnsRecordDoc>("dns_records").find({}).toArray();
+            for (const doc of docs) {
+                if (doc.domain && doc.ip) {
+                    if (doc.deviceId) {
+                        this.registerDeviceAliases(doc.deviceId, doc.ip, [doc.domain.replace(/\.netlink$/, '')], false);
+                    } else {
+                        this.registerNode(doc.domain.replace(/\.netlink$/, ''), doc.ip, false);
+                    }
+                }
+            }
+            console.log(`[MagicDNS] Loaded ${docs.length} DNS records from database.`);
+        } catch (err: any) {
+            console.error('[MagicDNS] Failed to load records from database:', err.message);
+        }
+    }
+
+    private persistRecord(domain: string, ip: string, deviceId?: string): void {
+        if (!this.mongoClient) return;
+        this.mongoClient.db("NetLink").collection("dns_records").updateOne(
+            { domain },
+            { $set: { domain, ip, deviceId: deviceId || null, updatedAt: new Date() } },
+            { upsert: true }
+        ).catch(err => {
+            console.warn(`[MagicDNS] Failed to persist record ${domain}:`, err.message);
+        });
+    }
+
+    private removePersistedRecord(domain: string): void {
+        if (!this.mongoClient) return;
+        this.mongoClient.db("NetLink").collection("dns_records").deleteOne({ domain }).catch(err => {
+            console.warn(`[MagicDNS] Failed to remove record ${domain}:`, err.message);
+        });
+    }
+
+    private removePersistedDevice(deviceId: string): void {
+        if (!this.mongoClient) return;
+        this.mongoClient.db("NetLink").collection("dns_records").deleteMany({ deviceId }).catch(err => {
+            console.warn(`[MagicDNS] Failed to remove device records for ${deviceId}:`, err.message);
+        });
+    }
+
+    public registerNode(rawHostname: string, ip: string, persist: boolean = true): string {
         const stripped = (rawHostname || '').replace(/\.netlink\.?$/i, '');
         const slug = stripped
             .toLowerCase()
@@ -25,23 +85,30 @@ export class MagicDnsRegistry {
 
         this.records.set(domain, cleanIp);
         this.ipToDomain.set(cleanIp, domain);
+
+        if (persist) {
+            this.persistRecord(domain, cleanIp);
+        }
         return domain;
     }
 
-    public registerDevice(deviceId: string, deviceName: string, assignedIp: string): string {
-        const domains = this.registerDeviceAliases(deviceId, assignedIp, [deviceName || deviceId]);
+    public registerDevice(deviceId: string, deviceName: string, assignedIp: string, persist: boolean = true): string {
+        const domains = this.registerDeviceAliases(deviceId, assignedIp, [deviceName || deviceId], persist);
         return domains[0] || '';
     }
 
-    public registerDeviceAliases(deviceId: string, ip: string, names: (string | undefined | null)[]): string[] {
+    public registerDeviceAliases(deviceId: string, ip: string, names: (string | undefined | null)[], persist: boolean = true): string[] {
         const existingDomains = this.deviceToDomains.get(deviceId);
         const registered: string[] = [];
 
         for (const name of names) {
             if (name && typeof name === 'string' && name.trim()) {
-                const domain = this.registerNode(name.trim(), ip);
+                const domain = this.registerNode(name.trim(), ip, persist);
                 if (domain && !registered.includes(domain)) {
                     registered.push(domain);
+                    if (persist && deviceId) {
+                        this.persistRecord(domain, ip, deviceId);
+                    }
                 }
             }
         }
@@ -50,7 +117,7 @@ export class MagicDnsRegistry {
         if (existingDomains) {
             for (const oldDomain of existingDomains) {
                 if (!registered.includes(oldDomain)) {
-                    this.unregisterNode(oldDomain);
+                    this.unregisterNode(oldDomain, persist);
                 }
             }
         }
@@ -61,10 +128,14 @@ export class MagicDnsRegistry {
         return registered;
     }
 
-    public unregisterNode(domain: string): void {
+    public unregisterNode(domain: string, persist: boolean = true): void {
         const cleanDomain = domain.toLowerCase().replace(/\.$/, '');
         const ip = this.records.get(cleanDomain);
         this.records.delete(cleanDomain);
+
+        if (persist) {
+            this.removePersistedRecord(cleanDomain);
+        }
 
         if (ip && this.ipToDomain.get(ip) === cleanDomain) {
             this.ipToDomain.delete(ip);
@@ -85,14 +156,17 @@ export class MagicDnsRegistry {
         }
     }
 
-    public unregisterDevice(deviceId: string): string | undefined {
+    public unregisterDevice(deviceId: string, persist: boolean = true): string | undefined {
         const domains = this.deviceToDomains.get(deviceId);
         if (domains && domains.size > 0) {
             const first = Array.from(domains)[0];
             for (const domain of domains) {
-                this.unregisterNode(domain);
+                this.unregisterNode(domain, false);
             }
             this.deviceToDomains.delete(deviceId);
+            if (persist) {
+                this.removePersistedDevice(deviceId);
+            }
             return first;
         }
         return undefined;
