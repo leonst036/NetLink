@@ -109,36 +109,54 @@ export function handleRelayConnection(token: string): void {
             } else if (message.type === 'init_lan_stream' && message.sessionId && message.destIP && message.destPort) {
                 const { sessionId, destIP, destPort } = message;
                 console.log(`[LAN Forwarder] Forwarding LAN stream request for ${destIP}:${destPort} (Session: ${sessionId})`);
-                const targetSocket = net.createConnection({ host: destIP, port: destPort }, () => {
-                    console.log(`[LAN Forwarder] Connected to LAN target ${destIP}:${destPort}`);
-                    const dataWs = connectToRelay(token, sessionId);
+                
+                const dataWs = connectToRelay(token, sessionId);
+                const targetSocket = net.createConnection({ host: destIP, port: destPort });
 
-                    dataWs.on('open', () => {
-                        targetSocket.on('data', (chunk) => {
-                            if (dataWs.readyState === WebSocket.OPEN) {
-                                dataWs.send(chunk);
-                            }
-                        });
-                        dataWs.on('message', (chunk: any) => {
-                            targetSocket.write(chunk);
-                        });
-                    });
+                const socketBuffer: (Buffer | string)[] = [];
+                let isWsOpen = false;
 
-                    const cleanup = () => {
-                        if (!targetSocket.destroyed) targetSocket.destroy();
-                        if (dataWs.readyState === WebSocket.OPEN) dataWs.close();
-                    };
-
-                    targetSocket.on('error', cleanup);
-                    targetSocket.on('close', cleanup);
-                    dataWs.on('error', cleanup);
-                    dataWs.on('close', cleanup);
+                dataWs.on('open', () => {
+                    isWsOpen = true;
+                    while (socketBuffer.length > 0) {
+                        const chunk = socketBuffer.shift();
+                        if (chunk && dataWs.readyState === WebSocket.OPEN) {
+                            dataWs.send(chunk);
+                        }
+                    }
                 });
+
+                targetSocket.on('data', (chunk) => {
+                    if (isWsOpen && dataWs.readyState === WebSocket.OPEN) {
+                        dataWs.send(chunk);
+                    } else {
+                        socketBuffer.push(chunk);
+                    }
+                });
+
+                dataWs.on('message', (chunk: any) => {
+                    if (!targetSocket.destroyed) {
+                        targetSocket.write(chunk);
+                    }
+                });
+
+                const cleanup = () => {
+                    if (!targetSocket.destroyed) targetSocket.destroy();
+                    if (dataWs.readyState === WebSocket.OPEN || dataWs.readyState === WebSocket.CONNECTING) {
+                        dataWs.close();
+                    }
+                };
 
                 targetSocket.on('error', (err) => {
-                    console.error(`[LAN Forwarder] Failed to connect to LAN target ${destIP}:${destPort}:`, err);
+                    console.error(`[LAN Forwarder] Socket error for ${destIP}:${destPort}:`, err.message);
+                    cleanup();
                 });
-
+                targetSocket.on('close', cleanup);
+                dataWs.on('error', (err) => {
+                    console.error(`[LAN Forwarder] Data WS error for session ${sessionId}:`, err.message);
+                    cleanup();
+                });
+                dataWs.on('close', cleanup);
             } else if (message.type === 'uninstall_application' && message.appId) {
                 console.log(`Relay requested uninstallation of app: ${message.appId} for user: ${message.userId}`);
                 import('../NetStore/NetStore.js').then((ns) => {

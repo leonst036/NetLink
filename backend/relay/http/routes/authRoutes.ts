@@ -181,10 +181,18 @@ export async function handleTicketRoute(req: http.IncomingMessage, res: http.Ser
         req.on("end", () => {
             try {
                 const parsedBody = body ? JSON.parse(body) : {};
-                const target = parsedBody.target || parsedUrl.searchParams.get("target") || "";
+                let target = parsedBody.target || parsedUrl.searchParams.get("target") || "";
                 
                 if (target) {
-                    const status = getTargetStatus(target);
+                    let status = getTargetStatus(target);
+                    if ((status.blocked || !status.online) && controlConnections.size > 0) {
+                        const fallbackTarget = controlConnections.keys().next().value;
+                        if (fallbackTarget) {
+                            target = fallbackTarget;
+                            status = getTargetStatus(target);
+                        }
+                    }
+
                     if (status.blocked || !status.online) {
                         res.writeHead(503, { "Content-Type": "application/json" });
                         res.end(JSON.stringify({ 

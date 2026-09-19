@@ -77,6 +77,15 @@ export const handleMainConnection = async (
             const streamSessionId = crypto.randomUUID();
             (ws as any).isBinaryStream = true;
             (ws as any).skipCredentialsHandshake = true;
+
+            const earlyBuffer: { data: any, isBinary: boolean }[] = [];
+            const onEarlyMessage = (data: any, isBinary: boolean) => {
+                earlyBuffer.push({ data, isBinary });
+            };
+            ws.on('message', onEarlyMessage);
+            (ws as any).earlyBuffer = earlyBuffer;
+            (ws as any).earlyListener = onEarlyMessage;
+
             pendingSessions.set(streamSessionId, ws);
             console.log(`[NetConnect] Forwarding stream request to local server for ${destIP}:${destPort} (Session: ${streamSessionId})`);
 
@@ -91,6 +100,9 @@ export const handleMainConnection = async (
                 if (pendingSessions.has(streamSessionId)) {
                     console.warn(`[NetConnect] Stream session ${streamSessionId} timed out`);
                     pendingSessions.delete(streamSessionId);
+                    if ((ws as any).earlyListener) {
+                        ws.off('message', (ws as any).earlyListener);
+                    }
                     ws.close(4008, 'LAN stream connection timed out');
                 }
             }, 15000);
@@ -98,6 +110,9 @@ export const handleMainConnection = async (
             ws.on('close', () => {
                 clearTimeout(timeoutId);
                 pendingSessions.delete(streamSessionId);
+                if ((ws as any).earlyListener) {
+                    ws.off('message', (ws as any).earlyListener);
+                }
             });
             return;
         } else if (pathname === '/connect') {

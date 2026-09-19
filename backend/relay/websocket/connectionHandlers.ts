@@ -88,9 +88,22 @@ export function handleLocalServerConnection(
         const clientWs = pendingSessions.get(sessionId);
         if (clientWs && clientWs.readyState === WebSocket.OPEN) {
             pendingSessions.delete(sessionId);
+            if ((clientWs as any).earlyListener) {
+                clientWs.off('message', (clientWs as any).earlyListener);
+            }
             console.log(`Pairing data session ${sessionId} for server ${identifier}`);
             bridgeSockets(ws, clientWs);
             
+            const earlyBuffer = (clientWs as any).earlyBuffer;
+            if (earlyBuffer && earlyBuffer.length > 0) {
+                for (const item of earlyBuffer) {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(item.data, { binary: item.isBinary });
+                    }
+                }
+                (clientWs as any).earlyBuffer = [];
+            }
+
             // Notify the client that the backend bridge is ready
             if (!(clientWs as any).skipCredentialsHandshake && !(clientWs as any).isBinaryStream) {
                 clientWs.send(JSON.stringify({ type: 'ready_for_credentials' }));
