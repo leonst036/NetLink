@@ -37,15 +37,20 @@ export function resolveLocalNetStorePath(baseDirOrSubPath: string, ...rest: stri
     const isDir = path.isAbsolute(baseDirOrSubPath);
     const baseDir = isDir ? baseDirOrSubPath : process.cwd();
     const subPaths = isDir ? rest : [baseDirOrSubPath, ...rest];
-    const candidates = [
-        path.resolve(baseDir, '../../../../NetLink-NetStore', ...subPaths),
-        path.resolve(baseDir, '../../../../../NetLink-NetStore', ...subPaths),
-        path.resolve(process.cwd(), '../NetLink-NetStore', ...subPaths),
-        path.resolve(process.cwd(), '../../NetLink-NetStore', ...subPaths),
-        path.resolve('/home/leon/dev/NetLink/NetLink-NetStore', ...subPaths)
+    const baseRoots = [
+        path.resolve(baseDir, '../../../../NetLink-NetStore'),
+        path.resolve(baseDir, '../../../../../NetLink-NetStore'),
+        path.resolve(process.cwd(), '../NetLink-NetStore'),
+        path.resolve(process.cwd(), '../../NetLink-NetStore'),
+        path.resolve('/home/leon/dev/NetLink/NetLink-NetStore')
     ];
-    for (const cand of candidates) {
-        if (fs.existsSync(cand)) return cand;
+    for (const baseRoot of baseRoots) {
+        if (fs.existsSync(baseRoot)) {
+            const resolved = path.resolve(baseRoot, ...subPaths);
+            if (resolved === baseRoot || resolved.startsWith(baseRoot + path.sep)) {
+                if (fs.existsSync(resolved)) return resolved;
+            }
+        }
     }
-    return candidates[0] || '';
+    return '';
 }

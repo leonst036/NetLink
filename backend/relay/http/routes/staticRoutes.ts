@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as esbuild from 'esbuild';
+import { RELAY_APPS_DIR, resolveLocalNetStorePath } from '../../paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -143,40 +144,82 @@ export function WindowLayout({ children, themeName = 'Dark', padding = '20px', s
   );
 }
 
-export function GeminiLoader({ size = 48 }) {
+export function NetLinkLoader({ size = 48, className = '' }) {
+  if (typeof document !== 'undefined' && !document.getElementById('netlink-loader-injected-css')) {
+    const style = document.createElement('style');
+    style.id = 'netlink-loader-injected-css';
+    style.textContent = \`
+      .netlink-loader { display: inline-flex; justify-content: center; align-items: center; position: relative; flex-shrink: 0; }
+      .netlink-spinner-svg { width: 100%; height: 100%; }
+      .netlink-spinner-track { stroke: rgba(56, 189, 248, 0.12); fill: none; }
+      .netlink-spinner-outer { stroke: #38bdf8; stroke-dasharray: 75 50; transform-origin: 24px 24px; animation: netlink-spin 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite; fill: none; }
+      .netlink-spinner-inner { stroke: #0ea5e9; stroke-dasharray: 38 38; transform-origin: 24px 24px; animation: netlink-spin-rev 1s linear infinite; fill: none; }
+      .netlink-spinner-node { fill: #38bdf8; transform-origin: 24px 24px; animation: netlink-node-pulse 1.4s ease-in-out infinite; }
+      @keyframes netlink-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      @keyframes netlink-spin-rev { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
+      @keyframes netlink-node-pulse { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.15); } }
+    \`;
+    document.head.appendChild(style);
+  }
   return React.createElement(
     MuiMaterial.Box,
-    { className: 'loader-container', style: { width: size, height: size } },
-    React.createElement('div', { className: 'gemini-blob' }),
-    React.createElement('div', { className: 'gemini-core' })
+    { className: 'loader-container netlink-loader ' + (className || ''), style: { width: size, height: size } },
+    React.createElement(
+      'svg',
+      { className: 'netlink-spinner-svg', viewBox: '0 0 48 48', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' },
+      React.createElement('circle', { className: 'netlink-spinner-track', cx: 24, cy: 24, r: 20, strokeWidth: 2.5 }),
+      React.createElement('circle', { className: 'netlink-spinner-outer', cx: 24, cy: 24, r: 20, strokeWidth: 2.5, strokeLinecap: 'round' }),
+      React.createElement('circle', { className: 'netlink-spinner-inner', cx: 24, cy: 24, r: 12, strokeWidth: 2, strokeLinecap: 'round' }),
+      React.createElement('circle', { className: 'netlink-spinner-node', cx: 24, cy: 24, r: 3 })
+    )
   );
 }
 
-export default { getAppTheme, WindowLayout, GeminiLoader, createTheme: MuiStyles.createTheme };
+export const GeminiLoader = NetLinkLoader;
+
+export default { getAppTheme, WindowLayout, NetLinkLoader, GeminiLoader, createTheme: MuiStyles.createTheme };
 `);
         return;
     }
 
-    // Normalize pathname to prevent directory traversal
-    const safeSuffix = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
-    let filePath = path.join(frontendPath, safeSuffix);
+    let decodedPath = '';
+    try {
+        decodedPath = decodeURIComponent(pathname);
+    } catch {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad Request');
+        return;
+    }
+    if (decodedPath.includes('\0')) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad Request');
+        return;
+    }
 
-    // In dev mode (frontendPath doesn't end with dist), static files might be in public/
+    const safeSuffix = path.normalize(decodedPath).replace(/^(\.\.[\/\\])+/, '').replace(/^[/\\]+/, '');
+    const absoluteFrontend = path.resolve(frontendPath);
+    let filePath = path.resolve(absoluteFrontend, safeSuffix);
+
+    if (!filePath.startsWith(absoluteFrontend + path.sep) && filePath !== absoluteFrontend) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('Forbidden');
+        return;
+    }
+
     if (!filePath.includes('dist') && !fs.existsSync(filePath)) {
-        const publicPath = path.join(frontendPath, 'public', safeSuffix);
-        if (fs.existsSync(publicPath)) {
+        const publicBase = path.resolve(frontendPath, 'public');
+        const publicPath = path.resolve(publicBase, safeSuffix);
+        if ((publicPath.startsWith(publicBase + path.sep) || publicPath === publicBase) && fs.existsSync(publicPath)) {
             filePath = publicPath;
         }
     }
 
-    // If filePath is a directory, append index.html
     try {
         const stat = fs.statSync(filePath);
         if (stat.isDirectory()) {
             filePath = path.join(filePath, 'index.html');
         }
     } catch (e) {
-        // Fallback or ignore, handle in fs.readFile
     }
 
     const ext = path.extname(filePath).toLowerCase();
@@ -197,7 +240,6 @@ export default { getAppTheme, WindowLayout, GeminiLoader, createTheme: MuiStyles
     fs.readFile(filePath, (error, content) => {
         if (error) {
             if (error.code === 'ENOENT') {
-                // SPA fallback for HTML5 history API routes (e.g. /devices/authorize)
                 if (!ext || ext === '.html' || pathname.startsWith('/devices/')) {
                     const spaIndex = path.join(frontendPath, 'index.html');
                     if (fs.existsSync(spaIndex)) {
@@ -227,7 +269,6 @@ export default { getAppTheme, WindowLayout, GeminiLoader, createTheme: MuiStyles
 }
 
 export function handleAppFrontendRoute(pathname: string, res: http.ServerResponse, req?: http.IncomingMessage): void {
-    // pathname like /apps/{userId}/{appId}/frontend/... or /apps/{userId}/{appId}/...
     const parts = pathname.split('/');
     if (parts.length < 4 || parts[1] !== 'apps') {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -238,67 +279,90 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     const userId = parts[2] as string;
     const appId = parts[3] as string;
     
-    // Extract subpath relative to app frontend
+    if (!/^[a-zA-Z0-9_-]+$/.test(userId) || !/^[a-zA-Z0-9_-]+$/.test(appId)) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Invalid userId or appId');
+        return;
+    }
+
     let subPath = '';
     if (parts.length >= 5 && parts[4] === 'frontend') {
         subPath = parts.slice(5).join('/');
     } else {
         subPath = parts.slice(4).join('/');
     }
-    
-    // Relay apps directory is at ../../NetStore/Applications relative to the src/dist/http/routes root
-    const RELAY_APPS_DIR = path.join(__dirname, '..', '..', 'NetStore', 'Applications');
-    const safeSuffix = path.normalize(subPath).replace(/^(\.\.[\/\\])+/, '');
-    let filePath = path.join(RELAY_APPS_DIR, userId, appId, 'frontend', safeSuffix);
 
-    // Prioritize fresh files from local dev workspace NetLink-NetStore if available
-    const localDevCandidates = [
-        path.join(__dirname, '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', safeSuffix),
-        path.join(__dirname, '..', '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', safeSuffix),
-        path.join(process.cwd(), '..', 'NetLink-NetStore', 'applications', appId, 'frontend', safeSuffix)
-    ];
-    for (const cand of localDevCandidates) {
-        if (fs.existsSync(cand)) {
-            filePath = cand;
-            break;
+    let decodedSubPath = '';
+    try {
+        decodedSubPath = decodeURIComponent(subPath);
+    } catch {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad Request');
+        return;
+    }
+    if (decodedSubPath.includes('\0')) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad Request');
+        return;
+    }
+
+    const safeSuffix = path.normalize(decodedSubPath).replace(/^(\.\.[\/\\])+/, '').replace(/^[/\\]+/, '');
+    const baseAppFrontend = path.resolve(RELAY_APPS_DIR, userId, appId, 'frontend');
+    let filePath = path.resolve(baseAppFrontend, safeSuffix);
+
+    const isSafePath = (target: string, base: string) => {
+        const resolvedTarget = path.resolve(target);
+        const resolvedBase = path.resolve(base);
+        return resolvedTarget === resolvedBase || resolvedTarget.startsWith(resolvedBase + path.sep);
+    };
+
+    const localStoreBase = resolveLocalNetStorePath('applications', appId, 'frontend');
+    if (localStoreBase) {
+        const localStorePath = path.resolve(localStoreBase, safeSuffix);
+        if (isSafePath(localStorePath, localStoreBase) && fs.existsSync(localStorePath)) {
+            filePath = localStorePath;
         }
     }
 
-    // Fallback if dist/... was requested but frontend/... exists directly
     if (!fs.existsSync(filePath) && (safeSuffix === 'dist/index.html' || safeSuffix.startsWith('dist/'))) {
         const nonDistSuffix = safeSuffix.replace(/^dist[\/\\]/, '');
         const fallbackCandidates = [
-            path.join(RELAY_APPS_DIR, userId, appId, 'frontend', nonDistSuffix),
-            path.join(__dirname, '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', nonDistSuffix),
-            path.join(__dirname, '..', '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', nonDistSuffix),
-            path.join(process.cwd(), '..', 'NetLink-NetStore', 'applications', appId, 'frontend', nonDistSuffix)
-        ];
+            path.resolve(baseAppFrontend, nonDistSuffix),
+            localStoreBase ? path.resolve(localStoreBase, nonDistSuffix) : ''
+        ].filter(Boolean);
         for (const cand of fallbackCandidates) {
-            if (fs.existsSync(cand) || 
-                fs.existsSync(cand + '.tsx') || 
-                fs.existsSync(cand + '.ts') || 
-                fs.existsSync(cand + '.jsx') || 
-                fs.existsSync(cand + '.js')) {
+            const base = cand.startsWith(baseAppFrontend) ? baseAppFrontend : localStoreBase;
+            if (base && isSafePath(cand, base)) {
+                if (fs.existsSync(cand) || 
+                    fs.existsSync(cand + '.tsx') || 
+                    fs.existsSync(cand + '.ts') || 
+                    fs.existsSync(cand + '.jsx') || 
+                    fs.existsSync(cand + '.js')) {
+                    filePath = cand;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!fs.existsSync(filePath)) {
+        const distCandidates = [
+            path.resolve(baseAppFrontend, 'dist', safeSuffix),
+            localStoreBase ? path.resolve(localStoreBase, 'dist', safeSuffix) : ''
+        ].filter(Boolean);
+        for (const cand of distCandidates) {
+            const base = cand.startsWith(baseAppFrontend) ? baseAppFrontend : localStoreBase;
+            if (base && isSafePath(cand, base) && fs.existsSync(cand)) {
                 filePath = cand;
                 break;
             }
         }
     }
 
-    // Fallback if requested without dist/ prefix but file exists in dist/
-    if (!fs.existsSync(filePath)) {
-        const distCandidates = [
-            path.join(RELAY_APPS_DIR, userId, appId, 'frontend', 'dist', safeSuffix),
-            path.join(__dirname, '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', 'dist', safeSuffix),
-            path.join(__dirname, '..', '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'frontend', 'dist', safeSuffix),
-            path.join(process.cwd(), '..', 'NetLink-NetStore', 'applications', appId, 'frontend', 'dist', safeSuffix)
-        ];
-        for (const cand of distCandidates) {
-            if (fs.existsSync(cand)) {
-                filePath = cand;
-                break;
-            }
-        }
+    if (!isSafePath(filePath, baseAppFrontend) && (!localStoreBase || !isSafePath(filePath, localStoreBase))) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('Forbidden');
+        return;
     }
 
     if (!fs.existsSync(filePath)) {
@@ -362,9 +426,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     if (path.basename(filePath) === 'index.html' && !fs.existsSync(filePath)) {
         const indexJsonCandidates = [
             path.join(RELAY_APPS_DIR, userId, appId, 'index.json'),
-            path.join(__dirname, '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'index.json'),
-            path.join(__dirname, '..', '..', '..', '..', '..', 'NetLink-NetStore', 'applications', appId, 'index.json'),
-            path.join(process.cwd(), '..', 'NetLink-NetStore', 'applications', appId, 'index.json')
+            resolveLocalNetStorePath('applications', appId, 'index.json')
         ];
         const indexJsonPath = indexJsonCandidates.find(p => fs.existsSync(p));
         if (indexJsonPath) {

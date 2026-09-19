@@ -73,8 +73,8 @@ export async function handleValidateTargetRoute(parsedUrl: URL, req: http.Incomi
 
         const mongoClient = getMongoClient();
         let userId = usernameParam || "";
-        let role = "admin";
-        let permissions: string[] = ["manage_users", "manage_logins", "access_terminal", "access_vnc", "access_sftp", "scan_network"];
+        let role = "node";
+        let permissions: string[] = [];
 
         if (mongoClient) {
             try {
@@ -84,15 +84,11 @@ export async function handleValidateTargetRoute(parsedUrl: URL, req: http.Incomi
                     });
                     if (user) {
                         userId = user.username;
-                        role = user.role || "user";
-                        permissions = user.permissions || [];
                     }
                 } else {
                     const user = await mongoClient.db("NetLink").collection("users").findOne({ targets: targetId });
                     if (user) {
                         userId = user.username;
-                        role = user.role || "user";
-                        permissions = user.permissions || [];
                     }
                 }
             } catch (e) {
@@ -101,9 +97,7 @@ export async function handleValidateTargetRoute(parsedUrl: URL, req: http.Incomi
         }
 
         if (!userId) {
-            userId = process.env.ADMIN_USERNAME || "admin";
-            role = "admin";
-            permissions = ["manage_users", "manage_logins", "access_terminal", "access_vnc", "access_sftp", "scan_network"];
+            userId = targetId;
         }
 
         const tokenPayload = {
@@ -200,6 +194,27 @@ export async function handleTicketRoute(req: http.IncomingMessage, res: http.Ser
                             reason: status.reason
                         }));
                         return;
+                    }
+
+                    if (decoded.role !== 'admin') {
+                        const mongo = getMongoClient();
+                        if (mongo) {
+                            mongo.db("NetLink").collection("users").findOne({ username: userId }).then((u) => {
+                                if (u && Array.isArray(u.targets) && u.targets.length > 0 && !u.targets.includes(target)) {
+                                    res.writeHead(403, { "Content-Type": "application/json" });
+                                    res.end(JSON.stringify({ error: "Forbidden: Not authorized for target" }));
+                                    return;
+                                }
+                                const ticket = generateTicket(userId, target, decoded.role, decoded.permissions);
+                                res.writeHead(200, { "Content-Type": "application/json" });
+                                res.end(JSON.stringify({ success: true, ticket }));
+                            }).catch(() => {
+                                const ticket = generateTicket(userId, target, decoded.role, decoded.permissions);
+                                res.writeHead(200, { "Content-Type": "application/json" });
+                                res.end(JSON.stringify({ success: true, ticket }));
+                            });
+                            return;
+                        }
                     }
                 }
 

@@ -73,14 +73,11 @@ export function createDeviceSession(
     deviceSessionStore.set(device_code, session);
     userCodeIndex.set(user_code, device_code);
 
-    // Build verification URIs (using frontend host)
-    const normalizedHost = reqHost.replace(/:\d+$/, "") || "localhost";
-    const port = reqHost.includes(":") ? reqHost.split(":")[1] : "";
-    // If request comes from backend (e.g. 4535), point to frontend dev port if local
-    const targetHost = reqHost;
+    const cleanHost = /^[a-zA-Z0-9.-]+(:[0-9]+)?$/.test(reqHost) ? reqHost : "localhost:5171";
+    const cleanProtocol = reqProtocol === "https" ? "https" : "http";
 
-    const verification_uri = `${reqProtocol}://${targetHost}/devices/authorize`;
-    const verification_uri_complete = `${reqProtocol}://${targetHost}/devices/authorize?code=${user_code}`;
+    const verification_uri = `${cleanProtocol}://${cleanHost}/devices/authorize`;
+    const verification_uri_complete = `${cleanProtocol}://${cleanHost}/devices/authorize?code=${user_code}`;
 
     return {
         device_code,

@@ -1,9 +1,9 @@
 import type React from 'react';
 import { Box, Typography } from '@mui/material';
 import { ShoppingBag } from 'lucide-react';
-import { type AppItem } from '../types';
+import type { AppItem } from '../types';
 import AppCard from './AppCard';
-import GeminiLoader from '../../../components/GeminiLoader';
+import NetLinkLoader from '../../../components/NetLinkLoader';
 
 export interface AppGridProps {
     apps: AppItem[];
@@ -35,7 +35,7 @@ export const AppGrid = ({
     if (isLoading) {
         return (
             <Box className="netstore-empty" sx={{ py: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                <GeminiLoader size={48} />
+                <NetLinkLoader size={48} />
             </Box>
         );
     }

@@ -18,10 +18,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { appRouter } from '../http/requestHandler.js';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
+import { RELAY_APPS_DIR } from '../paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const RELAY_APPS_DIR = path.join(__dirname, '..', 'NetStore', 'Applications');
 const PERMISSIONS_FILE = path.join(RELAY_APPS_DIR, 'permissions.json');
 
 export const pendingPermissionRequests = new Map<string, Map<string, any>>();
@@ -65,6 +65,10 @@ export function isCollectionGranted(appId: string, collection: string): boolean 
 }
 
 export function saveGrantedPermissions(perms: Record<string, any>) {
+    const dir = path.dirname(PERMISSIONS_FILE);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
     fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
 }
 
@@ -193,23 +197,19 @@ export function handleLocalServerConnection(
                     for (const app of message.backends) {
                         const appId = app.appId;
                         const userId = app.userId;
-                        if (!userId) continue;
+                        if (!userId || !appId || !/^[a-zA-Z0-9_-]+$/.test(userId) || !/^[a-zA-Z0-9_-]+$/.test(appId)) continue;
 
                         const absoluteRelayAppsDir = path.resolve(RELAY_APPS_DIR);
                         const appDir = path.resolve(RELAY_APPS_DIR, userId, appId);
                         
-                        // Security check: Ensure appDir is strictly within RELAY_APPS_DIR
                         if (!appDir.startsWith(absoluteRelayAppsDir + path.sep)) {
                             console.warn(`Security risk: Path traversal attempt with appId: ${appId} or userId: ${userId}`);
                             continue;
                         }
                         
                         const sandboxAppId = `${userId}_${appId}`;
-                        
-                        // Stop any running Deno sandbox on relay before replacing files
                         denoSandbox.stopApp(sandboxAppId);
 
-                        // Clean destination appDir on relay to remove any stale assets
                         if (fs.existsSync(appDir)) {
                             fs.rmSync(appDir, { recursive: true, force: true });
                         }
@@ -217,9 +217,9 @@ export function handleLocalServerConnection(
                         
                         const absoluteAppDir = path.resolve(appDir);
                         for (const fileData of app.files) {
+                            if (!fileData.path || fileData.path.includes('\0')) continue;
                             const filePath = path.resolve(appDir, fileData.path);
                             
-                            // Security check: Ensure filePath is strictly within appDir
                             if (!filePath.startsWith(absoluteAppDir + path.sep)) {
                                 console.warn(`Security risk: Path traversal attempt for path: ${fileData.path}`);
                                 continue;

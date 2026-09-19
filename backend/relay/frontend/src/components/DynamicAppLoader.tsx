@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Box } from '@mui/material';
-import GeminiLoader from './GeminiLoader';
+import NetLinkLoader from './NetLinkLoader';
 
 interface DynamicAppLoaderProps {
   appId: string;
@@ -126,7 +126,7 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
             transition: 'opacity 0.3s ease',
           }}
         >
-          <GeminiLoader size={48} />
+          <NetLinkLoader size={48} />
         </Box>
       )}
 

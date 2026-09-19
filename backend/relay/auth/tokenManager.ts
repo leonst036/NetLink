@@ -1,11 +1,13 @@
 import jwt from 'jsonwebtoken';
 
-export async function GenerateToken(payload: object, secretKey: string, options?: jwt.SignOptions) {
-    const token = jwt.sign(payload, secretKey, options);
-    return token;
+export function GenerateToken(payload: object, secretKey: string, options?: jwt.SignOptions): string {
+    return jwt.sign(payload, secretKey, options);
 }
 
-export async function VerifyToken(token: string, secretKey: string) {
-    const decoded = jwt.verify(token, secretKey);
-    return decoded;
+export function VerifyTokenSync(token: string, secretKey: string): any {
+    return jwt.verify(token, secretKey);
+}
+
+export async function VerifyToken(token: string, secretKey: string): Promise<any> {
+    return jwt.verify(token, secretKey);
 }

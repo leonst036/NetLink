@@ -1,3 +1,5 @@
+import net from 'node:net';
+
 export class MagicDnsRegistry {
     private records = new Map<string, string>();
     private deviceToDomains = new Map<string, Set<string>>();
@@ -14,8 +16,8 @@ export class MagicDnsRegistry {
 
         const domain = `${slug}.netlink`;
         const cleanIp = (ip || '').replace(/^::ffff:/, '');
+        if (!net.isIP(cleanIp)) return '';
 
-        // Clean up old IP reverse mapping if this domain had a different IP previously
         const oldIp = this.records.get(domain);
         if (oldIp && oldIp !== cleanIp && this.ipToDomain.get(oldIp) === domain) {
             this.ipToDomain.delete(oldIp);

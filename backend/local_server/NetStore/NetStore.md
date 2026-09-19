@@ -376,14 +376,14 @@ In your app's `frontend/package.json`, add `@netlink/ui`:
 
 * **`getAppTheme(themeName?: string)`**: Creates a tailored Material-UI theme matching NetLink's slate dark mode (`#020617` base, `#0f172a` paper, `#38bdf8` primary).
 * **`WindowLayout`**: Standardized window frame component with header bar, icon, title, action controls, and scrollable content body.
-* **`GeminiLoader`**: Animated pulsing gradient spinner for loading screens and asynchronous operations.
+* **`NetLinkLoader`**: Clean, sleek, high-tech orbital loading indicator for loading screens and asynchronous operations (also exported as `GeminiLoader` for backwards compatibility).
 
 ### 3. Usage Example
 
 ```tsx
 import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
-import { WindowLayout, GeminiLoader, getAppTheme } from '@netlink/ui';
+import { WindowLayout, NetLinkLoader, getAppTheme } from '@netlink/ui';
 import { Server, RefreshCw } from 'lucide-react';
 
 export default function MyApp() {
@@ -411,7 +411,7 @@ export default function MyApp() {
             >
                 {loading ? (
                     <div className="flex items-center justify-center h-full">
-                        <GeminiLoader />
+                        <NetLinkLoader />
                     </div>
                 ) : (
                     <div className="p-6 text-slate-100">

@@ -34,17 +34,6 @@ export class DenoSandbox {
         const port = await this.getAvailablePort();
         const denoCmd = fs.existsSync('/home/leon/.deno/bin/deno') ? '/home/leon/.deno/bin/deno' : 'deno';
 
-        const args = [
-            'run',
-            '--no-config',
-            '--allow-net',
-            `--allow-read=${appDir}`,
-            `--allow-write=${appDir}`,
-            '--allow-env',
-            ...extraFlags.filter(f => !f.startsWith('--allow-env') && !f.startsWith('--allow-net')),
-            entryFile
-        ];
-
         const cleanEnv: Record<string, string> = {
             PORT: port.toString(),
             HTTP_PORT: (process.env.HTTP_PORT || '4535').toString(),
@@ -56,7 +45,30 @@ export class DenoSandbox {
             TMPDIR: process.env.TMPDIR || '/tmp'
         };
 
-        // Spawn deno with restricted permissions
+        const hasNetFlag = extraFlags.some(f => f.startsWith('--allow-net'));
+        const hasEnvFlag = extraFlags.some(f => f.startsWith('--allow-env'));
+
+        const netFlags = hasNetFlag 
+            ? extraFlags.filter(f => f.startsWith('--allow-net'))
+            : [`--allow-net=0.0.0.0:${port},127.0.0.1:${port},localhost:${port},127.0.0.1:${cleanEnv.RELAY_PORT}`];
+
+        const envFlags = hasEnvFlag
+            ? extraFlags.filter(f => f.startsWith('--allow-env'))
+            : ['--allow-env=PORT,HTTP_PORT,RELAY_PORT,RELAY_HOST,SCAN_CIDR,PATH,HOME,TMPDIR'];
+
+        const otherFlags = extraFlags.filter(f => !f.startsWith('--allow-net') && !f.startsWith('--allow-env'));
+
+        const args = [
+            'run',
+            '--no-config',
+            `--allow-read=${appDir}`,
+            `--allow-write=${appDir}`,
+            ...netFlags,
+            ...envFlags,
+            ...otherFlags,
+            entryFile
+        ];
+
         const denoProcess = spawn(denoCmd, args, {
             env: cleanEnv
         });

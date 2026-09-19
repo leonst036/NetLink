@@ -24,7 +24,7 @@ import {
   ArrowRight,
   LogOut
 } from 'lucide-react';
-import GeminiLoader from './GeminiLoader';
+import NetLinkLoader from './NetLinkLoader';
 import { DevicePasswordDialog } from './DevicePasswordDialog';
 
 interface DeviceAuthorizeViewProps {
@@ -362,7 +362,7 @@ export const DeviceAuthorizeView: React.FC<DeviceAuthorizeViewProps> = ({
 
               {loginLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                  <GeminiLoader size={40} />
+                  <NetLinkLoader size={40} />
                 </Box>
               ) : (
                 <Button

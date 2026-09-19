@@ -9,7 +9,7 @@ import {
   ThemeProvider
 } from '@mui/material';
 import Desktop from './Desktop';
-import GeminiLoader from './components/GeminiLoader';
+import NetLinkLoader from './components/NetLinkLoader';
 import { DeviceAuthorizeView } from './components/DeviceAuthorizeView';
 import { getAppTheme } from './theme';
 import { getCookie, setCookie, deleteCookie, isJwtExpired, parseJwt } from './utils/cookieUtils';
@@ -45,8 +45,6 @@ function App() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loading, setLoading] = useState(false);
-  // const [isRegistering, setIsRegistering] = useState(false);
-  // const [registerSuccess, setRegisterSuccess] = useState('');
 
   const [target, setTarget] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -132,7 +130,6 @@ function App() {
 
     setLoading(true);
     setLoginError('');
-    // setRegisterSuccess('');
 
     try {
       const response = await fetch('/api/login', {
@@ -236,14 +233,6 @@ function App() {
               </Alert>
             )}
 
-            {/*
-            {registerSuccess && (
-              <Alert severity="success" sx={{ mb: 4, bgcolor: 'transparent', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#86efac', borderRadius: 0 }}>
-                {registerSuccess}
-              </Alert>
-            )}
-            */}
-
             <form className="form-container" onSubmit={handleLogin}>
               <TextField
                 className="styled-text-field"
@@ -255,22 +244,6 @@ function App() {
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
               />
-
-              {/*
-              {isRegistering && (
-                <TextField
-                  label="Email"
-                  type="email"
-                  variant="standard"
-                  fullWidth
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                  sx={textFieldSx}
-                />
-              )}
-              */}
 
               <TextField
                 className="styled-text-field"
@@ -286,7 +259,7 @@ function App() {
 
               {loading ? (
                 <Box className="loader-container">
-                  <GeminiLoader size={48} />
+                  <NetLinkLoader size={48} />
                 </Box>
               ) : (
                 <Button
@@ -301,38 +274,6 @@ function App() {
                 </Button>
               )}
             </form>
-
-            {/*
-            <Typography variant="body2" sx={{ mt: 6, color: 'rgba(255,255,255,0.4)', textAlign: 'center', fontFamily: "'Outfit', sans-serif" }}>
-              {isRegistering ? 'Already have an account?' : "Don't have an account?"}
-              <Link
-                component="button"
-                onClick={() => { setIsRegistering(!isRegistering); setLoginError(''); setRegisterSuccess(''); }}
-                sx={{
-                  ml: 1, color: '#fff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.3)',
-                  transition: 'border-color 0.2s', '&:hover': { borderBottom: '1px solid #fff' }
-                }}
-              >
-                {isRegistering ? 'Sign in' : 'Sign up'}
-              </Link>
-            </Typography>
-            */}
-
-            {/*
-            {isRegistering && (
-              <Box sx={{ mt: 6, pt: 4, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', mb: 2, fontFamily: "'Outfit', sans-serif" }}>
-                  Deploy Node
-                </Typography>
-                <Box component="code" sx={{
-                  bgcolor: 'rgba(255,255,255,0.03)', p: 2, borderRadius: 0, border: '1px solid rgba(255,255,255,0.1)',
-                  display: 'block', wordBreak: 'break-all', fontFamily: "'Fira Code', monospace", fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)'
-                }}>
-                  curl -ks {window.location.origin}/api/install.sh | bash
-                </Box>
-              </Box>
-            )}
-            */}
           </Box>
         </Box>
       </Box>

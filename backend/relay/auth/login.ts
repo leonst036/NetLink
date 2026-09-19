@@ -75,10 +75,6 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
         isAuthenticated = true;
         userRole = 'admin';
         userPermissions = ['manage_users', 'manage_logins', 'access_terminal', 'access_vnc', 'access_sftp', 'scan_network'];
-    } else if (username === 'testuser2' && password === 'password123') {
-        isAuthenticated = true;
-        userRole = 'user';
-        userPermissions = [];
     } else {
         const client = getMongoClient();
         if (client) {
@@ -89,8 +85,7 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
                     isAuthenticated = true;
                     userRole = user.role || 'user';
                     userPermissions = user.permissions || [];
-                    
-                    // Save target to user if provided
+
                     if (target) {
                         await client.db("NetLink").collection("users").updateOne(
                             { _id: user._id },

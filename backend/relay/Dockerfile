@@ -9,9 +9,9 @@ COPY package*.json ./
 # Install all dependencies (including devDependencies like typescript)
 RUN npm ci
 
-# Copy tsconfig and source directories
 COPY tsconfig.json ./
 COPY main.ts ./
+COPY paths.ts ./
 COPY auth/ ./auth/
 COPY database/ ./database/
 COPY websocket/ ./websocket/

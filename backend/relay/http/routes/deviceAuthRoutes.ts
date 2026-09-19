@@ -51,7 +51,8 @@ export async function handleDeviceCodeRoute(
         const deviceName = body.device_name || "netconnect-device";
         const clientType = body.client_type || "netconnect-desktop";
 
-        const reqHost = req.headers.host || "localhost:5171";
+        const rawHost = req.headers.host || "localhost:5171";
+        const reqHost = /^[a-zA-Z0-9.-]+(:[0-9]+)?$/.test(rawHost) ? rawHost : "localhost:5171";
         const protocol = (req.headers["x-forwarded-proto"] as string) || (process.env.USE_SSL === "true" ? "https" : "http");
 
         const session = createDeviceSession(deviceName, clientType, reqHost, protocol);
@@ -253,10 +254,6 @@ export async function handleDeviceApproveRoute(
             isPasswordValid = true;
             role = "admin";
             permissions = ["manage_users", "manage_logins", "access_terminal", "access_vnc", "access_sftp", "scan_network"];
-        } else if (username === "testuser2" && password === "password123") {
-            isPasswordValid = true;
-            role = "user";
-            permissions = [];
         } else if (mongoClient) {
             try {
                 const { CheckUser } = await import("../../database/MongoManager.js");

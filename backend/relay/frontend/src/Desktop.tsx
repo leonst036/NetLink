@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import Window from './Window';
 import TopBar from './components/TopBar';
 import Dock from './components/Dock';
-import GeminiLoader from './components/GeminiLoader';
+import NetLinkLoader from './components/NetLinkLoader';
 import AppIcon from './components/AppIcon';
 import { StoreIcon, ShieldAlert } from 'lucide-react';
 import { Box, Alert, Typography, Button } from '@mui/material';
@@ -11,7 +11,7 @@ import './Desktop.css';
 import { useWindowStore } from './store/useWindowStore';
 import { useNotificationStore } from './store/useNotificationStore';
 
-// Lazy loaded desktop applications for optimal code-splitting and small initial bundle size
+// Lazy-loaded apps
 const NetStoreApp = lazy(() => import('./apps/net-store/NetStoreApp'));
 const DynamicAppLoader = lazy(() => import('./components/DynamicAppLoader'));
 
@@ -311,7 +311,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultPosition={{ x: 120, y: 120 }}
                         defaultSize={{ width: 800, height: 550 }}
                     >
-                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
+                        <Suspense fallback={<Box className="loader-wrapper"><NetLinkLoader /></Box>}>
                             <NetStoreApp token={token} target={target} />
                         </Suspense>
                     </Window>
@@ -336,7 +336,7 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
                         defaultPosition={{ x: 300, y: 150 }}
                         defaultSize={{ width: 800, height: 600 }}
                     >
-                        <Suspense fallback={<Box className="loader-wrapper"><GeminiLoader /></Box>}>
+                        <Suspense fallback={<Box className="loader-wrapper"><NetLinkLoader /></Box>}>
                             <DynamicAppLoader 
                                 appId={dyn.appId} 
                                 token={token} 

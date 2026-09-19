@@ -9,7 +9,7 @@ export interface TicketData {
 }
 
 const ticketStore = new Map<string, TicketData>();
-const TICKET_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours for active app sessions
+const TICKET_TTL_MS = 24 * 60 * 60 * 1000;
 
 export function generateTicket(userId: string, target: string, role?: string, permissions?: string[]): string {
     const ticket = crypto.randomUUID();
@@ -24,6 +24,7 @@ export function generateTicket(userId: string, target: string, role?: string, pe
 }
 
 export function consumeTicket(ticket: string): TicketData | null {
+    if (!ticket || typeof ticket !== 'string') return null;
     const data = ticketStore.get(ticket);
     if (!data) return null;
 

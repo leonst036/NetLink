@@ -35,7 +35,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
       }
       const saved = localStorage.getItem('netstore_selected_branch');
       if (saved === 'main' || saved === 'dev' || saved === 'local-debug') return saved;
-    } catch (e) { }
+    } catch { }
     return 'main';
   });
 
@@ -48,7 +48,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
         url.searchParams.set('branch', selectedBranch);
         window.history.replaceState({}, '', url.toString());
       }
-    } catch (e) { }
+    } catch { }
   }, [selectedBranch]);
 
   const [debugStoreUrl, setDebugStoreUrl] = useState<string>(() => {
@@ -62,7 +62,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   useEffect(() => {
     try {
       localStorage.setItem('netstore_debug_url', debugStoreUrl);
-    } catch (e) { }
+    } catch { }
   }, [debugStoreUrl]);
 
   const [debugConnected, setDebugConnected] = useState<boolean | null>(null);
@@ -78,7 +78,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
   useEffect(() => {
     try {
       localStorage.setItem('netstore_local_branch', selectedLocalBranch);
-    } catch (e) { }
+    } catch { }
   }, [selectedLocalBranch]);
 
   const [installedVersions, setInstalledVersions] = useState<Record<string, string>>({});

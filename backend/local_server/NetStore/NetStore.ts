@@ -334,34 +334,31 @@ export async function installApplication(
     runInBackground: boolean = false,
     customStoreUrl?: string
 ) {
-    if (!userId) {
-        throw new Error('userId is required to install an application');
+    if (!userId || !appId || !/^[a-zA-Z0-9_-]+$/.test(userId) || !/^[a-zA-Z0-9_-]+$/.test(appId)) {
+        throw new Error('Invalid appId or userId');
     }
     try {
-        console.log(`Starting installation of application ${appId} from branch ${branch} for user ${userId} (customStoreUrl: ${customStoreUrl || 'none'})...`);
-
         const sandboxAppId = `${userId}_${appId}`;
         denoSandbox.stopApp(sandboxAppId);
 
-        const appDir = path.join(NET_STORE_DIR, userId, appId);
+        const appDir = path.resolve(NET_STORE_DIR, userId, appId);
+        const absoluteNetStoreDir = path.resolve(NET_STORE_DIR);
+        if (!appDir.startsWith(absoluteNetStoreDir + path.sep)) {
+            throw new Error('Invalid application path');
+        }
 
-        // Wipe destination appDir if it exists to clean out stale files
         if (fs.existsSync(appDir)) {
             fs.rmSync(appDir, { recursive: true, force: true });
         }
         fs.mkdirSync(appDir, { recursive: true });
 
-        // If a custom store URL (like Docker debug server) is specified, use it directly
         const storeBaseUrl = customStoreUrl || process.env.LOCAL_NETSTORE_URL || '';
 
         if (!storeBaseUrl) {
-            // Check if application exists in local dev workspace directly if no custom store URL
             const localDevAppDir = resolveLocalNetStorePath(__dirname, 'applications', appId);
             if (fs.existsSync(localDevAppDir) && (branch === 'main' || branch === 'workspace' || branch === 'local-debug')) {
-                console.log(`Installing ${appId} from local workspace (${localDevAppDir})...`);
                 fs.cpSync(localDevAppDir, appDir, { recursive: true });
                 await StartLocalApps(userId, true);
-                console.log(`Successfully installed local application: ${appId}`);
                 return;
             }
         }
@@ -375,7 +372,6 @@ export async function installApplication(
             treeUrl = `${cleanBase}/repos/leonst036/NetStore/git/trees/${branch}?recursive=1`;
             getRawUrl = (filePath: string) => `${cleanBase}/refs/heads/${branch}/${filePath}`;
             headers = { 'User-Agent': 'NetLink-LocalServer-Debug' };
-            console.log(`[NetStore Debug] Fetching tree from local store: ${treeUrl}`);
         }
 
         const treeRes = await fetch(treeUrl, { headers });
@@ -396,18 +392,21 @@ export async function installApplication(
             throw new Error(`Application ${appId} not found or has no files on store branch/channel ${branch}`);
         }
 
-        // Fetch each file
         for (const fileNode of appFiles) {
             const rawUrl = getRawUrl(fileNode.path);
             const relativePath = fileNode.path.substring(appPrefix.length);
-            const localPath = path.join(appDir, relativePath);
+            if (relativePath.includes('\0')) continue;
+
+            const localPath = path.resolve(appDir, relativePath);
+            if (!localPath.startsWith(appDir + path.sep)) {
+                throw new Error(`Path traversal detected in application package: ${fileNode.path}`);
+            }
 
             const fileDir = path.dirname(localPath);
             if (!fs.existsSync(fileDir)) {
                 fs.mkdirSync(fileDir, { recursive: true });
             }
 
-            console.log(`Downloading ${fileNode.path} from ${rawUrl}...`);
             const fileRes = await fetch(rawUrl, { headers });
             if (!fileRes.ok) throw new Error(`Failed to fetch ${fileNode.path} (${fileRes.status})`);
 
@@ -415,9 +414,6 @@ export async function installApplication(
             fs.writeFileSync(localPath, Buffer.from(buffer));
         }
 
-        console.log(`Successfully installed application: ${appId}`);
-
-        // Update index.json with runInBackground flag and calculated size
         const indexPath = path.join(appDir, 'index.json');
         if (fs.existsSync(indexPath)) {
             try {
@@ -438,22 +434,23 @@ export async function installApplication(
 }
 
 export async function uninstallApplication(appId: string, userId?: string) {
-    if (!userId) {
-        throw new Error('userId is required to uninstall an application');
+    if (!userId || !appId || !/^[a-zA-Z0-9_-]+$/.test(userId) || !/^[a-zA-Z0-9_-]+$/.test(appId)) {
+        throw new Error('Invalid appId or userId');
     }
     try {
-        console.log(`Starting uninstallation of application ${appId} for user ${userId}...`);
-
         const sandboxAppId = `${userId}_${appId}`;
         denoSandbox.stopApp(sandboxAppId);
 
-        const appDir = path.join(NET_STORE_DIR, userId, appId);
-        if (fs.existsSync(appDir)) {
-            fs.rmSync(appDir, { recursive: true, force: true });
-            console.log(`Removed directory for application ${appId}`);
+        const appDir = path.resolve(NET_STORE_DIR, userId, appId);
+        const absoluteNetStoreDir = path.resolve(NET_STORE_DIR);
+        if (!appDir.startsWith(absoluteNetStoreDir + path.sep)) {
+            throw new Error('Invalid application directory');
         }
 
-        // Clear granted permissions for this app
+        if (fs.existsSync(appDir)) {
+            fs.rmSync(appDir, { recursive: true, force: true });
+        }
+
         try {
             const perms = getGrantedPermissions();
             if (perms[appId]) {

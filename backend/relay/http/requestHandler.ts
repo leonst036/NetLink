@@ -21,7 +21,9 @@ import { fileURLToPath } from 'url';
 import { Router } from './Router.js';
 import httpProxy from 'http-proxy';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
+import { VerifyTokenSync } from '../auth/tokenManager.js';
 import { consumeTicket } from '../auth/ticketManager.js';
+import { resolveLocalNetStorePath } from '../paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -125,11 +127,9 @@ appRouter.all('/api/dns/records', (req, res, parsedUrl) => handleMagicDnsRoutes(
 export function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
     const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
-    // Check if it's a proxied app request: /api/<appId>/...
     const match = parsedUrl.pathname.match(/^\/api\/([^\/]+)(?:\/|$)/);
     if (match) {
         const appId = match[1] as string;
-        // Exclude system api routes like login, register, servers etc.
         const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'tunnels', 'netconnect', 'dns'];
         if (!systemRoutes.includes(appId)) {
             let userId = 'unknown';
@@ -139,7 +139,6 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
                 const authHeader = req.headers.authorization || '';
                 const ticketParam = parsedUrl.searchParams.get('ticket');
 
-                // 1. Check Ticket authentication first
                 if (authHeader.startsWith('Ticket ') || ticketParam) {
                     const ticketId = authHeader.startsWith('Ticket ') ? authHeader.substring(7).trim() : (ticketParam || '');
                     if (ticketId) {
@@ -150,57 +149,63 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
                     }
                 }
 
-                // 2. Fallback to JWT token parsing
                 if (userId === 'unknown') {
                     const token = matchToken ? matchToken[1] : (authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : (authHeader.split(' ')[1] || parsedUrl.searchParams.get('token')));
                     if (token) {
-                        const parts = token.split('.');
-                        if (parts.length >= 2 && parts[1]) {
-                            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-                            if (payload && (payload.userId || payload.deviceId)) {
-                                userId = payload.userId || payload.deviceId;
+                        try {
+                            const decoded = VerifyTokenSync(token, process.env.JWT_SECRET || 'default_secret');
+                            if (decoded && (decoded.userId || decoded.deviceId)) {
+                                userId = decoded.userId || decoded.deviceId;
                             }
-                        }
+                        } catch {}
                     }
                 }
             } catch (e) {
-                // Ignore parse errors, will just fail to route
             }
 
-            const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId) || denoSandbox.getApp(`admin_${appId}`);
-            if (app) {
-                proxy.web(req, res, { target: `http://localhost:${app.port}` });
-                return;
+            if (userId !== 'unknown') {
+                const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId) || (userId === 'admin' ? denoSandbox.getApp(`admin_${appId}`) : undefined);
+                if (app) {
+                    proxy.web(req, res, { target: `http://localhost:${app.port}` });
+                    return;
+                }
             }
         }
     }
 
-    // First, try to handle the request with the dynamic router
     const handled = appRouter.handle(req, res, parsedUrl);
 
-    // If no route matched, fallback to static file serving
     if (!handled) {
         const pathname = parsedUrl.pathname;
         if (pathname.startsWith('/built-in-apps/')) {
-            const filePath = pathname.replace('/built-in-apps/', '');
-            // Resolve applications directory in both dev (source) and dist modes
-            const candidates = [
-                path.join(__dirname, '..', '..', '..', '..', 'NetLink-NetStore', 'applications'),
-                path.join(__dirname, '..', '..', '..', '..', '..', 'NetLink-NetStore', 'applications'),
-                path.join(process.cwd(), '..', 'NetLink-NetStore', 'applications')
-            ];
-            let applicationsDir: string = candidates[0] || '';
-            for (const cand of candidates) {
-                if (fs.existsSync(cand)) {
-                    applicationsDir = cand;
-                    break;
-                }
+            const rawFilePath = pathname.replace('/built-in-apps/', '');
+            let decodedFilePath = '';
+            try {
+                decodedFilePath = decodeURIComponent(rawFilePath);
+            } catch {
+                res.writeHead(400, { 'Content-Type': 'text/plain' });
+                res.end('Bad Request');
+                return;
+            }
+            if (decodedFilePath.includes('\0')) {
+                res.writeHead(400, { 'Content-Type': 'text/plain' });
+                res.end('Bad Request');
+                return;
             }
 
-            const absolutePath = path.join(applicationsDir, filePath);
+            const applicationsDir = resolveLocalNetStorePath('applications');
+            if (!applicationsDir) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Not found');
+                return;
+            }
 
-            if (!absolutePath.startsWith(applicationsDir)) {
-                res.writeHead(403);
+            const absoluteAppsDir = path.resolve(applicationsDir);
+            const safeSuffix = path.normalize(decodedFilePath).replace(/^(\.\.[\/\\])+/, '').replace(/^[/\\]+/, '');
+            const absolutePath = path.resolve(absoluteAppsDir, safeSuffix);
+
+            if (!absolutePath.startsWith(absoluteAppsDir + path.sep) && absolutePath !== absoluteAppsDir) {
+                res.writeHead(403, { 'Content-Type': 'text/plain' });
                 res.end('Forbidden');
                 return;
             }

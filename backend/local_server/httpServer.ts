@@ -3,7 +3,7 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import dotenv from "dotenv";
 import httpProxy from "http-proxy";
 import { denoSandbox } from "./sandbox/DenoSandbox.js";
@@ -15,13 +15,16 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 
 function ensureCertificates(keyPath: string, certPath: string): void {
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
-        console.log("SSL certificate or key not found. Attempting to generate self-signed certificate using openssl...");
         try {
-            execSync(`openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -sha256 -days 365 -nodes -subj "/CN=localhost"`, { stdio: "inherit" });
-            console.log("Self-signed certificate generated successfully.");
+            execFileSync("openssl", [
+                "req", "-x509", "-newkey", "rsa:2048",
+                "-keyout", keyPath,
+                "-out", certPath,
+                "-sha256", "-days", "365", "-nodes",
+                "-subj", "/CN=localhost"
+            ], { stdio: "inherit" });
         } catch (error: any) {
-            console.error("Failed to generate self-signed certificates using openssl. Please ensure openssl is installed and in your PATH, or generate them manually.");
-            console.error(error.message);
+            console.error("Failed to generate SSL certificates:", error.message);
             throw new Error("SSL certificates missing and could not be auto-generated.");
         }
     }

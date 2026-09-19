@@ -31,7 +31,13 @@ export const handleMainConnection = async (
                 if (!ticketData) {
                     throw new Error('Invalid or expired ticket');
                 }
-                decodedPayload = { userId: ticketData.userId, deviceId: ticketData.target || ticketData.userId };
+                decodedPayload = {
+                    userId: ticketData.userId,
+                    deviceId: ticketData.target || ticketData.userId,
+                    target: ticketData.target,
+                    role: ticketData.role || (ticketData.userId === 'admin' ? 'admin' : 'user'),
+                    permissions: ticketData.permissions || []
+                };
             } else {
                 decodedPayload = await authenticateToken(token, mongoClient);
             }
@@ -41,7 +47,6 @@ export const handleMainConnection = async (
             return;
         }
 
-        // Extract identifier from the token payload (fallback to token itself)
         const rawToken = token?.value || '';
         const identifier = decodedPayload?.deviceId || decodedPayload?.userId || decodedPayload?.sub || rawToken;
 
@@ -49,7 +54,13 @@ export const handleMainConnection = async (
 
         if (pathname === '/netconnect/stream') {
             const destIP = reqUrl.searchParams.get('destIP') || '127.0.0.1';
-            const destPort = reqUrl.searchParams.get('destPort') || '80';
+            const destPortStr = reqUrl.searchParams.get('destPort') || '80';
+            const destPort = parseInt(destPortStr, 10);
+            if (isNaN(destPort) || destPort < 1 || destPort > 65535) {
+                ws.close(1008, 'Invalid destination port');
+                return;
+            }
+
             const targetId = target || 'local-server';
 
             let controlWs = controlConnections.get(targetId);
@@ -71,7 +82,7 @@ export const handleMainConnection = async (
                 type: 'init_lan_stream',
                 sessionId: streamSessionId,
                 destIP,
-                destPort: parseInt(destPort, 10)
+                destPort
             }));
 
             const timeoutId = setTimeout(() => {
@@ -88,27 +99,32 @@ export const handleMainConnection = async (
             });
             return;
         } else if (pathname === '/connect') {
+            if (decodedPayload?.role === 'user' && !decodedPayload?.deviceId) {
+                ws.close(1008, 'Forbidden: User tokens cannot register local server control connections');
+                return;
+            }
             const reqIp = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || '127.0.0.1';
             handleLocalServerConnection(ws, identifier, rawToken, sessionId, decodedPayload, reqIp);
         } else if (pathname === '/client') {
-            const targetId = target || identifier; // If target is not specified, assume target is the token/identifier itself
+            const targetId = target || identifier;
             handleClientConnection(ws, identifier, targetId, sessionId);
         } else if (pathname === '/desktop') {
             const targetId = target || identifier;
             handleDesktopConnection(ws, targetId);
         } else if (appRouter.handleWs(ws, req, reqUrl)) {
-            // WS connection was successfully routed to an app router
             return;
         } else {
-            // Check if it's a proxied app request: /api/<appId>/...
             const match = pathname.match(/^\/api\/([^\/]+)(?:\/|$)/);
             if (match) {
                 const appId = match[1] as string;
-                const userId = decodedPayload?.userId || decodedPayload?.sub || identifier || 'admin';
-                const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId);
+                const userId = decodedPayload?.userId || decodedPayload?.sub || identifier;
+                if (!userId) {
+                    ws.close(1008, 'Unauthorized');
+                    return;
+                }
+                const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId) || (decodedPayload?.role === 'admin' ? denoSandbox.getApp(`admin_${appId}`) : undefined);
                 const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps'];
                 if (app && !systemRoutes.includes(appId)) {
-                    // Bridge websocket to Deno
                     const targetUrl = `ws://localhost:${app.port}${req.url}`;
                     const targetWs = new WsClient(targetUrl, {
                         headers: {

@@ -7,10 +7,10 @@ import { sendApplicationJson } from '../../NetStore/NetStore.js';
 import { extractTokenFromRequest, authenticateToken } from '../../auth/authenticator.js';
 import { getMongoClient } from '../../database/MongoManager.js';
 import { FetchApplicationCatalog } from '../../NetStore/FetchApplications.js';
+import { RELAY_APPS_DIR } from '../../paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const RELAY_APPS_DIR = path.join(__dirname, '..', '..', 'NetStore', 'Applications');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || null;
 
 // Route handler for NetStore applications
@@ -63,9 +63,9 @@ export async function handleInstallApplicationRoute(parsedUrl: URL, req: http.In
                     }
                 }
 
-                if (!appId || !effectiveTarget) {
+                if (!appId || !effectiveTarget || !/^[a-zA-Z0-9_-]+$/.test(appId) || !/^[a-zA-Z0-9_-]+$/.test(userId)) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Missing appId or target' }));
+                    res.end(JSON.stringify({ error: 'Missing or invalid appId, userId, or target' }));
                     return;
                 }
 
@@ -154,13 +154,13 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
                     }
                 }
 
-                if (!appId || !effectiveTarget) {
+                if (!appId || !effectiveTarget || !/^[a-zA-Z0-9_-]+$/.test(appId) || !/^[a-zA-Z0-9_-]+$/.test(userId)) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Missing appId or target' }));
+                    res.end(JSON.stringify({ error: 'Missing or invalid appId, userId, or target' }));
                     return;
                 }
 
-                const targetWs = controlConnections.get(target);
+                const targetWs = controlConnections.get(effectiveTarget);
                 if (!targetWs || targetWs.readyState !== 1 /* WebSocket.OPEN */) {
                     res.writeHead(404, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Target local server not found or offline' }));
