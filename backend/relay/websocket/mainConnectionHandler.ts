@@ -75,6 +75,8 @@ export const handleMainConnection = async (
             }
 
             const streamSessionId = crypto.randomUUID();
+            (ws as any).isBinaryStream = true;
+            (ws as any).skipCredentialsHandshake = true;
             pendingSessions.set(streamSessionId, ws);
             console.log(`[NetConnect] Forwarding stream request to local server for ${destIP}:${destPort} (Session: ${streamSessionId})`);
 
