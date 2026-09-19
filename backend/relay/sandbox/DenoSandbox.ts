@@ -45,27 +45,14 @@ export class DenoSandbox {
             TMPDIR: process.env.TMPDIR || '/tmp'
         };
 
-        const hasNetFlag = extraFlags.some(f => f.startsWith('--allow-net'));
-        const hasEnvFlag = extraFlags.some(f => f.startsWith('--allow-env'));
-
-        const netFlags = hasNetFlag 
-            ? extraFlags.filter(f => f.startsWith('--allow-net'))
-            : [`--allow-net=0.0.0.0:${port},127.0.0.1:${port},localhost:${port},127.0.0.1:${cleanEnv.RELAY_PORT}`];
-
-        const envFlags = hasEnvFlag
-            ? extraFlags.filter(f => f.startsWith('--allow-env'))
-            : ['--allow-env=PORT,HTTP_PORT,RELAY_PORT,RELAY_HOST,SCAN_CIDR,PATH,HOME,TMPDIR'];
-
-        const otherFlags = extraFlags.filter(f => !f.startsWith('--allow-net') && !f.startsWith('--allow-env'));
-
         const args = [
             'run',
             '--no-config',
+            '--allow-net',
             `--allow-read=${appDir}`,
             `--allow-write=${appDir}`,
-            ...netFlags,
-            ...envFlags,
-            ...otherFlags,
+            '--allow-env',
+            ...extraFlags.filter(f => !f.startsWith('--allow-env') && !f.startsWith('--allow-net')),
             entryFile
         ];
 

@@ -330,16 +330,24 @@ export function handleLocalServerConnection(
                                 }
                             }
 
-                            if (Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.length > 0 && appGranted.allowEnv) {
-                                const allowedEnvVars = requestedPerms.allowEnv.filter((v: string) => appGranted.allowEnv.includes(v));
-                                if (allowedEnvVars.length > 0) {
-                                    extraFlags.push(`--allow-env=PORT,${allowedEnvVars.join(',')}`);
+                            if (requestedPerms.allowEnv && appGranted.allowEnv) {
+                                if (Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.length > 0) {
+                                    const allowedEnvVars = requestedPerms.allowEnv.filter((v: string) => Array.isArray(appGranted.allowEnv) ? appGranted.allowEnv.includes(v) : true);
+                                    if (allowedEnvVars.length > 0) {
+                                        extraFlags.push(`--allow-env=PORT,${allowedEnvVars.join(',')}`);
+                                    } else {
+                                        extraFlags.push('--allow-env');
+                                    }
+                                } else {
+                                    extraFlags.push('--allow-env');
                                 }
                             }
 
                             if (requestedPerms.allowNet && appGranted.allowNet) {
                                 if (Array.isArray(requestedPerms.allowNet) && requestedPerms.allowNet.length > 0) {
                                     extraFlags.push(`--allow-net=${requestedPerms.allowNet.join(',')}`);
+                                } else {
+                                    extraFlags.push('--allow-net');
                                 }
                             }
                             
