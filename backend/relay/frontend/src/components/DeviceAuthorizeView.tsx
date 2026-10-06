@@ -29,7 +29,7 @@ import { DevicePasswordDialog } from './DevicePasswordDialog';
 
 interface DeviceAuthorizeViewProps {
   token: string | null;
-  onLogin: (token: string, targets: string[]) => void;
+  onLogin?: (token: string, targets: string[]) => void;
   onLogout: () => void;
 }
 
@@ -46,7 +46,6 @@ interface SessionData {
 
 export const DeviceAuthorizeView: React.FC<DeviceAuthorizeViewProps> = ({
   token,
-  onLogin,
   onLogout,
 }) => {
   const [code, setCode] = useState<string>(() => {
@@ -64,10 +63,14 @@ export const DeviceAuthorizeView: React.FC<DeviceAuthorizeViewProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
+
+  // Redirect to main login page if not authenticated
+  useEffect(() => {
+    if (!token) {
+      const returnUrl = window.location.pathname + window.location.search;
+      window.location.href = `/?redirect=${encodeURIComponent(returnUrl)}`;
+    }
+  }, [token]);
 
   const fetchSession = useCallback(async (codeToFetch: string) => {
     if (!codeToFetch.trim()) return;
@@ -127,30 +130,6 @@ export const DeviceAuthorizeView: React.FC<DeviceAuthorizeViewProps> = ({
     return () => clearInterval(timer);
   }, [timeLeft, actionResult]);
 
-  const handleInlineLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loginUsername || !loginPassword) return;
-
-    setLoginLoading(true);
-    setLoginError('');
-
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Login failed');
-
-      onLogin(data.token, data.targets || []);
-    } catch (err: any) {
-      setLoginError(err.message || 'Invalid credentials');
-    } finally {
-      setLoginLoading(false);
-    }
-  };
 
     const handleDecision = async (decision: 'approve' | 'deny') => {
     if (!session || !token) return;
@@ -239,6 +218,23 @@ export const DeviceAuthorizeView: React.FC<DeviceAuthorizeViewProps> = ({
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  if (!token) {
+    return (
+      <Box sx={{
+        minHeight: '100vh',
+        width: '100vw',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'radial-gradient(ellipse at top, #09132b 0%, #020617 70%, #000000 100%)',
+        color: '#fff',
+        fontFamily: '"Outfit", sans-serif'
+      }}>
+        <NetLinkLoader size={48} />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{
       minHeight: '100vh',
@@ -322,68 +318,8 @@ export const DeviceAuthorizeView: React.FC<DeviceAuthorizeViewProps> = ({
             </Button>
           )}
         </Box>
-        {!token ? (
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 600, mb: 1, color: '#fff' }}>
-              Device Authorization
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 3 }}>
-              Sign in to your NetLink account to link and authorize this device.
-            </Typography>
 
-            {loginError && (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                {loginError}
-              </Alert>
-            )}
-
-            <form onSubmit={handleInlineLogin}>
-              <TextField
-                label="Username"
-                variant="outlined"
-                fullWidth
-                required
-                value={loginUsername}
-                onChange={e => setLoginUsername(e.target.value)}
-                sx={{ mb: 2.5 }}
-                disabled={loginLoading}
-              />
-              <TextField
-                label="Password"
-                type="password"
-                variant="outlined"
-                fullWidth
-                required
-                value={loginPassword}
-                onChange={e => setLoginPassword(e.target.value)}
-                sx={{ mb: 3 }}
-                disabled={loginLoading}
-              />
-
-              {loginLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                  <NetLinkLoader size={40} />
-                </Box>
-              ) : (
-                <Button
-                  type="submit"
-                  variant="contained"
-                  fullWidth
-                  sx={{
-                    py: 1.5,
-                    background: 'linear-gradient(135deg, #38bdf8 0%, #2563eb 100%)',
-                    color: '#fff',
-                    fontWeight: 600,
-                    fontSize: '1rem',
-                    boxShadow: '0 4px 15px rgba(56, 189, 248, 0.3)'
-                  }}
-                >
-                  Sign in & Continue
-                </Button>
-              )}
-            </form>
-          </Box>
-        ) : actionResult === 'approved' ? (
+        {actionResult === 'approved' ? (
           <Box sx={{ textAlign: 'center', py: 2 }}>
             <Box sx={{
               width: 72,

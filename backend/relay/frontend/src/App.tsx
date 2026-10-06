@@ -124,6 +124,17 @@ function App() {
     };
   }, [handleLogout]);
 
+  // Redirect to requested page if already authenticated
+  useEffect(() => {
+    if (token && window.location.pathname === '/') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect');
+      if (redirectUrl && redirectUrl.startsWith('/')) {
+        window.location.href = redirectUrl;
+      }
+    }
+  }, [token]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
@@ -153,6 +164,13 @@ function App() {
       localStorage.setItem('netlink_allowed_targets', JSON.stringify(data.targets || []));
       setAllowedTargets(data.targets || []);
       setToken(data.token);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect');
+      if (redirectUrl && redirectUrl.startsWith('/')) {
+        window.location.href = redirectUrl;
+        return;
+      }
     } catch (err: any) {
       setLoginError(err.message || 'Something went wrong');
     } finally {
@@ -166,20 +184,17 @@ function App() {
   );
 
   if (isDeviceAuthorizeRoute) {
+    if (!token) {
+      const returnUrl = window.location.pathname + window.location.search;
+      window.location.href = `/?redirect=${encodeURIComponent(returnUrl)}`;
+      return null;
+    }
+
     return (
       <ThemeProvider theme={getAppTheme('Dark')}>
         <CssBaseline />
         <DeviceAuthorizeView
           token={token}
-          onLogin={(newToken, newTargets) => {
-            setCookie('netlink_token', newToken, 1);
-            localStorage.setItem('netlink_token', newToken);
-            if (newTargets && newTargets.length > 0) {
-              setAllowedTargets(newTargets);
-              localStorage.setItem('netlink_allowed_targets', JSON.stringify(newTargets));
-            }
-            setToken(newToken);
-          }}
           onLogout={handleLogout}
         />
       </ThemeProvider>

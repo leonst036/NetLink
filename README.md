@@ -100,6 +100,7 @@ Here are all the ways you can configure both servers. You can put these in a `.e
 | `SSL_CERT_PATH`| `cert.pem`| Path to the SSL cert (if `USE_SSL` is true). |
 | `FRONTEND_PATH`| *(auto)* | Path to the compiled frontend files. Usually auto-detects `frontend/dist`. |
 | `GITHUB_TOKEN`| *empty* | Token for github api (without it you have a rate limit from 60 requests per hour) |
+| `LOG_LEVEL`| 2 | Level of logging for the relay server. Options: 1  Errors, 2 - Warnings, 3 - Info, 4 - Debug 5 - Everything |
 
 ### Local Server Variables (`backend/local_server`)
 | Variable | Default | What it does |
@@ -114,6 +115,7 @@ Here are all the ways you can configure both servers. You can put these in a `.e
 | `DEMO_TIMEOUT` | *(empty)* | Timeout in seconds before killing demo connections. |
 | `SSL_KEY_PATH` | `key.pem` | Path for the local server's internal HTTPS API key. |
 | `SSL_CERT_PATH`| `cert.pem`| Path for the local server's internal HTTPS API cert. |
+| `LOG_LEVEL`| 2 | Level of logging for the local server. Options: 1  Errors, 2 - Warnings, 3 - Info, 4 - Debug 5 - Everything |
 
 ---
 
