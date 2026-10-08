@@ -8,9 +8,11 @@
 .topbar-toolbar {
     justify-content: space-between;
     min-height: 32px !important;
+    height: 32px !important;
+    padding: 0 16px !important;
 }
 
-.topbar-left-section {
+.topbar-left {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -36,12 +38,30 @@
     padding-bottom: 0;
 }
 
-.topbar-right-section {
+.topbar-right {
     display: flex;
     align-items: center;
     gap: 16px;
 }
 
+.topbar-icon-button {
+    color: rgba(255, 255, 255, 0.8) !important;
+    padding: 4px !important;
+}
+
+.topbar-icon-button:hover {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.topbar-notifications-popover {
+    background-color: rgba(15, 23, 42, 0.95) !important;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff !important;
+}
+
 .topbar-logout-button {
     text-transform: none;
 }
+

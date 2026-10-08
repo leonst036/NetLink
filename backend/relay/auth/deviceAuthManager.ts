@@ -1,0 +1,258 @@
+import crypto from "crypto";
+import { GenerateToken } from "./tokenManager.js";
+import { StoreToken } from "../database/MongoManager.js";
+import * as mongoDB from "mongodb";
+
+export interface DeviceSession {
+    device_code: string;
+    user_code: string;
+    device_name: string;
+    client_type: string;
+    status: "pending" | "approved" | "denied" | "expired";
+    token?: string;
+    target_id?: string;
+    username?: string;
+    userUuid?: string;
+    createdAt: number;
+    expiresAt: number;
+    expires_in: number;
+    interval: number;
+}
+
+const deviceSessionStore = new Map<string, DeviceSession>();
+const userCodeIndex = new Map<string, string>(); // user_code -> device_code
+const SESSION_TTL_SECONDS = 300; // 5 minutes
+const POLLING_INTERVAL_SECONDS = 2;
+
+function generateRandomUserCode(): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let randomPart = "";
+    for (let i = 0; i < 4; i++) {
+        const idx = crypto.randomInt(0, chars.length);
+        randomPart += chars[idx];
+    }
+    return `NET-${randomPart}`;
+}
+
+export function createDeviceSession(
+    deviceName: string,
+    clientType: string,
+    reqHost: string,
+    reqProtocol = "http"
+): {
+    device_code: string;
+    user_code: string;
+    verification_uri: string;
+    verification_uri_complete: string;
+    expires_in: number;
+    interval: number;
+} {
+    const device_code = `dev_session_${crypto.randomBytes(16).toString("hex")}`;
+    let user_code = generateRandomUserCode();
+
+    // Ensure user_code collision is avoided
+    while (userCodeIndex.has(user_code)) {
+        user_code = generateRandomUserCode();
+    }
+
+    const now = Date.now();
+    const expiresAt = now + SESSION_TTL_SECONDS * 1000;
+
+    const session: DeviceSession = {
+        device_code,
+        user_code,
+        device_name: deviceName || "netconnect-device",
+        client_type: clientType || "netconnect-desktop",
+        status: "pending",
+        createdAt: now,
+        expiresAt,
+        expires_in: SESSION_TTL_SECONDS,
+        interval: POLLING_INTERVAL_SECONDS,
+    };
+
+    deviceSessionStore.set(device_code, session);
+    userCodeIndex.set(user_code, device_code);
+
+    const cleanHost = /^[a-zA-Z0-9.-]+(:[0-9]+)?$/.test(reqHost) ? reqHost : "localhost:5171";
+    const cleanProtocol = reqProtocol === "https" ? "https" : "http";
+
+    const verification_uri = `${cleanProtocol}://${cleanHost}/devices/authorize`;
+    const verification_uri_complete = `${cleanProtocol}://${cleanHost}/devices/authorize?code=${user_code}`;
+
+    return {
+        device_code,
+        user_code,
+        verification_uri,
+        verification_uri_complete,
+        expires_in: SESSION_TTL_SECONDS,
+        interval: POLLING_INTERVAL_SECONDS,
+    };
+}
+
+export function getDeviceSession(code: string): DeviceSession | null {
+    if (!code) return null;
+    const normalizedCode = code.trim().toUpperCase();
+
+    let deviceCode = code;
+    if (userCodeIndex.has(normalizedCode)) {
+        deviceCode = userCodeIndex.get(normalizedCode)!;
+    }
+
+    const session = deviceSessionStore.get(deviceCode);
+    if (!session) return null;
+
+    if (Date.now() > session.expiresAt && session.status === "pending") {
+        session.status = "expired";
+    }
+
+    return session;
+}
+
+export function pollDeviceToken(deviceCode: string): {
+    status: "pending" | "approved" | "denied" | "expired";
+    token?: string | undefined;
+    target_id?: string | undefined;
+    username?: string | undefined;
+    userUuid?: string | undefined;
+} {
+    const session = deviceSessionStore.get(deviceCode);
+    if (!session) {
+        return { status: "expired" };
+    }
+
+    if (Date.now() > session.expiresAt) {
+        session.status = "expired";
+        return { status: "expired" };
+    }
+
+    if (session.status === "approved") {
+        return {
+            status: "approved",
+            token: session.token,
+            target_id: session.target_id,
+            username: session.username,
+            userUuid: session.userUuid,
+        };
+    }
+
+    return { status: session.status };
+}
+
+export async function approveDeviceSession(
+    code: string,
+    username: string,
+    role: string,
+    permissions: string[],
+    targetId: string,
+    secretKey: string,
+    mongoClient: mongoDB.MongoClient | null,
+    userUuidParam?: string
+): Promise<{ success: boolean; status: string; error?: string }> {
+    const session = getDeviceSession(code);
+    if (!session) {
+        return { success: false, status: "not_found", error: "Device session not found or expired" };
+    }
+
+    if (session.status === "expired" || Date.now() > session.expiresAt) {
+        session.status = "expired";
+        return { success: false, status: "expired", error: "Device session has expired" };
+    }
+
+    if (session.status !== "pending") {
+        return { success: false, status: session.status, error: `Session already ${session.status}` };
+    }
+
+    let userUuid = userUuidParam || "";
+    if (mongoClient && !userUuid && username) {
+        try {
+            const user = await mongoClient.db("NetLink").collection("users").findOne({
+                $or: [{ username }, { email: username }]
+            });
+            if (user) {
+                if (!user.uuid) {
+                    userUuid = crypto.randomUUID();
+                    await mongoClient.db("NetLink").collection("users").updateOne(
+                        { _id: user._id },
+                        { $set: { uuid: userUuid } }
+                    );
+                } else {
+                    userUuid = user.uuid;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to query user UUID for device approval:", e);
+        }
+    }
+
+    const tokenPayload = {
+        userId: username,
+        userUuid: userUuid || undefined,
+        deviceId: targetId,
+        targetId: targetId,
+        role: role || "user",
+        permissions: permissions || [],
+        clientType: session.client_type,
+        deviceName: session.device_name,
+    };
+
+    // Scoped token for device link (30 days validity)
+    const token = await GenerateToken(tokenPayload, secretKey, { expiresIn: "30d" });
+
+    if (mongoClient) {
+        await StoreToken(mongoClient, token, targetId);
+        try {
+            await mongoClient.db("NetLink").collection("devices").updateOne(
+                { targetId: targetId },
+                {
+                    $set: {
+                        targetId: targetId,
+                        deviceId: targetId,
+                        deviceName: session.device_name,
+                        clientType: session.client_type,
+                        username: username,
+                        userUuid: userUuid || "",
+                        deviceCode: session.device_code,
+                        status: "authorized",
+                        authorizedAt: new Date(),
+                        updatedAt: new Date()
+                    },
+                    $setOnInsert: {
+                        createdAt: new Date()
+                    }
+                },
+                { upsert: true }
+            );
+        } catch (e) {
+            console.error("Failed to save authorized device in database:", e);
+        }
+    }
+
+    session.status = "approved";
+    session.token = token;
+    session.target_id = targetId;
+    session.username = username;
+    session.userUuid = userUuid;
+
+    return { success: true, status: "approved" };
+}
+
+export function denyDeviceSession(code: string): { success: boolean; status: string } {
+    const session = getDeviceSession(code);
+    if (!session) {
+        return { success: false, status: "not_found" };
+    }
+
+    session.status = "denied";
+    return { success: true, status: "denied" };
+}
+
+// Periodic cleanup of expired sessions
+setInterval(() => {
+    const now = Date.now();
+    for (const [deviceCode, session] of deviceSessionStore.entries()) {
+        if (now > session.expiresAt + 60 * 1000) {
+            userCodeIndex.delete(session.user_code);
+            deviceSessionStore.delete(deviceCode);
+        }
+    }
+}, 60 * 1000);

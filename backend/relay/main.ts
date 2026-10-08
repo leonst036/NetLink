@@ -1,13 +1,13 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
-import { URL } from 'url';
 import dotenv from 'dotenv';
 import * as mongoDB from 'mongodb';
 import { initializeDatabase } from './database/MongoManager.js';
-import { authenticateToken } from './auth/authenticator.js';
-import { handleLocalServerConnection, handleClientConnection, handleDesktopConnection } from './websocket/connectionHandlers.js';
 import { createServer } from './websocket/httpsHelper.js';
 import { handleRequest } from './http/requestHandler.js';
+import { handleMainConnection } from './websocket/mainConnectionHandler.js';
+import { MagicDnsServer } from './dns/MagicDnsServer.js';
+import { magicDnsRegistry } from './dns/MagicDnsRegistry.js';
 
 dotenv.config();
 
@@ -17,12 +17,16 @@ let mongoClient: mongoDB.MongoClient | null = null;
 
 // Initialize MongoDB database connection
 mongoClient = await initializeDatabase();
+if (mongoClient) {
+    magicDnsRegistry.setMongoClient(mongoClient);
+    await magicDnsRegistry.loadFromDatabase(mongoClient);
+}
 
 // Create HTTP(S) Server for serving the web app (frontend and health check)
 const httpServer = createServer(handleRequest);
 
 // Attach WebSocketServer to the httpServer directly
-const wss = new WebSocketServer({ 
+const wss = new WebSocketServer({
     server: httpServer,
     handleProtocols: (protocols) => {
         // Echo back the first requested protocol, or false to reject
@@ -30,48 +34,16 @@ const wss = new WebSocketServer({
     }
 });
 
-wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
-    try {
-        const reqUrl = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
-        const pathname = reqUrl.pathname;
-        const token = reqUrl.searchParams.get('token');
-        const sessionId = reqUrl.searchParams.get('sessionId');
-        const target = reqUrl.searchParams.get('target');
-
-        // Authenticate connection
-        let decodedPayload: any = null;
-        try {
-            decodedPayload = await authenticateToken(token, mongoClient);
-        } catch (authError: any) {
-            console.error(`Authentication failed for IP ${req.socket.remoteAddress}: ${authError.message}`);
-            ws.close(1008, `Authentication Failed: ${authError.message}`);
-            return;
-        }
-
-        // Extract identifier from the token payload (fallback to token itself)
-        const identifier = decodedPayload?.deviceId || decodedPayload?.userId || decodedPayload?.sub || token!;
-
-        console.log(`Connection established at path: ${pathname} (Identifier: ${identifier})`);
-
-        if (pathname === '/connect') {
-            handleLocalServerConnection(ws, identifier, token, sessionId);
-        } else if (pathname === '/client') {
-            const targetId = target || identifier; // If target is not specified, assume target is the token/identifier itself
-            handleClientConnection(ws, identifier, targetId, sessionId);
-        } else if (pathname === '/desktop') {
-            const targetId = target || identifier;
-            handleDesktopConnection(ws, targetId);
-        } else {
-            console.warn(`Unsupported request path: ${pathname}`);
-            ws.close(1003, 'Unsupported Path');
-        }
-
-    } catch (err: any) {
-        console.error('Error handling connection:', err);
-        ws.close(1011, 'Internal Server Error');
-    }
+wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
+    handleMainConnection(ws, req, mongoClient);
 });
 
 httpServer.listen(HTTP_PORT, () => {
     console.log(`Relay server (HTTP & WS) started on port ${HTTP_PORT}`);
+});
+
+// Start MagicDNS UDP server alongside HTTP/WS
+const dnsServer = new MagicDnsServer(magicDnsRegistry);
+dnsServer.start(process.env.DNS_PORT ? parseInt(process.env.DNS_PORT, 10) : 53).catch((err: any) => {
+    console.error('[MagicDNS] Failed to start DNS server:', err);
 });

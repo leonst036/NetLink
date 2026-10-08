@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { getMongoClient, CreateUser, StoreToken } from '../../database/MongoManager.js';
-import { GenerateToken } from '../../auth/tokenManager.js';
+import { GenerateToken, getJwtSecret } from '../../auth/tokenManager.js';
 
 export function handleInstallScriptRoute(req: http.IncomingMessage, res: http.ServerResponse): void {
     const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -87,8 +87,8 @@ export async function handleDemoSetupRoute(req: http.IncomingMessage, res: http.
 
     try {
         await CreateUser(mongoClient, userData);
-        const token = await GenerateToken({ deviceId: targetId }, process.env.JWT_SECRET || 'default_secret');
-        await StoreToken(mongoClient, token);
+        const token = await GenerateToken({ deviceId: targetId, userId: username, role: userData.role, permissions: userData.permissions }, getJwtSecret());
+        await StoreToken(mongoClient, token, targetId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ username, password, targetId, jwtToken: token }));
     } catch (err) {

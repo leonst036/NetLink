@@ -1,11 +1,18 @@
 import http from 'http';
-import { GenerateToken } from './tokenManager.js';
+import { GenerateToken, getJwtSecret } from './tokenManager.js';
 import { getMongoClient, StoreToken } from '../database/MongoManager.js';
 
-function getRequestBody(req: http.IncomingMessage): Promise<string> {
+function getRequestBody(req: http.IncomingMessage, maxBytes = 1024 * 1024): Promise<string> {
     return new Promise((resolve, reject) => {
         let body = '';
+        let received = 0;
         req.on('data', chunk => {
+            received += chunk.length;
+            if (received > maxBytes) {
+                req.destroy();
+                reject(new Error('Payload too large'));
+                return;
+            }
             body += chunk.toString();
         });
         req.on('end', () => {
@@ -85,8 +92,7 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
                     isAuthenticated = true;
                     userRole = user.role || 'user';
                     userPermissions = user.permissions || [];
-                    
-                    // Save target to user if provided
+
                     if (target) {
                         await client.db("NetLink").collection("users").updateOne(
                             { _id: user._id },
@@ -107,7 +113,7 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
     }
 
     try {
-        const secretKey = process.env.JWT_SECRET || 'default_secret';
+        const secretKey = getJwtSecret();
         const payload = {
             userId: username,
             role: userRole,
@@ -130,15 +136,24 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
             if (client) {
                 const { CheckUser } = await import('../database/MongoManager.js');
                 const user = await CheckUser(client, username);
-                if (user && user.targets) {
+                if (user && user.targets && user.targets.length > 0) {
                     userTargets = user.targets;
                 }
             }
         } else if (target) {
-            userTargets = [target]; // admin just uses the provided target
+            userTargets = [target]; // admin uses the provided target
         }
 
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        // If target is still empty, auto-default to any currently connected local server
+        if (userTargets.length === 0) {
+            const { controlConnections } = await import('../websocket/connectionManager.js');
+            userTargets = Array.from(controlConnections.keys());
+        }
+
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Set-Cookie': `netlink_token=${token}; Path=/; SameSite=Lax; Max-Age=86400`
+        });
         res.end(JSON.stringify({ token, targets: userTargets }));
     } catch (err: any) {
         console.error('Login error:', err);

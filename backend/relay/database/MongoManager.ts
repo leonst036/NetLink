@@ -1,4 +1,5 @@
 import * as mongoDB from "mongodb";
+import crypto from "crypto";
 
 let activeClient: mongoDB.MongoClient | null = null;
 
@@ -27,7 +28,15 @@ export async function initializeDatabase(): Promise<mongoDB.MongoClient | null> 
             
             // Create TTL index for temporary users
             await result.db("NetLink").collection("users").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-            
+
+            // Seed default local server pairing token if not present
+            const defaultToken = process.env.DEFAULT_LOCAL_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6ImxvY2FsLXNlcnZlciIsImlhdCI6MTc4NjE0ODk1M30.LYcW99CQ4nfekI73qy5hwkzZLmlrbOx3MPa9huMt4pI";
+            await result.db("NetLink").collection("tokens").updateOne(
+                { token: defaultToken },
+                { $setOnInsert: { token: defaultToken, deviceId: "local-server", timestamp: new Date() } },
+                { upsert: true }
+            );
+
             return result;
         } else {
             console.warn('MongoDB connection returned null, running in memory-only auth mode.');
@@ -43,11 +52,15 @@ export function getMongoClient(): mongoDB.MongoClient | null {
     return activeClient;
 }
 
-export async function StoreToken(client: mongoDB.MongoClient, token: string) {
+export async function StoreToken(client: mongoDB.MongoClient, token: string, targetId?: string) {
     const db: mongoDB.Db = client.db("NetLink");
     try {
         const collection: mongoDB.Collection = db.collection("tokens");
-        await collection.insertOne({ token, timestamp: new Date() });
+        const doc: Record<string, any> = { token, timestamp: new Date() };
+        if (targetId) {
+            doc.targetId = targetId;
+        }
+        await collection.insertOne(doc);
     } catch (error) {
         console.error('Failed to store token', error);
     }
@@ -92,7 +105,9 @@ export async function RegisterUser(client: mongoDB.MongoClient, userData: any) {
     if (existing) {
         throw new Error("User or email already exists");
     }
-    return client.db("NetLink").collection("users").insertOne({
+    const uuid = userData.uuid || crypto.randomUUID();
+    const result = await client.db("NetLink").collection("users").insertOne({
+        uuid,
         username,
         email,
         password,
@@ -102,12 +117,14 @@ export async function RegisterUser(client: mongoDB.MongoClient, userData: any) {
         createdAt: new Date(),
         updatedAt: new Date()
     });
+    return { ...result, uuid };
 }
 
 
 export async function CreateUser(client: mongoDB.MongoClient, userData: any) {
     const { username, password, role, permissions, expiresAt } = userData;
     const userDoc: any = {
+        uuid: userData.uuid || crypto.randomUUID(),
         username,
         password,
         role: role || 'user',
@@ -140,17 +157,6 @@ export async function DeleteUser(client: mongoDB.MongoClient, username: string) 
     return client.db("NetLink").collection("users").deleteOne({ username });
 }
 
-export async function GetTopology(client: mongoDB.MongoClient, username: string, target: string) {
-    return client.db("NetLink").collection("network_data").findOne({ username, target });
-}
-
-export async function SaveTopology(client: mongoDB.MongoClient, username: string, target: string, nodes: any, edges: any, nicknames: any) {
-    return client.db("NetLink").collection("network_data").updateOne(
-        { username, target },
-        { $set: { nodes, edges, nicknames, updatedAt: new Date() } },
-        { upsert: true }
-    );
-}
 
 export async function GetServerLogins(client: mongoDB.MongoClient, username: string) {
     return client.db("NetLink").collection("server_logins").find({ username }).toArray();
@@ -168,3 +174,193 @@ export async function SaveServerLogin(client: mongoDB.MongoClient, username: str
 export async function DeleteServerLogin(client: mongoDB.MongoClient, username: string, id: string) {
     return client.db("NetLink").collection("server_logins").deleteOne({ username, id });
 }
+
+export async function GetDockConfig(client: mongoDB.MongoClient, username: string) {
+    return client.db("NetLink").collection("dock_config").findOne({ username });
+}
+
+export async function SaveDockConfig(client: mongoDB.MongoClient, username: string, pinnedApps: any[]) {
+    return client.db("NetLink").collection("dock_config").updateOne(
+        { username },
+        { $set: { pinnedApps, updatedAt: new Date() } },
+        { upsert: true }
+    );
+}
+
+// Sanitize query to prevent malicious operator injection
+function sanitizeQuery(query: any): any {
+    if (!query || typeof query !== 'object') return {};
+    const safeQuery: Record<string, any> = {};
+    const bannedKeys = ['$where', '$function', '$accumulator', '__proto__', 'constructor', 'prototype'];
+
+    for (const [key, value] of Object.entries(query)) {
+        if (bannedKeys.includes(key.toLowerCase())) continue;
+        if (key === '_id' && typeof value === 'string' && mongoDB.ObjectId.isValid(value)) {
+            safeQuery[key] = new mongoDB.ObjectId(value);
+        } else if (Array.isArray(value)) {
+            safeQuery[key] = value.map(v => typeof v === 'object' && v !== null ? sanitizeQuery(v) : v);
+        } else if (typeof value === 'object' && value !== null) {
+            safeQuery[key] = sanitizeQuery(value);
+        } else {
+            safeQuery[key] = value;
+        }
+    }
+    return safeQuery;
+}
+
+// Convert string id to ObjectId if valid
+function parseIdFilter(id?: string): Record<string, any> {
+    if (!id) return {};
+    if (mongoDB.ObjectId.isValid(id)) {
+        return { $or: [{ _id: new mongoDB.ObjectId(id) }, { id: id }, { _id: id }] };
+    }
+    return { $or: [{ id: id }, { _id: id }] };
+}
+
+export function getAppDatabaseName(appId: string): string {
+    const cleanAppId = appId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `app_${cleanAppId}`;
+}
+
+export function getAppCollectionName(appId: string, collection: string): string {
+    const cleanCol = collection.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return cleanCol;
+}
+
+export interface AppDatabaseActionPayload {
+    query?: any;
+    data?: any;
+    id?: string;
+    options?: {
+        limit?: number;
+        skip?: number;
+        sort?: any;
+        projection?: any;
+    };
+}
+
+// Execute scoped database action for an application inside its dedicated database
+export async function ExecuteAppDatabaseAction(
+    client: mongoDB.MongoClient,
+    appId: string,
+    collection: string,
+    userId: string,
+    action: string,
+    payload: AppDatabaseActionPayload = {}
+): Promise<any> {
+    const dbName = getAppDatabaseName(appId);
+    const db = client.db(dbName);
+
+    // Actions that operate on database level
+    if (action === 'listCollections') {
+        const collections = await db.listCollections().toArray();
+        return collections.map(c => ({ name: c.name, type: c.type }));
+    }
+
+    if (!collection) {
+        throw new Error("Missing 'collection' parameter for action: " + action);
+    }
+
+    const col = db.collection(collection);
+
+    if (action === 'dropCollection' || action === 'drop') {
+        try {
+            const dropped = await col.drop();
+            return { dropped };
+        } catch (e: any) {
+            if (e.codeName === 'NamespaceNotFound' || e.message?.includes('ns not found')) {
+                return { dropped: false, message: 'Collection does not exist' };
+            }
+            throw e;
+        }
+    }
+
+    const userScope = { _userId: userId };
+    const safeQuery = { ...sanitizeQuery(payload.query), ...userScope };
+
+    switch (action) {
+        case 'find': {
+            const limit = Math.min(Math.max(1, payload.options?.limit || 50), 500);
+            const skip = Math.max(0, payload.options?.skip || 0);
+            const sort = payload.options?.sort || { createdAt: -1 };
+            const projection = payload.options?.projection || {};
+
+            const cursor = col.find(safeQuery, { projection }).sort(sort).skip(skip).limit(limit);
+            return await cursor.toArray();
+        }
+
+        case 'findOne': {
+            let filter = safeQuery;
+            if (payload.id) {
+                filter = { ...parseIdFilter(payload.id), ...userScope };
+            }
+            const projection = payload.options?.projection || {};
+            return await col.findOne(filter, { projection });
+        }
+
+        case 'insert': {
+            if (!payload.data) {
+                throw new Error("Missing 'data' for insert action");
+            }
+            if (Array.isArray(payload.data)) {
+                const now = new Date();
+                const docs = payload.data.map(d => ({
+                    ...d,
+                    _userId: userId,
+                    createdAt: d.createdAt ? new Date(d.createdAt) : now,
+                    updatedAt: now
+                }));
+                const result = await col.insertMany(docs);
+                return { insertedCount: result.insertedCount, insertedIds: result.insertedIds };
+            } else {
+                const now = new Date();
+                const doc = {
+                    ...payload.data,
+                    _userId: userId,
+                    createdAt: payload.data.createdAt ? new Date(payload.data.createdAt) : now,
+                    updatedAt: now
+                };
+                const result = await col.insertOne(doc);
+                return { insertedId: result.insertedId, document: doc };
+            }
+        }
+
+        case 'update': {
+            if (!payload.data) {
+                throw new Error("Missing 'data' for update action");
+            }
+            let filter = safeQuery;
+            if (payload.id) {
+                filter = { ...parseIdFilter(payload.id), ...userScope };
+            }
+            const now = new Date();
+            const hasOperators = Object.keys(payload.data).some(k => k.startsWith('$'));
+            const updateDoc = hasOperators
+                ? { ...payload.data, $set: { ...(payload.data.$set || {}), updatedAt: now } }
+                : { $set: { ...payload.data, updatedAt: now } };
+
+            delete (updateDoc.$set as any)?._userId;
+            delete (updateDoc.$set as any)?._id;
+
+            const result = await col.updateMany(filter, updateDoc);
+            return { matchedCount: result.matchedCount, modifiedCount: result.modifiedCount };
+        }
+
+        case 'delete': {
+            let filter = safeQuery;
+            if (payload.id) {
+                filter = { ...parseIdFilter(payload.id), ...userScope };
+            }
+            const result = await col.deleteMany(filter);
+            return { deletedCount: result.deletedCount };
+        }
+
+        case 'count': {
+            return { count: await col.countDocuments(safeQuery) };
+        }
+
+        default:
+            throw new Error(`Unsupported action: ${action}. Supported actions: find, findOne, insert, update, delete, count, listCollections, dropCollection`);
+    }
+}
+

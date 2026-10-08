@@ -1,11 +1,10 @@
 import http from 'http';
 import { URL } from 'url';
 import { getMongoClient, GetUsers, CreateUser, UpdateUser, DeleteUser } from '../../database/MongoManager.js';
-import { authenticateToken } from '../../auth/authenticator.js';
+import { authenticateToken, extractTokenFromRequest } from '../../auth/authenticator.js';
 
 export async function handleUsersRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.split(' ')[1] || parsedUrl.searchParams.get('token');
+    const token = extractTokenFromRequest(req, parsedUrl);
 
     const mongoClient = getMongoClient();
     if (!mongoClient) {
@@ -29,7 +28,15 @@ export async function handleUsersRoute(parsedUrl: URL, req: http.IncomingMessage
             res.end(JSON.stringify({ users }));
         } else if (req.method === 'POST') {
             let body = '';
-            req.on('data', chunk => { body += chunk.toString(); });
+            let received = 0;
+            req.on('data', chunk => {
+                received += chunk.length;
+                if (received > 1024 * 1024) {
+                    req.destroy();
+                    return;
+                }
+                body += chunk.toString();
+            });
             req.on('end', async () => {
                 try {
                     const parsedBody = JSON.parse(body);
@@ -43,7 +50,15 @@ export async function handleUsersRoute(parsedUrl: URL, req: http.IncomingMessage
             });
         } else if (req.method === 'PUT') {
             let body = '';
-            req.on('data', chunk => { body += chunk.toString(); });
+            let received = 0;
+            req.on('data', chunk => {
+                received += chunk.length;
+                if (received > 1024 * 1024) {
+                    req.destroy();
+                    return;
+                }
+                body += chunk.toString();
+            });
             req.on('end', async () => {
                 try {
                     const parsedBody = JSON.parse(body);

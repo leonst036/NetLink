@@ -16,7 +16,24 @@ Think of it as your personal, self-hosted remote access gateway. It has a centra
 
 ## 🛠️ How to set this thing up
 
-Because NetLink is split into two parts, you'll need to set up both for the magic to happen.
+### 🚀 Quick Start with Docker Compose (Recommended)
+
+Run the full stack (MongoDB, Relay Server, and Local Server) with a single command:
+
+```bash
+docker compose up -d --build
+# or with docker-compose:
+docker-compose up -d --build
+```
+
+- **Web UI**: Access at [http://localhost:4535](http://localhost:4535) (Default login: `admin` / `admin`).
+- **MongoDB**: Automatically initialized with pre-configured token for the local server container.
+
+---
+
+### Manual / Individual Setup
+
+Because NetLink is split into two parts, you can also set up components individually.
 
 ### Part 1: The Relay Server (Your Gateway)
 This needs to run somewhere with a direct connection to the internet (like a VPS). It serves the web UI and handles the WebSocket connections coming from your local daemon.
@@ -82,6 +99,8 @@ Here are all the ways you can configure both servers. You can put these in a `.e
 | `SSL_KEY_PATH` | `key.pem` | Path to the SSL key (if `USE_SSL` is true). |
 | `SSL_CERT_PATH`| `cert.pem`| Path to the SSL cert (if `USE_SSL` is true). |
 | `FRONTEND_PATH`| *(auto)* | Path to the compiled frontend files. Usually auto-detects `frontend/dist`. |
+| `GITHUB_TOKEN`| *empty* | Token for github api (without it you have a rate limit from 60 requests per hour) |
+| `LOG_LEVEL`| 2 | Level of logging for the relay server. Options: 1  Errors, 2 - Warnings, 3 - Info, 4 - Debug 5 - Everything |
 
 ### Local Server Variables (`backend/local_server`)
 | Variable | Default | What it does |
@@ -96,11 +115,13 @@ Here are all the ways you can configure both servers. You can put these in a `.e
 | `DEMO_TIMEOUT` | *(empty)* | Timeout in seconds before killing demo connections. |
 | `SSL_KEY_PATH` | `key.pem` | Path for the local server's internal HTTPS API key. |
 | `SSL_CERT_PATH`| `cert.pem`| Path for the local server's internal HTTPS API cert. |
+| `LOG_LEVEL`| 2 | Level of logging for the local server. Options: 1  Errors, 2 - Warnings, 3 - Info, 4 - Debug 5 - Everything |
 
 ---
 
 ## 📝 To-Do
 - Mobile Version: Enhance interaction with touch screen for better use on tablets and laptops with touch screens
+- Custom github repo's for NetStore applications
 
 ## 📁 File Structure
 

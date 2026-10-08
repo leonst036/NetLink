@@ -2,6 +2,8 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import * as esbuild from 'esbuild';
+import { RELAY_APPS_DIR, resolveLocalNetStorePath } from '../../paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,19 +48,178 @@ export function handleFaviconRoute(res: http.ServerResponse): void {
     }
 }
 
-export function handleStaticFileRoute(pathname: string, res: http.ServerResponse): void {
-    // Normalize pathname to prevent directory traversal
-    const safeSuffix = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
-    let filePath = path.join(frontendPath, safeSuffix);
+export function getAppImportMap(): string {
+    return `  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.2.0",
+      "react/": "https://esm.sh/react@18.2.0/",
+      "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+      "react/jsx-dev-runtime": "https://esm.sh/react@18.2.0/jsx-dev-runtime",
+      "react-dom": "https://esm.sh/react-dom@18.2.0",
+      "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+      "@emotion/react": "https://esm.sh/@emotion/react@11.11.0?external=react,react-dom",
+      "@emotion/styled": "https://esm.sh/@emotion/styled@11.11.0?external=react,react-dom",
+      "@mui/material": "https://esm.sh/@mui/material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled",
+      "@mui/material/styles": "https://esm.sh/@mui/material@5.14.0/styles?external=react,react-dom,@emotion/react,@emotion/styled",
+      "@mui/material/colors": "https://esm.sh/@mui/material@5.14.0/colors?external=react,react-dom,@emotion/react,@emotion/styled",
+      "@mui/icons-material": "https://esm.sh/@mui/icons-material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled",
+      "lucide-react": "https://esm.sh/lucide-react@0.344.0?external=react,react-dom",
+      "@xyflow/react": "https://esm.sh/@xyflow/react@12.0.0?external=react,react-dom",
+      "@xyflow/react/dist/style.css": "data:text/javascript,const s=document.createElement('link');s.rel='stylesheet';s.href='https://esm.sh/@xyflow/react@12.0.0/dist/style.css';document.head.appendChild(s);export default '';",
+      "xterm": "https://esm.sh/xterm@5.3.0",
+      "xterm/": "https://esm.sh/xterm@5.3.0/",
+      "xterm/css/xterm.css": "data:text/javascript,const s=document.createElement('link');s.rel='stylesheet';s.href='https://esm.sh/xterm@5.3.0/css/xterm.css';document.head.appendChild(s);export default '';",
+      "xterm-addon-fit": "https://esm.sh/xterm-addon-fit@0.8.0?external=xterm",
+      "@novnc/novnc": "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js/+esm",
+      "@novnc/novnc/core/rfb": "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js/+esm",
+      "date-fns": "https://esm.sh/date-fns@2.30.0",
+      "date-fns/": "https://esm.sh/date-fns@2.30.0/",
+      "@netlink/ui": "/assets/netlink-ui.js"
+    }
+  }
+  </script>`;
+}
 
-    // If filePath is a directory, append index.html
+export function handleStaticFileRoute(pathname: string, res: http.ServerResponse): void {
+    if (pathname === '/assets/netlink-ui.js') {
+        res.writeHead(200, {
+            'Content-Type': 'application/javascript',
+            'Cache-Control': 'no-cache'
+        });
+        res.end(`import React from 'react';
+import * as MuiMaterial from 'https://esm.sh/@mui/material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled';
+import * as MuiStyles from 'https://esm.sh/@mui/material@5.14.0/styles?external=react,react-dom,@emotion/react,@emotion/styled';
+
+export * from 'https://esm.sh/@mui/material@5.14.0?external=react,react-dom,@emotion/react,@emotion/styled';
+export const createTheme = MuiStyles.createTheme;
+export const useTheme = MuiStyles.useTheme;
+export const styled = MuiStyles.styled;
+export const alpha = MuiStyles.alpha;
+export const darken = MuiStyles.darken;
+export const lighten = MuiStyles.lighten;
+export const StyledEngineProvider = MuiStyles.StyledEngineProvider;
+
+export const getAppTheme = (themeName = 'Dark') => {
+    const isDark = themeName?.toLowerCase() !== 'light';
+    return MuiStyles.createTheme({
+        palette: {
+            mode: isDark ? 'dark' : 'light',
+            primary: { main: '#38bdf8' },
+            background: { default: '#020617', paper: '#0f172a' }
+        }
+    });
+};
+
+export function WindowLayout({ children, themeName = 'Dark', padding = '20px', style, ...props }) {
+  const theme = getAppTheme(themeName);
+  return React.createElement(
+    MuiMaterial.ThemeProvider,
+    { theme },
+    React.createElement(MuiMaterial.CssBaseline, null),
+    React.createElement(
+      MuiMaterial.Box,
+      {
+        sx: {
+          width: '100%',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          background: theme.palette.background.default,
+          color: theme.palette.text.primary,
+          overflow: 'hidden',
+          ...style
+        },
+        ...props
+      },
+      React.createElement(
+        MuiMaterial.Box,
+        {
+          sx: { flexGrow: 1, padding, overflowY: 'auto', display: 'flex', flexDirection: 'column' }
+        },
+        children
+      )
+    )
+  );
+}
+
+export function NetLinkLoader({ size = 48, className = '' }) {
+  if (typeof document !== 'undefined' && !document.getElementById('netlink-loader-injected-css')) {
+    const style = document.createElement('style');
+    style.id = 'netlink-loader-injected-css';
+    style.textContent = \`
+      .netlink-loader { display: inline-flex; justify-content: center; align-items: center; position: relative; flex-shrink: 0; }
+      .netlink-spinner-svg { width: 100%; height: 100%; }
+      .netlink-spinner-track { stroke: rgba(56, 189, 248, 0.12); fill: none; }
+      .netlink-spinner-outer { stroke: #38bdf8; stroke-dasharray: 75 50; transform-origin: 24px 24px; animation: netlink-spin 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite; fill: none; }
+      .netlink-spinner-inner { stroke: #0ea5e9; stroke-dasharray: 38 38; transform-origin: 24px 24px; animation: netlink-spin-rev 1s linear infinite; fill: none; }
+      .netlink-spinner-node { fill: #38bdf8; transform-origin: 24px 24px; animation: netlink-node-pulse 1.4s ease-in-out infinite; }
+      @keyframes netlink-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      @keyframes netlink-spin-rev { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
+      @keyframes netlink-node-pulse { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.15); } }
+    \`;
+    document.head.appendChild(style);
+  }
+  return React.createElement(
+    MuiMaterial.Box,
+    { className: 'loader-container netlink-loader ' + (className || ''), style: { width: size, height: size } },
+    React.createElement(
+      'svg',
+      { className: 'netlink-spinner-svg', viewBox: '0 0 48 48', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' },
+      React.createElement('circle', { className: 'netlink-spinner-track', cx: 24, cy: 24, r: 20, strokeWidth: 2.5 }),
+      React.createElement('circle', { className: 'netlink-spinner-outer', cx: 24, cy: 24, r: 20, strokeWidth: 2.5, strokeLinecap: 'round' }),
+      React.createElement('circle', { className: 'netlink-spinner-inner', cx: 24, cy: 24, r: 12, strokeWidth: 2, strokeLinecap: 'round' }),
+      React.createElement('circle', { className: 'netlink-spinner-node', cx: 24, cy: 24, r: 3 })
+    )
+  );
+}
+
+export const GeminiLoader = NetLinkLoader;
+
+export default { getAppTheme, WindowLayout, NetLinkLoader, GeminiLoader, createTheme: MuiStyles.createTheme };
+`);
+        return;
+    }
+
+    let decodedPath = '';
+    try {
+        decodedPath = decodeURIComponent(pathname);
+    } catch {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad Request');
+        return;
+    }
+    if (decodedPath.includes('\0')) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad Request');
+        return;
+    }
+
+    const safeSuffix = path.normalize(decodedPath).replace(/^(\.\.[\/\\])+/, '').replace(/^[/\\]+/, '');
+    const absoluteFrontend = path.resolve(frontendPath);
+    let filePath = path.resolve(absoluteFrontend, safeSuffix);
+
+    if (!filePath.startsWith(absoluteFrontend + path.sep) && filePath !== absoluteFrontend) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('Forbidden');
+        return;
+    }
+
+    if (!filePath.includes('dist') && !fs.existsSync(filePath)) {
+        const publicBase = path.resolve(frontendPath, 'public');
+        const publicPath = path.resolve(publicBase, safeSuffix);
+        if ((publicPath.startsWith(publicBase + path.sep) || publicPath === publicBase) && fs.existsSync(publicPath)) {
+            filePath = publicPath;
+        }
+    }
+
     try {
         const stat = fs.statSync(filePath);
         if (stat.isDirectory()) {
             filePath = path.join(filePath, 'index.html');
         }
     } catch (e) {
-        // Fallback or ignore, handle in fs.readFile
     }
 
     const ext = path.extname(filePath).toLowerCase();
@@ -79,6 +240,21 @@ export function handleStaticFileRoute(pathname: string, res: http.ServerResponse
     fs.readFile(filePath, (error, content) => {
         if (error) {
             if (error.code === 'ENOENT') {
+                if (!ext || ext === '.html' || pathname.startsWith('/devices/')) {
+                    const spaIndex = path.join(frontendPath, 'index.html');
+                    if (fs.existsSync(spaIndex)) {
+                        fs.readFile(spaIndex, (spaErr, spaContent) => {
+                            if (!spaErr) {
+                                res.writeHead(200, { 'Content-Type': 'text/html' });
+                                res.end(spaContent, 'utf-8');
+                                return;
+                            }
+                            res.writeHead(404, { 'Content-Type': 'text/plain' });
+                            res.end('404 Not Found\n');
+                        });
+                        return;
+                    }
+                }
                 res.writeHead(404, { 'Content-Type': 'text/plain' });
                 res.end('404 Not Found\n');
             } else {
@@ -88,6 +264,373 @@ export function handleStaticFileRoute(pathname: string, res: http.ServerResponse
         } else {
             res.writeHead(200, { 'Content-Type': contentType });
             res.end(content, 'utf-8');
+        }
+    });
+}
+
+export function handleAppFrontendRoute(pathname: string, res: http.ServerResponse, req?: http.IncomingMessage): void {
+    const parts = pathname.split('/');
+    if (parts.length < 4 || parts[1] !== 'apps') {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
+        return;
+    }
+    
+    const userId = parts[2] as string;
+    const appId = parts[3] as string;
+    
+    if (!/^[a-zA-Z0-9_-]+$/.test(userId) || !/^[a-zA-Z0-9_-]+$/.test(appId)) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Invalid userId or appId');
+        return;
+    }
+
+    let subPath = '';
+    if (parts.length >= 5 && parts[4] === 'frontend') {
+        subPath = parts.slice(5).join('/');
+    } else {
+        subPath = parts.slice(4).join('/');
+    }
+
+    let decodedSubPath = '';
+    try {
+        decodedSubPath = decodeURIComponent(subPath);
+    } catch {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad Request');
+        return;
+    }
+    if (decodedSubPath.includes('\0')) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad Request');
+        return;
+    }
+
+    const safeSuffix = path.normalize(decodedSubPath).replace(/^(\.\.[\/\\])+/, '').replace(/^[/\\]+/, '');
+    const baseAppFrontend = path.resolve(RELAY_APPS_DIR, userId, appId, 'frontend');
+    let filePath = path.resolve(baseAppFrontend, safeSuffix);
+
+    const isSafePath = (target: string, base: string) => {
+        const resolvedTarget = path.resolve(target);
+        const resolvedBase = path.resolve(base);
+        return resolvedTarget === resolvedBase || resolvedTarget.startsWith(resolvedBase + path.sep);
+    };
+
+    const localStoreBase = resolveLocalNetStorePath('applications', appId, 'frontend');
+    if (localStoreBase) {
+        const localStorePath = path.resolve(localStoreBase, safeSuffix);
+        if (isSafePath(localStorePath, localStoreBase) && fs.existsSync(localStorePath)) {
+            filePath = localStorePath;
+        }
+    }
+
+    if (!fs.existsSync(filePath) && (safeSuffix === 'dist/index.html' || safeSuffix.startsWith('dist/'))) {
+        const nonDistSuffix = safeSuffix.replace(/^dist[\/\\]/, '');
+        const fallbackCandidates = [
+            path.resolve(baseAppFrontend, nonDistSuffix),
+            localStoreBase ? path.resolve(localStoreBase, nonDistSuffix) : ''
+        ].filter(Boolean);
+        for (const cand of fallbackCandidates) {
+            const base = cand.startsWith(baseAppFrontend) ? baseAppFrontend : localStoreBase;
+            if (base && isSafePath(cand, base)) {
+                if (fs.existsSync(cand) || 
+                    fs.existsSync(cand + '.tsx') || 
+                    fs.existsSync(cand + '.ts') || 
+                    fs.existsSync(cand + '.jsx') || 
+                    fs.existsSync(cand + '.js')) {
+                    filePath = cand;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!fs.existsSync(filePath)) {
+        const distCandidates = [
+            path.resolve(baseAppFrontend, 'dist', safeSuffix),
+            localStoreBase ? path.resolve(localStoreBase, 'dist', safeSuffix) : ''
+        ].filter(Boolean);
+        for (const cand of distCandidates) {
+            const base = cand.startsWith(baseAppFrontend) ? baseAppFrontend : localStoreBase;
+            if (base && isSafePath(cand, base) && fs.existsSync(cand)) {
+                filePath = cand;
+                break;
+            }
+        }
+    }
+
+    if (!isSafePath(filePath, baseAppFrontend) && (!localStoreBase || !isSafePath(filePath, localStoreBase))) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('Forbidden');
+        return;
+    }
+
+    if (!fs.existsSync(filePath)) {
+        if (fs.existsSync(filePath + '.tsx')) {
+            filePath += '.tsx';
+        } else if (fs.existsSync(filePath + '.ts')) {
+            filePath += '.ts';
+        } else if (fs.existsSync(filePath + '.jsx')) {
+            filePath += '.jsx';
+        } else if (fs.existsSync(filePath + '.js')) {
+            filePath += '.js';
+        } else if (fs.existsSync(path.join(filePath, 'index.tsx'))) {
+            filePath = path.join(filePath, 'index.tsx');
+        } else if (fs.existsSync(path.join(filePath, 'index.ts'))) {
+            filePath = path.join(filePath, 'index.ts');
+        } else if (fs.existsSync(path.join(filePath, 'index.jsx'))) {
+            filePath = path.join(filePath, 'index.jsx');
+        } else if (fs.existsSync(path.join(filePath, 'index.js'))) {
+            filePath = path.join(filePath, 'index.js');
+        }
+    }
+
+    try {
+        const stat = fs.statSync(filePath);
+        if (stat.isDirectory()) {
+            const noCacheHeaders = {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            };
+            if (fs.existsSync(path.join(filePath, 'index.ts'))) {
+                const targetPath = pathname.endsWith('/') ? pathname + 'index.ts' : pathname + '/index.ts';
+                res.writeHead(307, { 'Location': targetPath, ...noCacheHeaders });
+                res.end();
+                return;
+            } else if (fs.existsSync(path.join(filePath, 'index.tsx'))) {
+                const targetPath = pathname.endsWith('/') ? pathname + 'index.tsx' : pathname + '/index.tsx';
+                res.writeHead(307, { 'Location': targetPath, ...noCacheHeaders });
+                res.end();
+                return;
+            } else if (fs.existsSync(path.join(filePath, 'index.js'))) {
+                const targetPath = pathname.endsWith('/') ? pathname + 'index.js' : pathname + '/index.js';
+                res.writeHead(307, { 'Location': targetPath, ...noCacheHeaders });
+                res.end();
+                return;
+            } else if (fs.existsSync(path.join(filePath, 'index.jsx'))) {
+                const targetPath = pathname.endsWith('/') ? pathname + 'index.jsx' : pathname + '/index.jsx';
+                res.writeHead(307, { 'Location': targetPath, ...noCacheHeaders });
+                res.end();
+                return;
+            } else {
+                filePath = path.join(filePath, 'index.html');
+            }
+        }
+    } catch (e) {
+        // Fallback or ignore, handle in fs.readFile
+    }
+    console.log(`[staticRoutes] Trying to read file: ${filePath}`);
+
+    // Dynamic React Support
+    if (path.basename(filePath) === 'index.html' && !fs.existsSync(filePath)) {
+        const indexJsonCandidates = [
+            path.join(RELAY_APPS_DIR, userId, appId, 'index.json'),
+            resolveLocalNetStorePath('applications', appId, 'index.json')
+        ];
+        const indexJsonPath = indexJsonCandidates.find(p => fs.existsSync(p));
+        if (indexJsonPath) {
+            try {
+                const indexData = JSON.parse(fs.readFileSync(indexJsonPath, 'utf-8'));
+                if (indexData.main && (indexData.main.endsWith('.tsx') || indexData.main.endsWith('.jsx'))) {
+                    // Ensure main path starts with frontend/ for static app route matching
+                    const cleanMain = indexData.main.startsWith('frontend/') 
+                        ? indexData.main 
+                        : 'frontend/' + indexData.main;
+                    const mainScriptPath = indexData.main.startsWith('/') 
+                        ? indexData.main 
+                        : `/apps/${userId}/${appId}/${cleanMain}`;
+
+                    const shell = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="/netlink.css">
+  <style>
+    html, body, #root { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }
+  </style>
+${getAppImportMap()}
+</head>
+<body>
+  <div class="bg-glow"></div>
+  <div class="bg-glow-2"></div>
+  <div id="root"></div>
+  <script type="module">
+    import React from 'react';
+    import { createRoot } from 'react-dom/client';
+    
+    const mainScriptPath = ${JSON.stringify(mainScriptPath)};
+    
+    // Dynamically import the main file
+    import(mainScriptPath).then(m => {
+        const renderApp = (Component) => {
+            const root = createRoot(document.getElementById('root'));
+            root.render(React.createElement(Component, { token: localStorage.getItem('netlink_token') }));
+        };
+        
+        const App = m.default || m;
+        if (App instanceof Promise) {
+            App.then(appModule => renderApp(appModule.default || appModule));
+        } else {
+            renderApp(App);
+        }
+    }).catch(err => {
+        console.error('Failed to load application entrypoint:', err);
+        document.getElementById('root').innerHTML = '<div style="color:red;padding:20px;">Failed to load application entrypoint: ' + (err?.message || err) + '</div>';
+    });
+  </script>
+</body>
+</html>`;
+                    const noCacheHeaders = {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    };
+                    res.writeHead(200, { 'Content-Type': 'text/html', ...noCacheHeaders });
+                    res.end(shell);
+                    return;
+                }
+            } catch (e) {
+                console.error('Failed to parse index.json for dynamic React support', e);
+            }
+        }
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const isTypeScript = ext === '.tsx' || ext === '.ts' || ext === '.jsx';
+    
+    const mimeTypes: { [key: string]: string } = {
+        '.html': 'text/html',
+        '.css': 'text/css',
+        '.js': 'text/javascript',
+        '.jsx': 'text/javascript',
+        '.ts': 'text/javascript',
+        '.tsx': 'text/javascript',
+        '.json': 'application/json',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+        '.ico': 'image/x-icon',
+    };
+
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+    const noCacheHeaders = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*'
+    };
+
+    fs.readFile(filePath, (error, content) => {
+        if (error) {
+            if (error.code === 'ENOENT') {
+                if (ext === '.html' || !ext || pathname.endsWith('index.html')) {
+                    const fallbackHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="/netlink.css">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; text-align: center; }
+    .card { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 32px; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
+    h2 { margin-top: 0; color: #38bdf8; font-size: 20px; font-weight: 600; }
+    p { color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 12px 0 20px; }
+    button { background: #38bdf8; color: #020617; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #0ea5e9; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Application Not Installed</h2>
+    <p>The application <strong>${appId}</strong> is not installed on this target device.</p>
+    <button onclick="window.parent.postMessage({ type: 'open_app', appId: 'store' }, '*')">Open NetStore to Install</button>
+  </div>
+</body>
+</html>`;
+                    res.writeHead(200, { 'Content-Type': 'text/html', ...noCacheHeaders });
+                    res.end(fallbackHtml);
+                    return;
+                }
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('404 Not Found\n');
+            } else {
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end(`Server Error: ${error.code}\n`);
+            }
+        } else {
+            if (isTypeScript) {
+                (async () => {
+                    try {
+                        const loader = ext === '.ts' ? 'ts' : (ext === '.jsx' ? 'jsx' : 'tsx');
+                        const transpiled = await esbuild.transform(content.toString('utf-8'), {
+                            loader,
+                            target: 'es2022',
+                            format: 'esm',
+                            jsx: 'automatic'
+                        });
+                        let transpiledCode = transpiled.code;
+                        // Backwards compatibility for old absolute paths in apps
+                        transpiledCode = transpiledCode.replace(new RegExp(`/apps/${appId}/`, 'g'), `/apps/${userId}/${appId}/`);
+                        res.writeHead(200, { 'Content-Type': 'text/javascript', ...noCacheHeaders });
+                        res.end(transpiledCode, 'utf-8');
+                    } catch (esError) {
+                        console.error('esbuild transpilation error:', esError);
+                        res.writeHead(500, { 'Content-Type': 'text/plain' });
+                        res.end('Transpilation Error\n');
+                    }
+                })();
+            } else if (['.html', '.css', '.js', '.json', '.svg'].includes(ext)) {
+                let fileContent = content.toString('utf-8');
+                // Backwards compatibility for old absolute paths in apps
+                fileContent = fileContent.replace(new RegExp(`/apps/${appId}/`, 'g'), `/apps/${userId}/${appId}/`);
+                if (ext === '.css') {
+                    const isModuleImport = req?.headers['sec-fetch-dest'] === 'script' || (req?.headers.accept && !req.headers.accept.includes('text/css'));
+                    if (isModuleImport) {
+                        const jsCss = `const css = ${JSON.stringify(fileContent)};\nconst style = document.createElement('style');\nstyle.setAttribute('data-injected-from', '${safeSuffix}');\nstyle.textContent = css;\ndocument.head.appendChild(style);\nexport default css;`;
+                        res.writeHead(200, { 'Content-Type': 'application/javascript', ...noCacheHeaders });
+                        res.end(jsCss, 'utf-8');
+                        return;
+                    }
+                }
+                if (ext === '.html') {
+                    const isDist = safeSuffix.startsWith('dist/') || filePath.includes(path.sep + 'dist' + path.sep);
+                    const baseAppPath = isDist 
+                        ? `/apps/${userId}/${appId}/frontend/dist/` 
+                        : `/apps/${userId}/${appId}/frontend/`;
+                    fileContent = fileContent.replace(/="\/src\//g, `="${baseAppPath}src/`);
+                    fileContent = fileContent.replace(/="\.\/src\//g, `="${baseAppPath}src/`);
+                    fileContent = fileContent.replace(/="\/assets\//g, `="${baseAppPath}assets/`);
+                    fileContent = fileContent.replace(/="\.\/assets\//g, `="${baseAppPath}assets/`);
+                    
+                    // Inject importmap if not present to resolve standard React and UI packages
+                    if (!fileContent.includes('type="importmap"')) {
+                        const importMap = getAppImportMap() + '\n';
+                        if (fileContent.includes('<head>')) {
+                            fileContent = fileContent.replace('<head>', '<head>\n' + importMap);
+                        } else {
+                            fileContent = importMap + fileContent;
+                        }
+                    }
+                    
+                    // Inject global netlink.css for glassmorphism and tailwind classes
+                    if (!fileContent.includes('href="/netlink.css"')) {
+                        fileContent = fileContent.replace('</head>', '  <link rel="stylesheet" href="/netlink.css">\n</head>');
+                    }
+                    
+                    // Inject background glows for the standard NetLink aesthetic
+                    if (!fileContent.includes('class="bg-glow"')) {
+                        fileContent = fileContent.replace('<div id="root">', '<div class="bg-glow"></div>\n  <div class="bg-glow-2"></div>\n  <div id="root">');
+                    }
+                }
+                res.writeHead(200, { 'Content-Type': contentType, ...noCacheHeaders });
+                res.end(fileContent, 'utf-8');
+            } else {
+                res.writeHead(200, { 'Content-Type': contentType, ...noCacheHeaders });
+                res.end(content); // Raw content, no utf-8 forced (important for images)
+            }
         }
     });
 }

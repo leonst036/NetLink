@@ -1,69 +1,236 @@
-import http from 'http';
-import { URL } from 'url';
-import { getMongoClient, RegisterUser, StoreToken } from '../../database/MongoManager.js';
-import { controlConnections } from '../../websocket/connectionManager.js';
-import { GenerateToken } from '../../auth/tokenManager.js';
+import http from "http";
+import { URL } from "url";
+import { getMongoClient, RegisterUser, StoreToken } from "../../database/MongoManager.js";
+import { controlConnections, getTargetStatus } from "../../websocket/connectionManager.js";
+import { GenerateToken, VerifyToken, getJwtSecret } from "../../auth/tokenManager.js";
+import { generateTicket } from "../../auth/ticketManager.js";
+import { extractTokenFromRequest, authenticateToken } from "../../auth/authenticator.js";
 
 export async function handleRegisterRoute(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    if (req.method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === "OPTIONS") {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
         res.writeHead(204);
         res.end();
         return;
     }
 
-    if (req.method !== 'POST') {
-        res.writeHead(405, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Method not allowed' }));
+    if (req.method !== "POST") {
+        res.writeHead(405, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Method not allowed" }));
         return;
     }
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end', async () => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    let body = "";
+    req.on("data", chunk => { body += chunk.toString(); });
+    req.on("end", async () => {
         try {
             const parsedBody = JSON.parse(body);
             const mongoClient = getMongoClient();
             if (!mongoClient) {
-                res.writeHead(503, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Database not available' }));
+                res.writeHead(503, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "Database not available" }));
                 return;
             }
-            await RegisterUser(mongoClient, parsedBody);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true }));
+            const result = await RegisterUser(mongoClient, parsedBody);
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ success: true, uuid: result.uuid }));
         } catch (err: any) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: err.message || 'Failed to register user' }));
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: err.message || "Failed to register user" }));
         }
     });
 }
 
 export async function handleValidateTargetRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    const target = parsedUrl.searchParams.get('target');
-    if (!target) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'target parameter required' }));
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        res.end();
         return;
     }
 
-    const isValid = !controlConnections.has(target);
-    if (!isValid) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ valid: false }));
+    let target = parsedUrl.searchParams.get("target");
+
+    const proceed = async (targetId: string) => {
+        if (!targetId) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "target parameter required" }));
+            return;
+        }
+
+        const isValid = !controlConnections.has(targetId);
+        if (!isValid) {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ valid: false }));
+            return;
+        }
+
+        const mongoClient = getMongoClient();
+        let authenticatedUser: string | null = null;
+        const callerAuth = extractTokenFromRequest(req, parsedUrl);
+        if (callerAuth && mongoClient) {
+            try {
+                const decoded = await authenticateToken(callerAuth, mongoClient);
+                authenticatedUser = decoded?.userId || decoded?.username || null;
+            } catch {}
+        }
+
+        const userId = authenticatedUser || `node_${targetId}`;
+        const role = "node";
+        const permissions: string[] = [];
+
+        const tokenPayload = {
+            deviceId: targetId,
+            userId,
+            role,
+            permissions
+        };
+
+        const token = await GenerateToken(tokenPayload, getJwtSecret());
+
+        if (mongoClient) {
+            await StoreToken(mongoClient, token, targetId);
+            if (authenticatedUser) {
+                try {
+                    await mongoClient.db("NetLink").collection("users").updateOne(
+                        { username: authenticatedUser },
+                        { $addToSet: { targets: targetId } }
+                    );
+                } catch (e) {}
+            }
+        }
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ valid: true, token, user: userId }));
+    };
+
+    if (req.method === "POST" && !target) {
+        let body = "";
+        let received = 0;
+        req.on("data", chunk => {
+            received += chunk.length;
+            if (received > 1024 * 1024) {
+                req.destroy();
+                return;
+            }
+            body += chunk.toString();
+        });
+        req.on("end", async () => {
+            try {
+                if (body) {
+                    const parsed = JSON.parse(body);
+                    target = parsed.target || target;
+                }
+            } catch (e) {}
+            await proceed(target || "");
+        });
+    } else {
+        await proceed(target || "");
+    }
+}
+
+export async function handleTicketRoute(req: http.IncomingMessage, res: http.ServerResponse, parsedUrl: URL): Promise<void> {
+    if (req.method !== "POST") {
+        res.writeHead(405, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Method not allowed" }));
         return;
     }
 
-    const mongoClient = getMongoClient();
-    const token = await GenerateToken({ deviceId: target }, process.env.JWT_SECRET || 'default_secret');
+    res.setHeader("Access-Control-Allow-Origin", "*");
 
-    if (mongoClient) {
-        await StoreToken(mongoClient, token);
+    const authHeader = req.headers.authorization;
+    let token = "";
+    
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1] || "";
+    } else {
+        const cookieHeader = req.headers.cookie || "";
+        const matchToken = cookieHeader.match(/netlink_token=([^;]+)/);
+        if (matchToken) {
+            token = matchToken[1] || "";
+        }
     }
 
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ valid: true, token }));
+    if (!token) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized" }));
+        return;
+    }
+
+    try {
+        const decoded: any = await VerifyToken(token, getJwtSecret());
+        const userId = decoded.userId || decoded.deviceId;
+        if (!decoded || !userId) {
+            throw new Error("Invalid token payload");
+        }
+
+        let body = "";
+        req.on("data", chunk => { body += chunk.toString(); });
+        req.on("end", () => {
+            try {
+                const parsedBody = body ? JSON.parse(body) : {};
+                let target = parsedBody.target || parsedUrl.searchParams.get("target") || "";
+                
+                if (target) {
+                    let status = getTargetStatus(target);
+                    if ((status.blocked || !status.online) && controlConnections.size > 0) {
+                        const fallbackTarget = controlConnections.keys().next().value;
+                        if (fallbackTarget) {
+                            target = fallbackTarget;
+                            status = getTargetStatus(target);
+                        }
+                    }
+
+                    if (status.blocked || !status.online) {
+                        res.writeHead(503, { "Content-Type": "application/json" });
+                        res.end(JSON.stringify({ 
+                            error: "Target local server is blocked or not responding to pings",
+                            target,
+                            blocked: true,
+                            reason: status.reason
+                        }));
+                        return;
+                    }
+
+                    if (decoded.role !== 'admin') {
+                        const mongo = getMongoClient();
+                        if (mongo) {
+                            mongo.db("NetLink").collection("users").findOne({ username: userId }).then((u) => {
+                                if (u && Array.isArray(u.targets) && u.targets.length > 0 && !u.targets.includes(target)) {
+                                    res.writeHead(403, { "Content-Type": "application/json" });
+                                    res.end(JSON.stringify({ error: "Forbidden: Not authorized for target" }));
+                                    return;
+                                }
+                                const ticket = generateTicket(userId, target, decoded.role, decoded.permissions);
+                                res.writeHead(200, { "Content-Type": "application/json" });
+                                res.end(JSON.stringify({ success: true, ticket }));
+                            }).catch(() => {
+                                const ticket = generateTicket(userId, target, decoded.role, decoded.permissions);
+                                res.writeHead(200, { "Content-Type": "application/json" });
+                                res.end(JSON.stringify({ success: true, ticket }));
+                            });
+                            return;
+                        }
+                    }
+                }
+
+                const ticket = generateTicket(userId, target, decoded.role, decoded.permissions);
+                
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ success: true, ticket }));
+            } catch (err: any) {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "Bad request" }));
+            }
+        });
+    } catch (err: any) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized", details: err.message }));
+    }
 }

@@ -7,7 +7,6 @@ export const getAppTheme = (themeName: string) => {
             mode: isDark ? 'dark' : 'light',
             primary: { main: '#38bdf8' },
             background: { default: '#020617', paper: '#0f172a' }
-        },
-        // We can keep it simple for now, the App.tsx and Desktop.tsx will use it
+        }
     });
 };

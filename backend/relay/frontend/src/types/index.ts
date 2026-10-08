@@ -2,7 +2,9 @@ export interface AppNotification {
     id: string;
     message: string;
     type: 'info' | 'success' | 'error';
+    timestamp?: string;
 }
+
 
 export interface TerminalInstance {
     id: string;
@@ -22,6 +24,16 @@ export interface SftpInstance {
     isMinimized: boolean;
 }
 
+export interface DynamicAppInstance {
+    id: string; // The window ID
+    appId: string; // The NetStore app ID
+    title: string;
+    icon?: string;
+    color?: string;
+    isMinimized: boolean;
+    extraParams?: Record<string, string>;
+}
+
 export interface ServerDevice {
     ip: string;
     hostname: string;
@@ -31,3 +43,11 @@ export interface ServerDevice {
     lastSeen: string;
     isOnline: boolean;
 }
+
+export interface PinnedApp {
+    appId: string;
+    title: string;
+    icon?: string;
+    color?: string;
+}
+

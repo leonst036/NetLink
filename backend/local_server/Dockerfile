@@ -13,22 +13,26 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY main.ts ./
 COPY httpServer.ts ./
-COPY protocols/ ./protocols/
 COPY services/ ./services/
+COPY NetStore/ ./NetStore/
+COPY sandbox/ ./sandbox/
 
 
 # Compile TS code to the "dist" directory
 RUN npx tsc --outDir dist
 
 # Stage 2: Clean production runtime image
-FROM node:22-alpine AS runner
+FROM node:22-slim AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install openssl in the production container for certificate auto-generation
-RUN apk add --no-cache openssl
+# Install openssl, ca-certificates, ping and ip tools for network diagnostics
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates iputils-ping iproute2 && rm -rf /var/lib/apt/lists/*
+
+# Install deno
+COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
 
 # Copy package manifests to install production dependencies
 COPY package*.json ./
@@ -38,6 +42,11 @@ RUN npm ci --omit=dev
 
 # Copy the compiled JavaScript files from the builder stage
 COPY --from=builder /app/dist ./
+
+# Copy NetStore applications and permissions
+COPY --from=builder /app/NetStore/Applications ./NetStore/Applications
+COPY --from=builder /app/NetStore/permissions.json ./NetStore/permissions.json
+COPY --from=builder /app/NetStore/permissions.json ./NetStore/Applications/permissions.json
 
 # Run the compiled application
 CMD ["node", "main.js"]

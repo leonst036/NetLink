@@ -1,9 +1,17 @@
 {
-  "name": "netlink-root",
+  "name": "netlink-monorepo",
   "version": "1.0.0",
+  "description": "NetLink Remote Access Gateway",
+  "type": "module",
   "scripts": {
-    "postinstall": "npm install --prefix frontend && npm install --prefix backend/relay",
-    "build": "npm run build --prefix frontend",
-    "start": "npm start --prefix backend/relay"
-  }
+    "dev": "node start-dev.js",
+    "build": "npm run build --prefix backend/relay && npm run build --prefix backend/local_server",
+    "start": "npm start --prefix backend/relay",
+    "allow-dns-port": "sudo setcap 'cap_net_bind_service=+ep' $(which node)",
+    "test": "node tests/run.js",
+    "test:magicdns": "node tests/run.js MagicDNS"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED"
 }
