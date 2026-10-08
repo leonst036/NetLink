@@ -6,27 +6,8 @@ import {
   Button,
   Alert,
   CssBaseline,
-  ThemeProvider,
-  InputAdornment,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton
+  ThemeProvider
 } from '@mui/material';
-import {
-  ShieldCheck,
-  Lock,
-  User,
-  Terminal,
-  Laptop,
-  ArrowRight,
-  Copy,
-  Check,
-  HelpCircle,
-  Clock,
-  Trash2
-} from 'lucide-react';
 import Desktop from './Desktop';
 import NetLinkLoader from './components/NetLinkLoader';
 import { DeviceAuthorizeView } from './components/DeviceAuthorizeView';
@@ -65,7 +46,6 @@ function App() {
   const [loginError, setLoginError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const [target, setTarget] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -199,14 +179,6 @@ function App() {
     }
   };
 
-  const handleCopyDemoCommand = () => {
-    const origin = window.location.origin;
-    const cmd = `curl -ks ${origin}/api/demo.sh | bash`;
-    navigator.clipboard.writeText(cmd);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const isDeviceAuthorizeRoute = typeof window !== 'undefined' && (
     window.location.pathname === '/devices/authorize' ||
     window.location.pathname.startsWith('/devices/authorize')
@@ -230,7 +202,7 @@ function App() {
     );
   }
 
-  const demoCmd = typeof window !== 'undefined' ? `curl -ks ${window.location.origin}/api/demo.sh | bash` : 'curl -ks /api/demo.sh | bash';
+  const originUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
     <ThemeProvider theme={getAppTheme('Dark')}>
@@ -244,147 +216,73 @@ function App() {
       <Box className="app-content">
       {!token ? (
         <Box className="login-container">
-          <Box className="login-grid-bg" />
 
-          {/* Left Side: Brand, Architecture, Demo Launcher & Live Metrics */}
+          {/* Left Side: Brand & Visuals (Hidden on mobile) */}
           <Box className="left-panel">
             <Box className="logo-wrapper">
-              <Box className="os-badge">
-                <Box className="os-dot" />
-                <Typography className="os-text">NetLink OS</Typography>
-                <Typography className="os-version">/ v2.4.0 (Demo Mode)</Typography>
-              </Box>
+              <Typography className="logo-text" variant="h6">
+                <span className="logo-dot" />
+                NetLink
+                <span className="demo-badge">Demo Mode</span>
+              </Typography>
             </Box>
-
             <Box className="left-content">
-              <Typography className="left-title" variant="h3">
-                Decentralized Remote Control &amp; <span className="gradient-title-text">Edge Access</span>
+              <Typography className="left-title" variant="h2">
+                NetLink Demo<br />
               </Typography>
-              <Typography className="left-subtitle">
-                Zero-Config, Self-Destructing Environment with hardware-accelerated encrypted tunnels.
+              <Typography className="left-subtitle" variant="body1">
+                Zero-Config Self-Destructing Environment.
               </Typography>
 
-              {/* Demo Node Interactive Command Box */}
-              <Box sx={{
-                mb: 3,
-                p: 2.5,
-                borderRadius: '16px',
-                background: 'rgba(15, 23, 42, 0.75)',
-                border: '1px solid rgba(56, 189, 248, 0.25)',
-                backdropFilter: 'blur(20px)',
-                boxShadow: '0 8px 25px rgba(0,0,0,0.4)'
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="subtitle2" sx={{ color: '#fff', fontWeight: 700, fontFamily: "'Outfit', sans-serif" }}>
-                    1. Start Your Temporary Node
-                  </Typography>
-                  <Button
-                    size="small"
-                    startIcon={<HelpCircle size={14} />}
-                    onClick={() => setShowExplanation(true)}
-                    sx={{ color: '#38bdf8', textTransform: 'none', fontSize: '0.75rem', p: 0.5 }}
-                  >
-                    How it works
-                  </Button>
-                </Box>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)', display: 'block', mb: 1.5 }}>
-                  Run this command on any machine with Docker to receive your 24-hour credentials:
+              {/* Docker Instructions for Temporary Demo Node */}
+              <Box sx={{ mt: 5, p: 3, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)' }}>
+                <Typography variant="h6" sx={{ color: '#fff', mb: 1, fontFamily: "'Outfit', sans-serif" }}>
+                  1. Start your temporary node
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 2, fontFamily: "'Outfit', sans-serif" }}>
+                  Run this command on any machine with Docker to generate your 24-hour demo credentials:
                 </Typography>
 
-                <Box sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  p: 1.5,
-                  borderRadius: '10px',
-                  background: 'rgba(2, 6, 23, 0.75)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  borderLeft: '4px solid #38bdf8'
-                }}>
+                <Box sx={{ position: 'relative', mb: 2 }}>
                   <Box component="code" sx={{
-                    fontFamily: 'JetBrains Mono, monospace',
-                    fontSize: '0.85rem',
-                    color: '#38bdf8',
-                    overflowX: 'auto',
-                    whiteSpace: 'nowrap',
-                    mr: 1
+                    display: 'block', p: 2, pr: 6, bgcolor: 'rgba(0,0,0,0.4)', borderRadius: 1,
+                    color: '#38bdf8', borderLeft: '4px solid #38bdf8', fontFamily: 'monospace', wordBreak: 'break-all'
                   }}>
-                    {demoCmd}
+                    curl -ks {originUrl}/api/demo.sh | bash
                   </Box>
-                  <IconButton
-                    size="small"
-                    onClick={handleCopyDemoCommand}
-                    sx={{ color: copied ? '#10b981' : 'rgba(255,255,255,0.7)', flexShrink: 0 }}
-                    title="Copy to clipboard"
+                  <Button
+                    onClick={() => setShowExplanation(true)}
+                    sx={{
+                      position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                      minWidth: 'auto', width: 28, height: 28, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)',
+                      color: 'rgba(255,255,255,0.5)', p: 0, '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }
+                    }}
                   >
-                    {copied ? <Check size={16} /> : <Copy size={16} />}
-                  </IconButton>
+                    ?
+                  </Button>
+                </Box>
+
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 0.5 }}>
+                  Windows (PowerShell):
+                </Typography>
+                <Box component="code" sx={{
+                  display: 'block', p: 1.5, bgcolor: 'rgba(0,0,0,0.4)', borderRadius: 1,
+                  color: '#38bdf8', borderLeft: '4px solid #38bdf8', fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all'
+                }}>
+                  Invoke-Expression (Invoke-WebRequest -Uri "{originUrl}/api/demo.ps1" -UseBasicParsing).Content
                 </Box>
               </Box>
-
-              <Box className="feature-pills">
-                <Box className="pill-item">
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
-                  <span>Zero-Config P2P</span>
-                </Box>
-                <Box className="pill-item">
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 6px #38bdf8' }} />
-                  <span>End-to-End Encrypted</span>
-                </Box>
-                <Box className="pill-item">
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', background: '#818cf8', boxShadow: '0 0 6px #818cf8' }} />
-                  <span>24h Auto-Expiry</span>
-                </Box>
-              </Box>
-
-              <Box className="telemetry-card">
-                <Box className="telemetry-header">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Terminal size={16} color="#38bdf8" />
-                    <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#fff' }}>
-                      Gateway Telemetry
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-                    <Typography variant="caption" sx={{ color: '#10b981', fontWeight: 600 }}>READY</Typography>
-                  </Box>
-                </Box>
-
-                <Box className="telemetry-grid">
-                  <Box className="telemetry-stat">
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block' }}>Uptime</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#fff', mt: 0.5 }}>99.9%</Typography>
-                  </Box>
-                  <Box className="telemetry-stat">
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block' }}>Latency</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#10b981', mt: 0.5 }}>&lt; 15ms</Typography>
-                  </Box>
-                  <Box className="telemetry-stat">
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block' }}>Tunnel</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#38bdf8', mt: 0.5 }}>ChaCha20</Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem' }}>
-              <ShieldCheck size={16} color="#38bdf8" />
-              <span>NetLink Gateway Engine (Demo Version)</span>
             </Box>
           </Box>
 
-          {/* Right Side: Clean Obsidian Glass Login Form */}
+          {/* Right Side: Clean Login Form */}
           <Box className="right-panel">
             <Box className="form-wrapper">
-              <Box className="form-header-badge">
-                <ShieldCheck size={26} color="#38bdf8" />
-              </Box>
-              <Typography className="form-title" variant="h5">
-                Sign in to Demo
+              <Typography className="form-title" variant="h4">
+                Connect
               </Typography>
-              <Typography className="form-subtitle">
-                Enter your generated temporary credentials to unlock your environment.
+              <Typography className="form-subtitle" variant="body1">
+                2. Login to manage your temporary node
               </Typography>
 
               {loginError && (
@@ -396,43 +294,27 @@ function App() {
               <form className="form-container" onSubmit={handleLogin}>
                 <TextField
                   className="styled-text-field"
-                  label="Username"
-                  variant="outlined"
+                  label="Demo Username"
+                  placeholder="demo_xxxxxxx"
+                  variant="standard"
                   fullWidth
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={loading}
-                  slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <User size={18} color="rgba(255, 255, 255, 0.4)" />
-                        </InputAdornment>
-                      ),
-                    }
-                  }}
                 />
 
                 <TextField
                   className="styled-text-field"
-                  label="Password"
+                  label="Demo Password"
+                  placeholder="Enter generated password"
                   type="password"
-                  variant="outlined"
+                  variant="standard"
                   fullWidth
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
-                  slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Lock size={18} color="rgba(255, 255, 255, 0.4)" />
-                        </InputAdornment>
-                      ),
-                    }
-                  }}
                 />
 
                 {loading ? (
@@ -447,85 +329,54 @@ function App() {
                     fullWidth
                     disableElevation
                     disabled={loading}
-                    endIcon={<ArrowRight size={18} />}
                   >
                     Connect to Node
                   </Button>
                 )}
               </form>
 
-              <Typography variant="caption" sx={{ mt: 3, display: 'block', color: 'rgba(255,255,255,0.4)', textAlign: 'center', fontFamily: "'Outfit', sans-serif", lineHeight: 1.5 }}>
-                <strong>Privacy Disclaimer:</strong> This demo environment is completely stateless and self-destructing. We collect no personal data. All demo accounts and associated data are permanently wiped after 24 hours.
+              <Typography variant="caption" sx={{ mt: 5, display: 'block', color: 'rgba(255,255,255,0.3)', textAlign: 'center', fontFamily: "'Outfit', sans-serif", lineHeight: 1.5 }}>
+                <strong>Privacy Disclaimer:</strong> This demo environment is completely stateless and self-destructing. We use zero cookies, no third-party tracking, and collect no personal data. All demo accounts and associated network data are automatically and permanently deleted after 24 hours.
               </Typography>
 
-              <a href="/devices/authorize" className="device-auth-link" style={{ marginTop: '16px' }}>
-                <Laptop size={15} />
-                <span>Authorize external desktop client</span>
+              <a href="/devices/authorize" className="device-auth-link">
+                Authorize external desktop client
               </a>
             </Box>
           </Box>
 
-          {/* Explanation Modal */}
-          <Dialog
-            open={showExplanation}
-            onClose={() => setShowExplanation(false)}
-            maxWidth="xs"
-            fullWidth
-            slotProps={{
-              paper: {
-                sx: {
-                  backgroundColor: 'rgba(15, 23, 42, 0.92)',
-                  backdropFilter: 'blur(24px)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  borderRadius: '20px',
-                  color: '#fff',
-                  boxShadow: '0 25px 50px rgba(0,0,0,0.8)'
-                }
-              }
-            }}
-          >
-            <DialogTitle sx={{ color: '#38bdf8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <HelpCircle size={20} />
-              How Demo Mode Works
-            </DialogTitle>
-            <DialogContent sx={{ pt: 1 }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-                  <Terminal size={18} color="#38bdf8" style={{ marginTop: 2, flexShrink: 0 }} />
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#fff' }}>1. Automatic Credential Setup</Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>The installer script requests a temporary isolated user and node target from this relay.</Typography>
-                  </Box>
+          {/* Modal Explanation Overlay */}
+          {showExplanation && (
+            <Box sx={{
+              position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.8)', zIndex: 9999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, backdropFilter: 'blur(4px)'
+            }}>
+              <Box sx={{
+                bgcolor: '#0f172a', p: 4, borderRadius: 2, maxWidth: 400, width: '100%',
+                border: '1px solid rgba(56,189,248,0.3)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+              }}>
+                <Typography variant="h5" sx={{ color: '#38bdf8', mb: 2, fontFamily: "'Outfit', sans-serif", fontWeight: 600 }}>
+                  How it works
+                </Typography>
+                <Box component="ul" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.95rem', lineHeight: 1.6, pl: 2.5, m: 0, mb: 4, fontFamily: "'Outfit', sans-serif" }}>
+                  <Box component="li" sx={{ mb: 1.5 }}><strong>Auto-Setup:</strong> The script fetches temporary credentials from this server.</Box>
+                  <Box component="li" sx={{ mb: 1.5 }}><strong>Isolation:</strong> It pulls the open-source NetLink Node Docker image and runs it safely isolated on your machine.</Box>
+                  <Box component="li" sx={{ mb: 0 }}><strong>Self-Destruct:</strong> After exactly 24 hours, the node will automatically delete itself and your temporary account is wiped.</Box>
                 </Box>
-
-                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-                  <Clock size={18} color="#10b981" style={{ marginTop: 2, flexShrink: 0 }} />
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#fff' }}>2. Docker Sandboxing</Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>It runs the official NetLink Node Docker container on your machine with zero open inbound ports.</Typography>
-                  </Box>
-                </Box>
-
-                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-                  <Trash2 size={18} color="#f87171" style={{ marginTop: 2, flexShrink: 0 }} />
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#fff' }}>3. Guaranteed 24h Auto-Wipe</Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>After 24 hours, the container stops and your temporary account and credentials are automatically destroyed.</Typography>
-                  </Box>
-                </Box>
+                <Button
+                  onClick={() => setShowExplanation(false)}
+                  fullWidth variant="outlined"
+                  sx={{
+                    color: '#fff', borderColor: 'rgba(255,255,255,0.2)', py: 1.5,
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: '#fff' }
+                  }}
+                >
+                  Close
+                </Button>
               </Box>
-            </DialogContent>
-            <DialogActions sx={{ p: 2, pt: 0 }}>
-              <Button
-                onClick={() => setShowExplanation(false)}
-                variant="outlined"
-                fullWidth
-                sx={{ borderRadius: '20px', borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }}
-              >
-                Got It
-              </Button>
-            </DialogActions>
-          </Dialog>
+            </Box>
+          )}
+
         </Box>
       ) : (
         <Desktop token={token} onLogout={handleLogout} target={target} setTarget={setTarget} allowedTargets={allowedTargets} />
