@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including devDependencies like typescript)
-RUN npm ci
+RUN npm install
 
 COPY tsconfig.json ./
 COPY main.ts ./
@@ -50,7 +50,7 @@ COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
 COPY package*.json ./
 
 # Install production dependencies only
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy the compiled JavaScript files from the builder stage
 COPY --from=builder /app/dist ./
