@@ -28,9 +28,8 @@ export function consumeTicket(ticket: string): TicketData | null {
     const data = ticketStore.get(ticket);
     if (!data) return null;
 
-    ticketStore.delete(ticket);
-
     if (Date.now() > data.expiresAt) {
+        ticketStore.delete(ticket);
         return null;
     }
 

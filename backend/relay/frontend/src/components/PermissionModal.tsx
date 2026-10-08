@@ -72,6 +72,7 @@ export default function PermissionModal({
     return (
         <Dialog 
             open={open} 
+            onClose={handleDeny}
             maxWidth="sm" 
             fullWidth 
             slotProps={{ 
@@ -231,7 +232,17 @@ export default function PermissionModal({
                     onClick={handleDeny} 
                     variant="outlined" 
                     color="inherit" 
-                    sx={{ borderColor: 'rgba(255,255,255,0.2)', borderRadius: '20px', px: 3, textTransform: 'none' }}
+                    sx={{ 
+                        borderColor: 'rgba(255,255,255,0.15)', 
+                        borderRadius: '10px', 
+                        px: 3, 
+                        textTransform: 'none',
+                        color: '#94a3b8',
+                        '&:hover': {
+                            borderColor: 'rgba(255,255,255,0.3)',
+                            background: 'rgba(255,255,255,0.05)'
+                        }
+                    }}
                 >
                     Deny Request
                 </Button>
@@ -239,13 +250,17 @@ export default function PermissionModal({
                     onClick={handleGrant} 
                     variant="contained" 
                     sx={{ 
-                        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', 
+                        background: 'linear-gradient(135deg, #38bdf8 0%, #2563eb 100%)', 
                         color: '#fff',
-                        borderRadius: '20px', 
+                        borderRadius: '10px', 
                         px: 3, 
                         textTransform: 'none',
                         fontWeight: 600,
-                        boxShadow: '0 4px 15px rgba(239, 68, 68, 0.35)'
+                        boxShadow: '0 4px 15px rgba(56, 189, 248, 0.35)',
+                        '&:hover': {
+                            background: 'linear-gradient(135deg, #0ea5e9 0%, #1d4ed8 100%)',
+                            boxShadow: '0 6px 20px rgba(56, 189, 248, 0.45)'
+                        }
                     }}
                 >
                     Allow Access

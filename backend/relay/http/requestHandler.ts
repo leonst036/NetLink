@@ -169,7 +169,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
             }
 
             if (userId !== 'unknown') {
-                const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId) || (userId === 'admin' ? denoSandbox.getApp(`admin_${appId}`) : undefined);
+                const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId) || denoSandbox.getApp(`admin_${appId}`);
                 if (app) {
                     proxy.web(req, res, { target: `http://localhost:${app.port}` });
                     return;

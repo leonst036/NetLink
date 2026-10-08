@@ -142,21 +142,25 @@ function App() {
 
     setLoading(true);
     setLoginError('');
-
     try {
+      const isDemoMode = username.trim().toLowerCase().startsWith('demo_');
+      const targetPayload = isDemoMode ? undefined : (target.trim() || undefined);
+
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, target: target.trim() || undefined }),
+        body: JSON.stringify({ username: username.trim(), password, target: targetPayload }),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Login failed');
 
       let activeTarget = target.trim();
-      if (!activeTarget && data.targets && data.targets.length > 0) {
-        activeTarget = data.targets[0];
-        setTarget(activeTarget);
+      if (data.targets && data.targets.length > 0) {
+        if (isDemoMode || !activeTarget || !data.targets.includes(activeTarget)) {
+          activeTarget = data.targets[0];
+          setTarget(activeTarget);
+        }
       }
 
       setCookie('netlink_token', data.token, 1);

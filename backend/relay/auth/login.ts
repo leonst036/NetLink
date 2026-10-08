@@ -93,7 +93,7 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
                     userRole = user.role || 'user';
                     userPermissions = user.permissions || [];
 
-                    if (target) {
+                    if (target && user.role === 'admin') {
                         await client.db("NetLink").collection("users").updateOne(
                             { _id: user._id },
                             { $addToSet: { targets: target } }

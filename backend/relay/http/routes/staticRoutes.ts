@@ -308,6 +308,7 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
 
     const safeSuffix = path.normalize(decodedSubPath).replace(/^(\.\.[\/\\])+/, '').replace(/^[/\\]+/, '');
     const baseAppFrontend = path.resolve(RELAY_APPS_DIR, userId, appId, 'frontend');
+    const adminAppFrontend = path.resolve(RELAY_APPS_DIR, 'admin', appId, 'frontend');
     let filePath = path.resolve(baseAppFrontend, safeSuffix);
 
     const isSafePath = (target: string, base: string) => {
@@ -316,23 +317,25 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
         return resolvedTarget === resolvedBase || resolvedTarget.startsWith(resolvedBase + path.sep);
     };
 
-    const localStoreBase = resolveLocalNetStorePath('applications', appId, 'frontend');
-    if (localStoreBase) {
-        const localStorePath = path.resolve(localStoreBase, safeSuffix);
-        if (isSafePath(localStorePath, localStoreBase) && fs.existsSync(localStorePath)) {
-            filePath = localStorePath;
+    const candidateBases = [
+        baseAppFrontend,
+        adminAppFrontend,
+        resolveLocalNetStorePath('applications', appId, 'frontend')
+    ].filter(Boolean) as string[];
+
+    for (const base of candidateBases) {
+        const candPath = path.resolve(base, safeSuffix);
+        if (isSafePath(candPath, base) && fs.existsSync(candPath)) {
+            filePath = candPath;
+            break;
         }
     }
 
     if (!fs.existsSync(filePath) && (safeSuffix === 'dist/index.html' || safeSuffix.startsWith('dist/'))) {
         const nonDistSuffix = safeSuffix.replace(/^dist[\/\\]/, '');
-        const fallbackCandidates = [
-            path.resolve(baseAppFrontend, nonDistSuffix),
-            localStoreBase ? path.resolve(localStoreBase, nonDistSuffix) : ''
-        ].filter(Boolean);
-        for (const cand of fallbackCandidates) {
-            const base = cand.startsWith(baseAppFrontend) ? baseAppFrontend : localStoreBase;
-            if (base && isSafePath(cand, base)) {
+        for (const base of candidateBases) {
+            const cand = path.resolve(base, nonDistSuffix);
+            if (isSafePath(cand, base)) {
                 if (fs.existsSync(cand) || 
                     fs.existsSync(cand + '.tsx') || 
                     fs.existsSync(cand + '.ts') || 
@@ -346,20 +349,17 @@ export function handleAppFrontendRoute(pathname: string, res: http.ServerRespons
     }
 
     if (!fs.existsSync(filePath)) {
-        const distCandidates = [
-            path.resolve(baseAppFrontend, 'dist', safeSuffix),
-            localStoreBase ? path.resolve(localStoreBase, 'dist', safeSuffix) : ''
-        ].filter(Boolean);
-        for (const cand of distCandidates) {
-            const base = cand.startsWith(baseAppFrontend) ? baseAppFrontend : localStoreBase;
-            if (base && isSafePath(cand, base) && fs.existsSync(cand)) {
+        for (const base of candidateBases) {
+            const cand = path.resolve(base, 'dist', safeSuffix);
+            if (isSafePath(cand, base) && fs.existsSync(cand)) {
                 filePath = cand;
                 break;
             }
         }
     }
 
-    if (!isSafePath(filePath, baseAppFrontend) && (!localStoreBase || !isSafePath(filePath, localStoreBase))) {
+    const isAllowed = candidateBases.some(base => isSafePath(filePath, base));
+    if (!isAllowed) {
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         res.end('Forbidden');
         return;

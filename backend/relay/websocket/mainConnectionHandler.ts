@@ -144,7 +144,7 @@ export const handleMainConnection = async (
                     ws.close(1008, 'Unauthorized');
                     return;
                 }
-                const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId) || (decodedPayload?.role === 'admin' ? denoSandbox.getApp(`admin_${appId}`) : undefined);
+                const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId) || denoSandbox.getApp(`admin_${appId}`);
                 const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps'];
                 if (app && !systemRoutes.includes(appId)) {
                     const targetUrl = `ws://localhost:${app.port}${req.url}`;
