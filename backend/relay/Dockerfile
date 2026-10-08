@@ -55,9 +55,9 @@ RUN npm install --omit=dev
 # Copy the compiled JavaScript files from the builder stage
 COPY --from=builder /app/dist ./
 
-# Copy assets
+# Copy assets and NetStore
 COPY --from=builder /app/assets ./assets
-RUN mkdir -p /app/NetStore/Applications
+COPY --from=builder /app/NetStore ./NetStore
 
 # Copy the frontend built files
 COPY --from=builder /app/frontend/dist ./frontend/dist
