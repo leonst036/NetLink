@@ -10,11 +10,21 @@ import {
 import { authenticateToken, extractTokenFromRequest } from "../../auth/authenticator.js";
 import { getMongoClient } from "../../database/MongoManager.js";
 import { controlConnections } from "../../websocket/connectionManager.js";
+import { getJwtSecret } from "../../auth/tokenManager.js";
 
-function getRequestBody(req: http.IncomingMessage): Promise<string> {
+function getRequestBody(req: http.IncomingMessage, maxBytes = 1024 * 1024): Promise<string> {
     return new Promise((resolve, reject) => {
         let body = "";
-        req.on("data", chunk => { body += chunk.toString(); });
+        let received = 0;
+        req.on("data", chunk => {
+            received += chunk.length;
+            if (received > maxBytes) {
+                req.destroy();
+                reject(new Error("Payload too large"));
+                return;
+            }
+            body += chunk.toString();
+        });
         req.on("end", () => resolve(body));
         req.on("error", err => reject(err));
     });
@@ -274,7 +284,7 @@ export async function handleDeviceApproveRoute(
             return;
         }
 
-        const secretKey = process.env.JWT_SECRET || "default_secret";
+        const secretKey = getJwtSecret();
         const result = await approveDeviceSession(
             code,
             username,

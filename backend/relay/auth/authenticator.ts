@@ -1,7 +1,7 @@
 import * as mongoDB from 'mongodb';
 import http from 'http';
 import { URL } from 'url';
-import { VerifyToken } from './tokenManager.js';
+import { VerifyToken, getJwtSecret } from './tokenManager.js';
 import { CheckToken } from '../database/MongoManager.js';
 
 export function parseCookies(cookieHeader?: string): Record<string, string> {
@@ -78,7 +78,7 @@ export async function authenticateToken(
         };
     }
 
-    const secretKey = process.env.JWT_SECRET || 'default_secret';
+    const secretKey = getJwtSecret();
 
     try {
         const decoded = await VerifyToken(token, secretKey);

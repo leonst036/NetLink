@@ -2,8 +2,9 @@ import http from "http";
 import { URL } from "url";
 import { getMongoClient, RegisterUser, StoreToken } from "../../database/MongoManager.js";
 import { controlConnections, getTargetStatus } from "../../websocket/connectionManager.js";
-import { GenerateToken, VerifyToken } from "../../auth/tokenManager.js";
+import { GenerateToken, VerifyToken, getJwtSecret } from "../../auth/tokenManager.js";
 import { generateTicket } from "../../auth/ticketManager.js";
+import { extractTokenFromRequest, authenticateToken } from "../../auth/authenticator.js";
 
 export async function handleRegisterRoute(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     if (req.method === "OPTIONS") {
@@ -55,9 +56,8 @@ export async function handleValidateTargetRoute(parsedUrl: URL, req: http.Incomi
     }
 
     let target = parsedUrl.searchParams.get("target");
-    let requestedUser = parsedUrl.searchParams.get("user") || parsedUrl.searchParams.get("userId");
 
-    const proceed = async (targetId: string, usernameParam?: string) => {
+    const proceed = async (targetId: string) => {
         if (!targetId) {
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: "target parameter required" }));
@@ -72,33 +72,18 @@ export async function handleValidateTargetRoute(parsedUrl: URL, req: http.Incomi
         }
 
         const mongoClient = getMongoClient();
-        let userId = usernameParam || "";
-        let role = "node";
-        let permissions: string[] = [];
-
-        if (mongoClient) {
+        let authenticatedUser: string | null = null;
+        const callerAuth = extractTokenFromRequest(req, parsedUrl);
+        if (callerAuth && mongoClient) {
             try {
-                if (userId) {
-                    const user = await mongoClient.db("NetLink").collection("users").findOne({
-                        $or: [{ username: userId }, { email: userId }]
-                    });
-                    if (user) {
-                        userId = user.username;
-                    }
-                } else {
-                    const user = await mongoClient.db("NetLink").collection("users").findOne({ targets: targetId });
-                    if (user) {
-                        userId = user.username;
-                    }
-                }
-            } catch (e) {
-                console.error("Failed to look up user for target validation:", e);
-            }
+                const decoded = await authenticateToken(callerAuth, mongoClient);
+                authenticatedUser = decoded?.userId || decoded?.username || null;
+            } catch {}
         }
 
-        if (!userId) {
-            userId = targetId;
-        }
+        const userId = authenticatedUser || `node_${targetId}`;
+        const role = "node";
+        const permissions: string[] = [];
 
         const tokenPayload = {
             deviceId: targetId,
@@ -107,16 +92,18 @@ export async function handleValidateTargetRoute(parsedUrl: URL, req: http.Incomi
             permissions
         };
 
-        const token = await GenerateToken(tokenPayload, process.env.JWT_SECRET || "default_secret");
+        const token = await GenerateToken(tokenPayload, getJwtSecret());
 
         if (mongoClient) {
             await StoreToken(mongoClient, token, targetId);
-            try {
-                await mongoClient.db("NetLink").collection("users").updateOne(
-                    { username: userId },
-                    { $addToSet: { targets: targetId } }
-                );
-            } catch (e) {}
+            if (authenticatedUser) {
+                try {
+                    await mongoClient.db("NetLink").collection("users").updateOne(
+                        { username: authenticatedUser },
+                        { $addToSet: { targets: targetId } }
+                    );
+                } catch (e) {}
+            }
         }
 
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -125,19 +112,26 @@ export async function handleValidateTargetRoute(parsedUrl: URL, req: http.Incomi
 
     if (req.method === "POST" && !target) {
         let body = "";
-        req.on("data", chunk => { body += chunk.toString(); });
+        let received = 0;
+        req.on("data", chunk => {
+            received += chunk.length;
+            if (received > 1024 * 1024) {
+                req.destroy();
+                return;
+            }
+            body += chunk.toString();
+        });
         req.on("end", async () => {
             try {
                 if (body) {
                     const parsed = JSON.parse(body);
                     target = parsed.target || target;
-                    requestedUser = parsed.user || parsed.userId || requestedUser;
                 }
             } catch (e) {}
-            await proceed(target || "", requestedUser || "");
+            await proceed(target || "");
         });
     } else {
-        await proceed(target || "", requestedUser || "");
+        await proceed(target || "");
     }
 }
 
@@ -170,7 +164,7 @@ export async function handleTicketRoute(req: http.IncomingMessage, res: http.Ser
     }
 
     try {
-        const decoded: any = await VerifyToken(token, process.env.JWT_SECRET || "default_secret");
+        const decoded: any = await VerifyToken(token, getJwtSecret());
         const userId = decoded.userId || decoded.deviceId;
         if (!decoded || !userId) {
             throw new Error("Invalid token payload");

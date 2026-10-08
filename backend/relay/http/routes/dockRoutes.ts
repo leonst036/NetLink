@@ -30,7 +30,15 @@ export async function handleDockRoute(parsedUrl: URL, req: http.IncomingMessage,
             res.end(JSON.stringify({ pinnedApps }));
         } else if (req.method === 'POST') {
             let body = '';
-            req.on('data', chunk => { body += chunk.toString(); });
+            let received = 0;
+            req.on('data', chunk => {
+                received += chunk.length;
+                if (received > 1024 * 1024) {
+                    req.destroy();
+                    return;
+                }
+                body += chunk.toString();
+            });
             req.on('end', async () => {
                 try {
                     const data = JSON.parse(body);

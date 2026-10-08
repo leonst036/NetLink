@@ -108,6 +108,11 @@ export function handleRelayConnection(token: string): void {
                 });
             } else if (message.type === 'init_lan_stream' && message.sessionId && message.destIP && message.destPort) {
                 const { sessionId, destIP, destPort } = message;
+                const cleanIP = String(destIP).toLowerCase().trim();
+                if (cleanIP === 'localhost' || cleanIP.startsWith('127.') || cleanIP === '::1' || cleanIP === '169.254.169.254' || cleanIP === '0.0.0.0') {
+                    console.warn(`[LAN Forwarder] Blocked connection to prohibited destination: ${cleanIP}`);
+                    return;
+                }
                 console.log(`[LAN Forwarder] Forwarding LAN stream request for ${destIP}:${destPort} (Session: ${sessionId})`);
                 
                 const dataWs = connectToRelay(token, sessionId);

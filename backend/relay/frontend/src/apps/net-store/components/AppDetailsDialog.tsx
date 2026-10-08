@@ -9,6 +9,8 @@ import {
     DialogContent,
     DialogActions,
     Button,
+    FormControlLabel,
+    Checkbox,
 } from '@mui/material';
 import {
     Star,
@@ -242,27 +244,32 @@ export const AppDetailsDialog = ({
 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', ml: 'auto' }}>
                     {!isInstalled && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
-                            <input
-                                type="checkbox"
-                                id="runInBackground"
-                                checked={runInBackground}
-                                disabled={isInstalling}
-                                onChange={(e) => setRunInBackground(e.target.checked)}
-                                style={{ marginRight: '8px', cursor: 'pointer', accentColor: '#38bdf8' }}
-                            />
-                            <label
-                                htmlFor="runInBackground"
-                                style={{
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    size="small"
+                                    checked={runInBackground}
+                                    disabled={isInstalling}
+                                    onChange={(e) => setRunInBackground(e.target.checked)}
+                                    sx={{
+                                        color: 'rgba(255, 255, 255, 0.4)',
+                                        '&.Mui-checked': {
+                                            color: '#38bdf8',
+                                        },
+                                        p: 0.5
+                                    }}
+                                />
+                            }
+                            label="Run in background"
+                            sx={{
+                                mr: 1,
+                                '& .MuiFormControlLabel-label': {
                                     fontSize: '0.85rem',
                                     color: '#94a3b8',
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                }}
-                            >
-                                Run in background
-                            </label>
-                        </Box>
+                                    userSelect: 'none'
+                                }
+                            }}
+                        />
                     )}
                     <Button
                         size="small"

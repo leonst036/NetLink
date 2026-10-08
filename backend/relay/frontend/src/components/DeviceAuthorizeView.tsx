@@ -408,39 +408,41 @@ export const DeviceAuthorizeView: React.FC<DeviceAuthorizeViewProps> = ({
               </Alert>
             )}
 
-            <TextField
-              label="User Code"
-              placeholder="NET-XXXX"
-              variant="outlined"
-              fullWidth
-              value={code}
-              onChange={e => setCode(e.target.value.toUpperCase())}
-              sx={{
-                mb: 3,
-                '& input': {
-                  fontSize: '1.4rem',
-                  letterSpacing: '3px',
-                  fontWeight: 700,
-                  textAlign: 'center',
-                  fontFamily: 'monospace'
-                }
-              }}
-            />
+            <form onSubmit={(e) => { e.preventDefault(); if (code.trim() && !loadingSession) fetchSession(code); }}>
+              <TextField
+                label="User Code"
+                placeholder="NET-XXXX"
+                variant="outlined"
+                fullWidth
+                value={code}
+                onChange={e => setCode(e.target.value.toUpperCase())}
+                sx={{
+                  mb: 3,
+                  '& input': {
+                    fontSize: '1.4rem',
+                    letterSpacing: '3px',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    fontFamily: 'monospace'
+                  }
+                }}
+              />
 
-            <Button
-              variant="contained"
-              fullWidth
-              disabled={!code.trim() || loadingSession}
-              onClick={() => fetchSession(code)}
-              sx={{
-                py: 1.5,
-                background: 'linear-gradient(135deg, #38bdf8 0%, #2563eb 100%)',
-                color: '#fff',
-                fontWeight: 600
-              }}
-            >
-              {loadingSession ? <CircularProgress size={24} color="inherit" /> : 'Find Request'}
-            </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                disabled={!code.trim() || loadingSession}
+                sx={{
+                  py: 1.5,
+                  background: 'linear-gradient(135deg, #38bdf8 0%, #2563eb 100%)',
+                  color: '#fff',
+                  fontWeight: 600
+                }}
+              >
+                {loadingSession ? <CircularProgress size={24} color="inherit" /> : 'Find Request'}
+              </Button>
+            </form>
           </Box>
         ) : (
           <Box>
@@ -538,7 +540,7 @@ export const DeviceAuthorizeView: React.FC<DeviceAuthorizeViewProps> = ({
                     '.MuiSvgIcon-root': { color: '#fff' }
                   }}
                 >
-                  {session.available_targets.map(target => {
+                  {(session.available_targets || []).map(target => {
                     const isOnline = session.online_targets?.includes(target);
                     return (
                       <MenuItem key={target} value={target}>

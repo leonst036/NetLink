@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import net from 'net';
 import fs from 'fs';
+import path from 'path';
 
 export interface AppProcess {
     appId: string;
@@ -29,7 +30,8 @@ export class DenoSandbox {
         this.stopApp(appId);
 
         const port = await this.getAvailablePort();
-        const denoCmd = fs.existsSync('/home/leon/.deno/bin/deno') ? '/home/leon/.deno/bin/deno' : 'deno';
+        const defaultDeno = path.join(process.env.HOME || '', '.deno/bin/deno');
+        const denoCmd = process.env.DENO_PATH || (fs.existsSync(defaultDeno) ? defaultDeno : 'deno');
 
         const cleanEnv: Record<string, string> = {
             PORT: port.toString(),

@@ -23,7 +23,15 @@ export async function handleServerLoginsRoute(parsedUrl: URL, req: http.Incoming
             res.end(JSON.stringify({ logins }));
         } else if (req.method === "POST") {
             let body = "";
-            req.on("data", chunk => { body += chunk.toString(); });
+            let received = 0;
+            req.on("data", chunk => {
+                received += chunk.length;
+                if (received > 1024 * 1024) {
+                    req.destroy();
+                    return;
+                }
+                body += chunk.toString();
+            });
             req.on("end", async () => {
                 try {
                     const parsedBody = JSON.parse(body);

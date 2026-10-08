@@ -21,9 +21,10 @@ import { fileURLToPath } from 'url';
 import { Router } from './Router.js';
 import httpProxy from 'http-proxy';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
-import { VerifyTokenSync } from '../auth/tokenManager.js';
+import { VerifyTokenSync, getJwtSecret } from '../auth/tokenManager.js';
 import { consumeTicket } from '../auth/ticketManager.js';
 import { resolveLocalNetStorePath } from '../paths.js';
+import { handleLogLevelRoute } from './routes/utilityRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,7 +73,7 @@ appRouter.post('/api/auth/device/approve', (req, res, parsedUrl) => handleDevice
 // Script routes
 appRouter.get('/api/install.sh', handleInstallScriptRoute);
 appRouter.get('/api/demo.sh', handleDemoScriptRoute);
-appRouter.get('/api/demo-setup', handleDemoSetupRoute);
+appRouter.all('/api/demo-setup', handleDemoSetupRoute);
 
 // Sound Routes
 appRouter.get('/api/sounds/notification', handleNotificationSoundRoute);
@@ -120,6 +121,8 @@ appRouter.all('/api/dns/status', (req, res, parsedUrl) => handleMagicDnsRoutes(r
 appRouter.all('/api/dns/config', (req, res, parsedUrl) => handleMagicDnsRoutes(req, res, parsedUrl));
 appRouter.all('/api/dns/records', (req, res, parsedUrl) => handleMagicDnsRoutes(req, res, parsedUrl));
 
+// Utility routes
+appRouter.all('/api/log-level', (req, res, parsedUrl) => handleLogLevelRoute(parsedUrl, req, res));
 
 /**
  * Main HTTP Request Handler - routes incoming HTTP requests to dedicated route controllers.
@@ -130,7 +133,7 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
     const match = parsedUrl.pathname.match(/^\/api\/([^\/]+)(?:\/|$)/);
     if (match) {
         const appId = match[1] as string;
-        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'tunnels', 'netconnect', 'dns'];
+        const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'demo.sh', 'demo-setup', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps', 'tunnels', 'netconnect', 'dns', 'log-level'];
         if (!systemRoutes.includes(appId)) {
             let userId = 'unknown';
             try {
@@ -153,11 +156,11 @@ export function handleRequest(req: http.IncomingMessage, res: http.ServerRespons
                     const token = matchToken ? matchToken[1] : (authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : (authHeader.split(' ')[1] || parsedUrl.searchParams.get('token')));
                     if (token) {
                         try {
-                            const decoded = VerifyTokenSync(token, process.env.JWT_SECRET || 'default_secret');
+                            const decoded = VerifyTokenSync(token, getJwtSecret());
                             if (decoded && (decoded.userId || decoded.deviceId)) {
                                 userId = decoded.userId || decoded.deviceId;
                             }
-                        } catch {}
+                        } catch { }
                     }
                 }
             } catch (e) {

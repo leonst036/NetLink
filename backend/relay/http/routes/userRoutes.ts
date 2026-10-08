@@ -28,7 +28,15 @@ export async function handleUsersRoute(parsedUrl: URL, req: http.IncomingMessage
             res.end(JSON.stringify({ users }));
         } else if (req.method === 'POST') {
             let body = '';
-            req.on('data', chunk => { body += chunk.toString(); });
+            let received = 0;
+            req.on('data', chunk => {
+                received += chunk.length;
+                if (received > 1024 * 1024) {
+                    req.destroy();
+                    return;
+                }
+                body += chunk.toString();
+            });
             req.on('end', async () => {
                 try {
                     const parsedBody = JSON.parse(body);
@@ -42,7 +50,15 @@ export async function handleUsersRoute(parsedUrl: URL, req: http.IncomingMessage
             });
         } else if (req.method === 'PUT') {
             let body = '';
-            req.on('data', chunk => { body += chunk.toString(); });
+            let received = 0;
+            req.on('data', chunk => {
+                received += chunk.length;
+                if (received > 1024 * 1024) {
+                    req.destroy();
+                    return;
+                }
+                body += chunk.toString();
+            });
             req.on('end', async () => {
                 try {
                     const parsedBody = JSON.parse(body);

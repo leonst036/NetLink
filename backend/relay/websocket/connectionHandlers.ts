@@ -473,7 +473,7 @@ export function handleClientConnection(
 /**
  * Handles incoming frontend desktop connections for real-time events.
  */
-export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
+export function handleDesktopConnection(ws: WebSocket, targetId: string, decodedPayload?: any): void {
     let clients = frontendClients.get(targetId);
     if (!clients) {
         clients = new Set();
@@ -525,6 +525,11 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
                 }
 
                 if (message.granted) {
+                    if (decodedPayload?.role !== 'admin' && decodedPayload?.userId !== 'admin') {
+                        console.warn(`[Security] Unauthorized non-admin user ${decodedPayload?.userId} attempted to grant permissions for app ${message.appId}`);
+                        ws.send(JSON.stringify({ type: 'permission_error', error: 'Only administrators can approve elevated permissions' }));
+                        return;
+                    }
                     console.log(`Permission granted for app ${message.appId}`);
                     const perms = getGrantedPermissions();
                     perms[message.appId] = message.permissions || {

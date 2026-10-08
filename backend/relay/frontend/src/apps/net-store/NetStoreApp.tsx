@@ -137,7 +137,7 @@ export default function NetStoreApp(props: NetStoreAppProps) {
             id: item.id || `app-${Math.random()}`,
             name: item.name || 'Unnamed App',
             author: item.author || 'Community',
-            category: item.category || 'Utilities',
+            category: item.category === 'Game' ? 'Gaming' : (item.category || 'Utilities'),
             rating: item.rating || 5.0,
             downloads: item.downloads || '1.0k',
             size: item.size || '1 MB',

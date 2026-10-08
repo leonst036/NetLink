@@ -1,6 +1,8 @@
 import http from 'http';
 import { URL } from 'url';
 import { magicDnsRegistry } from '../../dns/MagicDnsRegistry.js';
+import { authenticateToken, extractTokenFromRequest } from '../../auth/authenticator.js';
+import { getMongoClient } from '../../database/MongoManager.js';
 
 function setCorsHeaders(res: http.ServerResponse): void {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -8,10 +10,17 @@ function setCorsHeaders(res: http.ServerResponse): void {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
-function parseJsonBody(req: http.IncomingMessage): Promise<any> {
+function parseJsonBody(req: http.IncomingMessage, maxBytes = 1024 * 1024): Promise<any> {
     return new Promise((resolve, reject) => {
         let body = '';
+        let received = 0;
         req.on('data', chunk => {
+            received += chunk.length;
+            if (received > maxBytes) {
+                req.destroy();
+                reject(new Error('Payload too large'));
+                return;
+            }
             body += chunk.toString();
         });
         req.on('end', () => {
@@ -30,6 +39,22 @@ export async function handleMagicDnsRoutes(req: http.IncomingMessage, res: http.
     if (req.method === 'OPTIONS') {
         res.writeHead(204);
         res.end();
+        return;
+    }
+
+    const token = extractTokenFromRequest(req, parsedUrl);
+    let decoded: any = null;
+    try {
+        decoded = await authenticateToken(token, getMongoClient());
+    } catch (err: any) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized: ' + (err.message || 'Authentication required') }));
+        return;
+    }
+
+    if ((req.method === 'POST' || req.method === 'DELETE') && decoded?.role !== 'admin') {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden: Admin access required to modify DNS records' }));
         return;
     }
 

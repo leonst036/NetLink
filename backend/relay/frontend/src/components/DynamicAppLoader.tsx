@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Box } from '@mui/material';
+import { Box, Typography, Button } from '@mui/material';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import NetLinkLoader from './NetLinkLoader';
 
 interface DynamicAppLoaderProps {
@@ -14,10 +15,13 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
   const [ticket, setTicket] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [iframeLoading, setIframeLoading] = useState(true);
+  const [retryKey, setRetryKey] = useState(0);
   const mountTimeRef = useRef(Date.now());
 
   useEffect(() => {
     let isMounted = true;
+    setError(null);
+    setIframeLoading(true);
 
     // Fetch a single-use ticket
     fetch(`/api/auth/ticket?target=${encodeURIComponent(target)}`, {
@@ -46,7 +50,7 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
     return () => {
       isMounted = false;
     };
-  }, [token, target]);
+  }, [token, target, retryKey]);
 
   // Fallback timeout to dismiss loader if iframe load event is delayed
   useEffect(() => {
@@ -68,7 +72,47 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
   };
 
   if (error) {
-    return <Box sx={{ p: 2, color: 'error.main' }}>Failed to load app: {error}</Box>;
+    return (
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        width: '100%',
+        p: 3,
+        textAlign: 'center',
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(20px)',
+        color: '#fff'
+      }}>
+        <AlertTriangle size={48} color="#ef4444" style={{ marginBottom: 16 }} />
+        <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+          Unable to Load Application
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)', maxWidth: 420, mb: 3 }}>
+          {error}
+        </Typography>
+        <Button
+          variant="outlined"
+          color="inherit"
+          startIcon={<RefreshCw size={16} />}
+          onClick={() => setRetryKey(k => k + 1)}
+          sx={{
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '20px',
+            textTransform: 'none',
+            px: 3,
+            '&:hover': {
+              borderColor: '#38bdf8',
+              color: '#38bdf8'
+            }
+          }}
+        >
+          Retry Connection
+        </Button>
+      </Box>
+    );
   }
 
   const isSecure = window.location.protocol === 'https:';
@@ -142,7 +186,7 @@ export default function DynamicAppLoader({ appId, token, target, extraParams = {
             transition: 'opacity 0.3s ease'
           }}
           title={`App ${appId}`}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
         />
       )}
     </Box>

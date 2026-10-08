@@ -9,7 +9,7 @@ export interface TicketData {
 }
 
 const ticketStore = new Map<string, TicketData>();
-const TICKET_TTL_MS = 24 * 60 * 60 * 1000;
+const TICKET_TTL_MS = 60 * 1000;
 
 export function generateTicket(userId: string, target: string, role?: string, permissions?: string[]): string {
     const ticket = crypto.randomUUID();
@@ -28,15 +28,16 @@ export function consumeTicket(ticket: string): TicketData | null {
     const data = ticketStore.get(ticket);
     if (!data) return null;
 
+    ticketStore.delete(ticket);
+
     if (Date.now() > data.expiresAt) {
-        ticketStore.delete(ticket);
         return null;
     }
 
     return data;
 }
 
-setInterval(() => {
+const cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [ticket, data] of ticketStore.entries()) {
         if (now > data.expiresAt) {
@@ -44,3 +45,4 @@ setInterval(() => {
         }
     }
 }, 60 * 1000);
+cleanupTimer.unref();

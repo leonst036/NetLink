@@ -53,7 +53,12 @@ export const handleMainConnection = async (
         console.log(`Connection established at path: ${pathname} (Identifier: ${identifier})`);
 
         if (pathname === '/netconnect/stream') {
-            const destIP = reqUrl.searchParams.get('destIP') || '127.0.0.1';
+            const destIP = reqUrl.searchParams.get('destIP') || '';
+            const cleanIP = String(destIP).toLowerCase().trim();
+            if (!cleanIP || cleanIP === 'localhost' || cleanIP.startsWith('127.') || cleanIP === '::1' || cleanIP === '169.254.169.254' || cleanIP === '0.0.0.0') {
+                ws.close(1008, 'Prohibited or missing destination IP: loopback and metadata addresses not allowed');
+                return;
+            }
             const destPortStr = reqUrl.searchParams.get('destPort') || '80';
             const destPort = parseInt(destPortStr, 10);
             if (isNaN(destPort) || destPort < 1 || destPort > 65535) {
@@ -127,7 +132,7 @@ export const handleMainConnection = async (
             handleClientConnection(ws, identifier, targetId, sessionId);
         } else if (pathname === '/desktop') {
             const targetId = target || identifier;
-            handleDesktopConnection(ws, targetId);
+            handleDesktopConnection(ws, targetId, decodedPayload);
         } else if (appRouter.handleWs(ws, req, reqUrl)) {
             return;
         } else {

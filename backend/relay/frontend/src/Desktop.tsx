@@ -292,10 +292,9 @@ export default function Desktop({ token, onLogout, target, setTarget, allowedTar
             <Box
                 className="windows-area"
                 sx={{ 
-                    filter: settings.theme === 'Light' ? 'invert(0.9) hue-rotate(180deg)' : settings.theme === 'Hacker' ? 'sepia(1) hue-rotate(80deg) saturate(4)' : 'none',
                     pointerEvents: serverStatus.blocked ? 'none' : 'auto',
                     opacity: serverStatus.blocked ? 0.35 : 1,
-                    transition: 'opacity 0.3s ease, filter 0.3s ease'
+                    transition: 'opacity 0.3s ease'
                 }}
             >
                 {storeWindow.isOpen && (

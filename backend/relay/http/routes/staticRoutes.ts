@@ -459,7 +459,7 @@ ${getAppImportMap()}
     import React from 'react';
     import { createRoot } from 'react-dom/client';
     
-    const mainScriptPath = '${mainScriptPath}';
+    const mainScriptPath = ${JSON.stringify(mainScriptPath)};
     
     // Dynamically import the main file
     import(mainScriptPath).then(m => {

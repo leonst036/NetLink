@@ -2,7 +2,7 @@ export interface AppItem {
     id: string;
     name: string;
     author: string;
-    category: 'Utilities' | 'Security' | 'Remote Access' | 'Monitoring' | 'Developer Tools' | 'System';
+    category: 'Utilities' | 'Security' | 'Remote Access' | 'Monitoring' | 'Developer Tools' | 'System' | 'Gaming';
     rating: number;
     downloads: string;
     size: string;
