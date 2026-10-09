@@ -11,13 +11,16 @@
   --success: #10b981;
 }
 
-body {
+html, body {
   font-family: 'Outfit', sans-serif;
   color: var(--text-main);
   background: linear-gradient(135deg, #020617 0%, #0b1329 40%, #1e1b4b 100%);
   background-attachment: fixed;
   margin: 0;
   padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Base Typography */

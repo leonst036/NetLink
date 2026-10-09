@@ -1,5 +1,3 @@
-/* NetStore Styling - Matched to NetLink Desktop & SettingsApp Design */
-
 .netstore-root {
   display: flex;
   height: 100%;
@@ -206,10 +204,26 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spin-icon {
   animation: spin 1s linear infinite;
+}
+
+/* Dialog Styling */
+.netstore-dialog-paper {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+.netstore-dialog-actions .MuiButton-root {
+  white-space: nowrap !important;
+  text-transform: none;
 }

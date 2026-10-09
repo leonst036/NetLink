@@ -1,0 +1,177 @@
+import crypto from "crypto";
+import { pendingSessions, controlConnections } from "./connectionManager.js";
+import { WebSocket, WebSocket as WsClient } from 'ws';
+import http from 'http';
+import { URL } from 'url';
+import * as mongoDB from 'mongodb';
+import { authenticateToken, extractTokenFromRequest } from '../auth/authenticator.js';
+import { consumeTicket } from '../auth/ticketManager.js';
+import { handleLocalServerConnection, handleClientConnection, handleDesktopConnection } from './connectionHandlers.js';
+import { appRouter } from '../http/requestHandler.js';
+import { denoSandbox } from '../sandbox/DenoSandbox.js';
+
+export const handleMainConnection = async (
+    ws: WebSocket, 
+    req: http.IncomingMessage, 
+    mongoClient: mongoDB.MongoClient | null
+) => {
+    try {
+        const reqUrl = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+        const pathname = reqUrl.pathname;
+        const token = extractTokenFromRequest(req, reqUrl);
+        const ticket = reqUrl.searchParams.get('ticket');
+        const sessionId = reqUrl.searchParams.get('sessionId');
+        const target = reqUrl.searchParams.get('target');
+
+        // Authenticate connection
+        let decodedPayload: any = null;
+        try {
+            if (ticket) {
+                const ticketData = consumeTicket(ticket);
+                if (!ticketData) {
+                    throw new Error('Invalid or expired ticket');
+                }
+                decodedPayload = {
+                    userId: ticketData.userId,
+                    deviceId: ticketData.target || ticketData.userId,
+                    target: ticketData.target,
+                    role: ticketData.role || (ticketData.userId === 'admin' ? 'admin' : 'user'),
+                    permissions: ticketData.permissions || []
+                };
+            } else {
+                decodedPayload = await authenticateToken(token, mongoClient);
+            }
+        } catch (authError: any) {
+            console.error(`Authentication failed for IP ${req.socket.remoteAddress}: ${authError.message}`);
+            ws.close(1008, `Authentication Failed: ${authError.message}`);
+            return;
+        }
+
+        const rawToken = token?.value || '';
+        const identifier = decodedPayload?.deviceId || decodedPayload?.userId || decodedPayload?.sub || rawToken;
+
+        console.log(`Connection established at path: ${pathname} (Identifier: ${identifier})`);
+
+        if (pathname === '/netconnect/stream') {
+            const destIP = reqUrl.searchParams.get('destIP') || '';
+            const cleanIP = String(destIP).toLowerCase().trim();
+            if (!cleanIP || cleanIP === 'localhost' || cleanIP.startsWith('127.') || cleanIP === '::1' || cleanIP === '169.254.169.254' || cleanIP === '0.0.0.0') {
+                ws.close(1008, 'Prohibited or missing destination IP: loopback and metadata addresses not allowed');
+                return;
+            }
+            const destPortStr = reqUrl.searchParams.get('destPort') || '80';
+            const destPort = parseInt(destPortStr, 10);
+            if (isNaN(destPort) || destPort < 1 || destPort > 65535) {
+                ws.close(1008, 'Invalid destination port');
+                return;
+            }
+
+            const targetId = target || 'local-server';
+
+            let controlWs = controlConnections.get(targetId);
+            if (!controlWs && controlConnections.size > 0) {
+                controlWs = controlConnections.values().next().value;
+            }
+
+            if (!controlWs || controlWs.readyState !== WebSocket.OPEN) {
+                console.warn(`[NetConnect] No active local server for stream destination ${destIP}:${destPort}`);
+                ws.close(1011, 'Local server not online');
+                return;
+            }
+
+            const streamSessionId = crypto.randomUUID();
+            (ws as any).isBinaryStream = true;
+            (ws as any).skipCredentialsHandshake = true;
+
+            const earlyBuffer: { data: any, isBinary: boolean }[] = [];
+            const onEarlyMessage = (data: any, isBinary: boolean) => {
+                earlyBuffer.push({ data, isBinary });
+            };
+            ws.on('message', onEarlyMessage);
+            (ws as any).earlyBuffer = earlyBuffer;
+            (ws as any).earlyListener = onEarlyMessage;
+
+            pendingSessions.set(streamSessionId, ws);
+            console.log(`[NetConnect] Forwarding stream request to local server for ${destIP}:${destPort} (Session: ${streamSessionId})`);
+
+            controlWs.send(JSON.stringify({
+                type: 'init_lan_stream',
+                sessionId: streamSessionId,
+                destIP,
+                destPort
+            }));
+
+            const timeoutId = setTimeout(() => {
+                if (pendingSessions.has(streamSessionId)) {
+                    console.warn(`[NetConnect] Stream session ${streamSessionId} timed out`);
+                    pendingSessions.delete(streamSessionId);
+                    if ((ws as any).earlyListener) {
+                        ws.off('message', (ws as any).earlyListener);
+                    }
+                    ws.close(4008, 'LAN stream connection timed out');
+                }
+            }, 15000);
+
+            ws.on('close', () => {
+                clearTimeout(timeoutId);
+                pendingSessions.delete(streamSessionId);
+                if ((ws as any).earlyListener) {
+                    ws.off('message', (ws as any).earlyListener);
+                }
+            });
+            return;
+        } else if (pathname === '/connect') {
+            if (decodedPayload?.role === 'user' && !decodedPayload?.deviceId) {
+                ws.close(1008, 'Forbidden: User tokens cannot register local server control connections');
+                return;
+            }
+            const reqIp = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || '127.0.0.1';
+            handleLocalServerConnection(ws, identifier, rawToken, sessionId, decodedPayload, reqIp);
+        } else if (pathname === '/client') {
+            const targetId = target || identifier;
+            handleClientConnection(ws, identifier, targetId, sessionId);
+        } else if (pathname === '/desktop') {
+            const targetId = target || identifier;
+            handleDesktopConnection(ws, targetId, decodedPayload);
+        } else if (appRouter.handleWs(ws, req, reqUrl)) {
+            return;
+        } else {
+            const match = pathname.match(/^\/api\/([^\/]+)(?:\/|$)/);
+            if (match) {
+                const appId = match[1] as string;
+                const userId = decodedPayload?.userId || decodedPayload?.sub || identifier;
+                if (!userId) {
+                    ws.close(1008, 'Unauthorized');
+                    return;
+                }
+                const app = denoSandbox.getApp(`${userId}_${appId}`) || denoSandbox.getApp(appId) || denoSandbox.getApp(`admin_${appId}`);
+                const systemRoutes = ['login', 'register', 'validate-target', 'install.sh', 'server-logins', 'users', 'applications', 'netstore', 'dock', 'auth', 'db', 'apps'];
+                if (app && !systemRoutes.includes(appId)) {
+                    const targetUrl = `ws://localhost:${app.port}${req.url}`;
+                    const targetWs = new WsClient(targetUrl, {
+                        headers: {
+                            ...req.headers,
+                            host: `localhost:${app.port}`
+                        }
+                    });
+
+                    targetWs.on('open', () => console.log(`Bridged WS to Deno app ${appId}`));
+                    targetWs.on('message', (msg, isBinary) => ws.send(msg, { binary: isBinary }));
+                    targetWs.on('close', () => ws.close());
+                    targetWs.on('error', (err) => console.error(`Deno WS Error [${appId}]:`, err));
+
+                    ws.on('message', (msg, isBinary) => targetWs.readyState === WsClient.OPEN && targetWs.send(msg, { binary: isBinary }));
+                    ws.on('close', () => targetWs.close());
+                    return;
+                }
+            }
+
+            console.warn(`Unsupported request path: ${pathname}`);
+            ws.close(1003, 'Unsupported Path');
+        }
+
+    } catch (err: any) {
+        console.error('Error handling connection:', err);
+        ws.close(1011, 'Internal Server Error');
+    }
+};

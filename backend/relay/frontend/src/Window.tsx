@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Rnd } from 'react-rnd';
 import { X, Minus, Maximize2 } from 'lucide-react';
 import { Box, Paper, IconButton, Typography } from '@mui/material';
 import './Window.css';
+import { useWindowStore } from './store/useWindowStore';
 
 interface WindowProps {
   id: string;
@@ -19,6 +20,7 @@ interface WindowProps {
 }
 
 export default function Window({
+  id,
   title,
   icon,
   children,
@@ -36,19 +38,66 @@ export default function Window({
   const [prevSize, setPrevSize] = useState<{ width: number | string; height: number | string }>(defaultSize);
   const [prevPosition, setPrevPosition] = useState<{ x: number; y: number }>(defaultPosition);
 
+  const setMaximizedStore = useWindowStore(state => state.setMaximized);
+
   const toggleMaximize = () => {
     if (isMaximized) {
       setSize(prevSize);
       setPosition(prevPosition);
       setIsMaximized(false);
+      setMaximizedStore(id, false);
     } else {
       setPrevSize(size);
       setPrevPosition(position);
-      setSize({ width: '100%', height: '100%' });
+      setSize({ width: window.innerWidth, height: window.innerHeight - 32 });
       setPosition({ x: 0, y: 0 });
       setIsMaximized(true);
+      setMaximizedStore(id, true);
     }
   };
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (isMaximized) {
+        setSize({ width: window.innerWidth, height: window.innerHeight - 32 });
+        return;
+      }
+
+      const wStr = String(size.width);
+      const hStr = String(size.height);
+      const currentWidth = wStr.includes('%') ? window.innerWidth * (parseFloat(wStr) / 100) : parseInt(wStr) || 800;
+      const currentHeight = hStr.includes('%') ? window.innerHeight * (parseFloat(hStr) / 100) : parseInt(hStr) || 500;
+
+      const maxWidth = window.innerWidth;
+      const maxHeight = window.innerHeight - 32;
+
+      let newX = position.x;
+      let newY = position.y;
+
+      if (newX + currentWidth > maxWidth) {
+        newX = Math.max(0, maxWidth - currentWidth);
+      }
+      if (newY + currentHeight > maxHeight) {
+        newY = Math.max(0, maxHeight - currentHeight);
+      }
+
+      if (newX !== position.x || newY !== position.y) {
+        setPosition({ x: newX, y: newY });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [position.x, position.y, size, isMaximized]);
+
+  // Clean up on unmount in case it was maximized
+  useEffect(() => {
+    return () => {
+      setMaximizedStore(id, false);
+    };
+  }, [id, setMaximizedStore]);
 
   return (
     <Rnd

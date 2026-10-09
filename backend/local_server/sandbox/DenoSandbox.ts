@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import net from 'net';
 import fs from 'fs';
+import path from 'path';
 
 export interface AppProcess {
     appId: string;
@@ -29,18 +30,8 @@ export class DenoSandbox {
         this.stopApp(appId);
 
         const port = await this.getAvailablePort();
-        const denoCmd = fs.existsSync('/home/leon/.deno/bin/deno') ? '/home/leon/.deno/bin/deno' : 'deno';
-
-        const args = [
-            'run',
-            '--no-config',
-            '--allow-net',
-            `--allow-read=${appDir}`,
-            `--allow-write=${appDir}`,
-            '--allow-env=PORT',
-            ...extraFlags,
-            entryFile
-        ];
+        const defaultDeno = path.join(process.env.HOME || '', '.deno/bin/deno');
+        const denoCmd = process.env.DENO_PATH || (fs.existsSync(defaultDeno) ? defaultDeno : 'deno');
 
         const cleanEnv: Record<string, string> = {
             PORT: port.toString(),
@@ -48,6 +39,17 @@ export class DenoSandbox {
             HOME: process.env.HOME || '',
             TMPDIR: process.env.TMPDIR || '/tmp'
         };
+
+        const args = [
+            'run',
+            '--no-config',
+            '--allow-net',
+            `--allow-read=${appDir}`,
+            `--allow-write=${appDir}`,
+            '--allow-env',
+            ...extraFlags.filter(f => !f.startsWith('--allow-env') && !f.startsWith('--allow-net')),
+            entryFile
+        ];
 
         const denoProcess = spawn(denoCmd, args, {
             env: cleanEnv

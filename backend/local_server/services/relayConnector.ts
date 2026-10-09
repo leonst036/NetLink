@@ -1,28 +1,20 @@
+import net from "net";
 import { WebSocket } from 'ws';
-import { handleWebSocketConnection } from '../protocols/router.js';
-import { runNetworkScan } from './scanner.js';
 import { sendApplicationJson } from '../NetStore/NetStore.js';
 
-/**
- * Helper to construct the relay connection URL.
- * Supports direct RELAY_URL or combinations of RELAY_HOST/RELAY_IP/RELAY_DOMAIN, RELAY_PORT, and RELAY_SSL.
- */
 function getRelayUrl(): string {
     if (process.env.RELAY_URL) {
         return process.env.RELAY_URL;
     }
     const host = process.env.RELAY_HOST || process.env.RELAY_IP || process.env.RELAY_DOMAIN || 'localhost';
-    const port = process.env.RELAY_PORT || '4536';
+    const port = process.env.RELAY_PORT || '4535';
     const ssl = process.env.RELAY_SSL !== 'false';
     const protocol = ssl ? 'wss' : 'ws';
     return `${protocol}://${host}:${port}`;
 }
 
-/**
- * Creates a WebSocket connection to the relay server.
- * Defaults to secure wss:// connection.
- */
-export function connectToRelay(token: string): WebSocket {
+
+export function connectToRelay(token: string, sessionId?: string): WebSocket {
     const relayUrl = getRelayUrl();
 
     // Support self-signed certs in development (if REJECT_UNAUTHORIZED=false)
@@ -30,38 +22,34 @@ export function connectToRelay(token: string): WebSocket {
         rejectUnauthorized: process.env.REJECT_UNAUTHORIZED?.trim().toLowerCase() !== 'false'
     };
 
-    const ws = new WebSocket(`${relayUrl}/connect?token=${token}`, options);
+    const url = sessionId ? `${relayUrl}/connect?token=${token}&sessionId=${sessionId}` : `${relayUrl}/connect?token=${token}`;
+    const ws = new WebSocket(url, options);
     return ws;
 }
 
-/**
- * Establishes a persistent control channel connection with the relay server.
- * Listens for 'init_session' events to spawn on-demand SSH data connections.
- */
+
 export function handleRelayConnection(token: string): void {
     console.log('Connecting to NetLink relay server...');
     const controlWs = connectToRelay(token);
     let pingInterval: NodeJS.Timeout;
+    let lastRelayHeartbeat = Date.now();
 
     controlWs.on('open', async () => {
         console.log('Successfully connected to relay server control channel.');
+        lastRelayHeartbeat = Date.now();
 
         // Keep-alive ping to prevent reverse proxies (e.g. Traefik/Nginx) from dropping idle connections
         pingInterval = setInterval(() => {
             if (controlWs.readyState === WebSocket.OPEN) {
                 controlWs.ping();
             }
-        }, 30000);
-        // Run network scan and send the results
-        try {
-            controlWs.send(JSON.stringify({ type: 'scanning' }));
-            const devices = await runNetworkScan();
-            if (controlWs.readyState === WebSocket.OPEN) {
-                controlWs.send(JSON.stringify({ type: 'server_list', devices }));
+
+            // Watchdog: If no message/ping/pong from relay for > 60s, terminate and reconnect
+            if (Date.now() - lastRelayHeartbeat > 60000) {
+                console.warn('No heartbeat from relay server for 60s. Terminating connection to reconnect...');
+                controlWs.terminate();
             }
-        } catch (err) {
-            console.error('Error running network scan:', err);
-        }
+        }, 30000);
 
         // Send applications JSON from NetStore
         try {
@@ -71,47 +59,109 @@ export function handleRelayConnection(token: string): void {
         }
     });
 
+    controlWs.on('pong', () => {
+        lastRelayHeartbeat = Date.now();
+    });
+
+    controlWs.on('ping', () => {
+        lastRelayHeartbeat = Date.now();
+        if (controlWs.readyState === WebSocket.OPEN) {
+            controlWs.pong();
+        }
+    });
+
     controlWs.on('message', (data: any) => {
+        lastRelayHeartbeat = Date.now();
         try {
             const message = JSON.parse(data.toString());
-            if (message.type === 'init_session' && message.sessionId) {
-                console.log(`Relay requested new SSH data session: ${message.sessionId}`);
-
-                const relayUrl = getRelayUrl();
-                const sessionWs = new WebSocket(`${relayUrl}/connect?token=${token}&sessionId=${message.sessionId}`, {
-                    rejectUnauthorized: process.env.REJECT_UNAUTHORIZED?.trim().toLowerCase() !== 'false'
-                });
-
-                sessionWs.on('open', () => {
-                    console.log(`Data connection established for session: ${message.sessionId}`);
-                    handleWebSocketConnection(sessionWs, message.sessionId);
-
-                    if (message.userId) {
-                        import('../NetStore/NetStore.js').then((ns) => {
-                            if (ns.StartLocalApps) {
-                                ns.StartLocalApps(message.userId).catch(err => console.error('Failed to start user apps:', err));
-                            }
-                        }).catch(err => console.error('Failed to import NetStore.js:', err));
-                    }
-                });
-
-                sessionWs.on('error', (err) => {
-                    console.error(`Data session socket error (${message.sessionId}):`, err);
-                });
-            } else if (message.type === 'install_application' && message.appId) {
+            if (message.type === 'ping') {
+                if (controlWs.readyState === WebSocket.OPEN) {
+                    controlWs.send(JSON.stringify({ type: 'pong' }));
+                }
+                return;
+            }
+            if (message.type === 'pong') {
+                return;
+            }
+            if (message.type === 'install_application' && message.appId) {
                 console.log(`Relay requested installation of app: ${message.appId} for user: ${message.userId}`);
                 import('../NetStore/NetStore.js').then((ns) => {
                     if (ns.installApplication) {
-                        ns.installApplication(message.appId, message.branch || 'NetStore', message.githubToken, message.userId, message.runInBackground).then(() => {
+                        ns.installApplication(
+                            message.appId,
+                            message.branch || 'NetStore',
+                            message.githubToken,
+                            message.userId,
+                            message.runInBackground,
+                            message.customStoreUrl
+                        ).then(() => {
                             console.log(`Successfully installed ${message.appId}. Syncing with relay...`);
                             ns.sendApplicationJson(controlWs);
+                            controlWs.send(JSON.stringify({ type: 'install_success', appId: message.appId }));
                         }).catch((err: any) => {
                             console.error(`Failed to install app ${message.appId}:`, err);
+                            controlWs.send(JSON.stringify({ type: 'install_error', appId: message.appId, error: err.message }));
                         });
                     }
                 }).catch(err => {
                     console.error('Failed to import NetStore.js:', err);
                 });
+            } else if (message.type === 'init_lan_stream' && message.sessionId && message.destIP && message.destPort) {
+                const { sessionId, destIP, destPort } = message;
+                const cleanIP = String(destIP).toLowerCase().trim();
+                if (cleanIP === 'localhost' || cleanIP.startsWith('127.') || cleanIP === '::1' || cleanIP === '169.254.169.254' || cleanIP === '0.0.0.0') {
+                    console.warn(`[LAN Forwarder] Blocked connection to prohibited destination: ${cleanIP}`);
+                    return;
+                }
+                console.log(`[LAN Forwarder] Forwarding LAN stream request for ${destIP}:${destPort} (Session: ${sessionId})`);
+                
+                const dataWs = connectToRelay(token, sessionId);
+                const targetSocket = net.createConnection({ host: destIP, port: destPort });
+
+                const socketBuffer: (Buffer | string)[] = [];
+                let isWsOpen = false;
+
+                dataWs.on('open', () => {
+                    isWsOpen = true;
+                    while (socketBuffer.length > 0) {
+                        const chunk = socketBuffer.shift();
+                        if (chunk && dataWs.readyState === WebSocket.OPEN) {
+                            dataWs.send(chunk);
+                        }
+                    }
+                });
+
+                targetSocket.on('data', (chunk) => {
+                    if (isWsOpen && dataWs.readyState === WebSocket.OPEN) {
+                        dataWs.send(chunk);
+                    } else {
+                        socketBuffer.push(chunk);
+                    }
+                });
+
+                dataWs.on('message', (chunk: any) => {
+                    if (!targetSocket.destroyed) {
+                        targetSocket.write(chunk);
+                    }
+                });
+
+                const cleanup = () => {
+                    if (!targetSocket.destroyed) targetSocket.destroy();
+                    if (dataWs.readyState === WebSocket.OPEN || dataWs.readyState === WebSocket.CONNECTING) {
+                        dataWs.close();
+                    }
+                };
+
+                targetSocket.on('error', (err) => {
+                    console.error(`[LAN Forwarder] Socket error for ${destIP}:${destPort}:`, err.message);
+                    cleanup();
+                });
+                targetSocket.on('close', cleanup);
+                dataWs.on('error', (err) => {
+                    console.error(`[LAN Forwarder] Data WS error for session ${sessionId}:`, err.message);
+                    cleanup();
+                });
+                dataWs.on('close', cleanup);
             } else if (message.type === 'uninstall_application' && message.appId) {
                 console.log(`Relay requested uninstallation of app: ${message.appId} for user: ${message.userId}`);
                 import('../NetStore/NetStore.js').then((ns) => {
@@ -119,15 +169,40 @@ export function handleRelayConnection(token: string): void {
                         ns.uninstallApplication(message.appId, message.userId).then(() => {
                             console.log(`Successfully uninstalled ${message.appId}. Syncing with relay...`);
                             ns.sendApplicationJson(controlWs);
+                            controlWs.send(JSON.stringify({ type: 'uninstall_success', appId: message.appId }));
                         }).catch((err: any) => {
                             console.error(`Failed to uninstall app ${message.appId}:`, err);
+                            controlWs.send(JSON.stringify({ type: 'uninstall_error', appId: message.appId, error: err.message }));
+                        });
+                    }
+                }).catch(err => {
+                    console.error('Failed to import NetStore.js:', err);
+                });
+            } else if (message.type === 'grant_permissions' && message.appId) {
+                console.log(`Relay granted permissions for app: ${message.appId}`);
+                import('../NetStore/NetStore.js').then((ns) => {
+                    if (ns.saveAppPermissions) {
+                        ns.saveAppPermissions(message.appId, message.permissions);
+                    }
+                    if (ns.StartLocalApps) {
+                        ns.StartLocalApps(undefined, true).then(() => {
+                            ns.sendApplicationJson(controlWs);
+                        });
+                    }
+                }).catch(err => {
+                    console.error('Failed to import NetStore.js:', err);
+                });
+            } else if (message.type === 'sync_app') {
+                import('../NetStore/NetStore.js').then((ns) => {
+                    if (ns.StartLocalApps) {
+                        ns.StartLocalApps(undefined, true).then(() => {
+                            ns.sendApplicationJson(controlWs);
                         });
                     }
                 }).catch(err => {
                     console.error('Failed to import NetStore.js:', err);
                 });
             }
-
         } catch (err) {
             console.error('Error handling relay control message:', err);
         }

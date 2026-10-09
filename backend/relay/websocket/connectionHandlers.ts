@@ -2,24 +2,31 @@ import { WebSocket } from 'ws';
 import crypto from 'crypto';
 import { 
     controlConnections, 
-    pendingSessions, 
-    serverDevices,
+    pendingSessions,
     serverApplications,
     bridgeSockets,
-    frontendClients
+    frontendClients,
+    broadcast,
+    connectionManager,
+    getTargetStatus,
+    setTargetStatus,
+    notifyTargetStatus
 } from './connectionManager.js';
+import { magicDnsRegistry } from '../dns/MagicDnsRegistry.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { appRouter } from '../http/requestHandler.js';
 import { denoSandbox } from '../sandbox/DenoSandbox.js';
+import { RELAY_APPS_DIR } from '../paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const RELAY_APPS_DIR = path.join(__dirname, '..', 'NetStore', 'Applications');
 const PERMISSIONS_FILE = path.join(RELAY_APPS_DIR, 'permissions.json');
 
-function getGrantedPermissions(): Record<string, any> {
+export const pendingPermissionRequests = new Map<string, Map<string, any>>();
+
+export function getGrantedPermissions(): Record<string, any> {
     if (!fs.existsSync(PERMISSIONS_FILE)) return {};
     try {
         return JSON.parse(fs.readFileSync(PERMISSIONS_FILE, 'utf-8'));
@@ -28,21 +35,40 @@ function getGrantedPermissions(): Record<string, any> {
     }
 }
 
-function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
+export function getAppGranted(grantedRecord: Record<string, any>, appId: string) {
     const raw = grantedRecord[appId];
-    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false };
+    if (!raw) return { folders: [], allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [], allowPortForwarding: false };
     if (Array.isArray(raw)) {
-        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false };
+        return { folders: raw, allowRun: false, allowEnv: [], allowNet: false, allowDatabase: false, collections: [], allowPortForwarding: false };
     }
     return {
         folders: Array.isArray(raw.folders) ? raw.folders : [],
         allowRun: Boolean(raw.allowRun),
         allowEnv: Array.isArray(raw.allowEnv) ? raw.allowEnv : [],
-        allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet)
+        allowNet: typeof raw.allowNet === 'boolean' ? raw.allowNet : Boolean(raw.allowNet),
+        allowDatabase: Boolean(raw.allowDatabase || raw.database),
+        collections: Array.isArray(raw.collections) ? raw.collections : [],
+        allowPortForwarding: Boolean(raw.allowPortForwarding)
     };
 }
 
-function saveGrantedPermissions(perms: Record<string, any>) {
+export function isDatabaseGranted(appId: string, collection?: string): boolean {
+    const perms = getGrantedPermissions();
+    const appGranted = getAppGranted(perms, appId);
+    if (appGranted.allowDatabase) return true;
+    if (!collection) return appGranted.collections.length > 0;
+    return appGranted.collections.includes(collection) || appGranted.collections.includes('*');
+}
+
+export function isCollectionGranted(appId: string, collection: string): boolean {
+    return isDatabaseGranted(appId, collection);
+}
+
+export function saveGrantedPermissions(perms: Record<string, any>) {
+    const dir = path.dirname(PERMISSIONS_FILE);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
     fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(perms, null, 2));
 }
 
@@ -53,18 +79,35 @@ export function handleLocalServerConnection(
     ws: WebSocket, 
     identifier: string, 
     token: string | null, 
-    sessionId: string | null
+    sessionId: string | null,
+    decodedPayload?: any,
+    reqIp?: string
 ): void {
     if (sessionId) {
         // Dedicated data session channel requested by the relay
         const clientWs = pendingSessions.get(sessionId);
         if (clientWs && clientWs.readyState === WebSocket.OPEN) {
             pendingSessions.delete(sessionId);
+            if ((clientWs as any).earlyListener) {
+                clientWs.off('message', (clientWs as any).earlyListener);
+            }
             console.log(`Pairing data session ${sessionId} for server ${identifier}`);
             bridgeSockets(ws, clientWs);
             
+            const earlyBuffer = (clientWs as any).earlyBuffer;
+            if (earlyBuffer && earlyBuffer.length > 0) {
+                for (const item of earlyBuffer) {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(item.data, { binary: item.isBinary });
+                    }
+                }
+                (clientWs as any).earlyBuffer = [];
+            }
+
             // Notify the client that the backend bridge is ready
-            clientWs.send(JSON.stringify({ type: 'ready_for_credentials' }));
+            if (!(clientWs as any).skipCredentialsHandshake && !(clientWs as any).isBinaryStream) {
+                clientWs.send(JSON.stringify({ type: 'ready_for_credentials' }));
+            }
         } else {
             console.warn(`No pending client session or client disconnected for session: ${sessionId}`);
             ws.close(1008, 'Session expired or client disconnected');
@@ -72,15 +115,89 @@ export function handleLocalServerConnection(
     } else {
         // Control connection
         controlConnections.set(identifier, ws);
+        setTargetStatus(identifier, {
+            online: true,
+            blocked: false,
+            reason: undefined,
+            lastPing: Date.now()
+        });
 
-        console.log(`Registered local server connection: ${identifier}`);
+        const deviceId = decodedPayload?.deviceId || decodedPayload?.targetId || identifier;
+        const deviceName = decodedPayload?.deviceName || identifier;
+        const assignedIp = decodedPayload?.assignedIp || decodedPayload?.ip || reqIp || '127.0.0.1';
+
+        const domain = magicDnsRegistry.registerDevice(deviceId, deviceName, assignedIp);
+        connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'ADD', domain, ip: assignedIp });
+
+        console.log(`Registered local server connection: ${identifier} (Domain: ${domain}, IP: ${assignedIp})`);
+
+        let isAlive = true;
+        let lastPing = Date.now();
+
+        const PING_INTERVAL_MS = parseInt(process.env.RELAY_PING_INTERVAL || '15000', 10);
+        const PING_TIMEOUT_MS = parseInt(process.env.RELAY_PING_TIMEOUT || '35000', 10);
+
+        const pingWatchdog = setInterval(() => {
+            const now = Date.now();
+            const timeSinceLastPing = now - lastPing;
+
+            // If local server did not respond to pings or send heartbeats within timeout
+            if (!isAlive || timeSinceLastPing > PING_TIMEOUT_MS) {
+                console.warn(`[Heartbeat] Local server ${identifier} unresponsive (no ping or pong for ${Math.round(timeSinceLastPing / 1000)}s). Blocking frontend.`);
+                setTargetStatus(identifier, {
+                    online: false,
+                    blocked: true,
+                    reason: `Local server is not responding to pings (last heartbeat: ${Math.round(timeSinceLastPing / 1000)}s ago)`
+                });
+                clearInterval(pingWatchdog);
+                ws.terminate();
+                return;
+            }
+
+            isAlive = false;
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.ping();
+            }
+        }, PING_INTERVAL_MS);
+        if (pingWatchdog.unref) {
+            pingWatchdog.unref();
+        }
+
+        ws.on('pong', () => {
+            isAlive = true;
+            lastPing = Date.now();
+        });
+
+        ws.on('ping', () => {
+            isAlive = true;
+            lastPing = Date.now();
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.pong();
+            }
+        });
 
         ws.on('message', async (data: any) => {
+            isAlive = true;
+            lastPing = Date.now();
             try {
                 const message = JSON.parse(data.toString());
-                if (message.type === 'server_list' && Array.isArray(message.devices)) {
-                    console.log(`Received ${message.devices.length} devices from local server: ${identifier}`);
-                    serverDevices.set(identifier, message.devices);
+
+                if (message.type === 'ping') {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'pong' }));
+                    }
+                    return;
+                }
+                if (message.type === 'pong') {
+                    return;
+                }
+
+                if (message.type === 'device_handshake' || message.type === 'handshake' || message.type === 'register_device') {
+                    const devId = message.deviceId || deviceId;
+                    const devName = message.deviceName || deviceName;
+                    const ip = message.assignedIp || message.ip || assignedIp;
+                    const updatedDomain = magicDnsRegistry.registerDevice(devId, devName, ip);
+                    connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'ADD', domain: updatedDomain, ip });
                 }
 
                 if ((message.type === 'applications' || message.type === 'application_json') && Array.isArray(message.applications)) {
@@ -93,23 +210,19 @@ export function handleLocalServerConnection(
                     for (const app of message.backends) {
                         const appId = app.appId;
                         const userId = app.userId;
-                        if (!userId) continue;
+                        if (!userId || !appId || !/^[a-zA-Z0-9_-]+$/.test(userId) || !/^[a-zA-Z0-9_-]+$/.test(appId)) continue;
 
                         const absoluteRelayAppsDir = path.resolve(RELAY_APPS_DIR);
                         const appDir = path.resolve(RELAY_APPS_DIR, userId, appId);
                         
-                        // Security check: Ensure appDir is strictly within RELAY_APPS_DIR
                         if (!appDir.startsWith(absoluteRelayAppsDir + path.sep)) {
                             console.warn(`Security risk: Path traversal attempt with appId: ${appId} or userId: ${userId}`);
                             continue;
                         }
                         
                         const sandboxAppId = `${userId}_${appId}`;
-                        
-                        // Stop any running Deno sandbox on relay before replacing files
                         denoSandbox.stopApp(sandboxAppId);
 
-                        // Clean destination appDir on relay to remove any stale assets
                         if (fs.existsSync(appDir)) {
                             fs.rmSync(appDir, { recursive: true, force: true });
                         }
@@ -117,9 +230,9 @@ export function handleLocalServerConnection(
                         
                         const absoluteAppDir = path.resolve(appDir);
                         for (const fileData of app.files) {
+                            if (!fileData.path || fileData.path.includes('\0')) continue;
                             const filePath = path.resolve(appDir, fileData.path);
                             
-                            // Security check: Ensure filePath is strictly within appDir
                             if (!filePath.startsWith(absoluteAppDir + path.sep)) {
                                 console.warn(`Security risk: Path traversal attempt for path: ${fileData.path}`);
                                 continue;
@@ -142,6 +255,8 @@ export function handleLocalServerConnection(
                             const indexJsonPath = path.join(appDir, 'index.json');
                             let requestedFolders: any[] = [];
                             let requestedPerms: any = {};
+                            let requestedCollections: string[] = [];
+                            let requestedDb = false;
                             let appName = appId;
                             
                             if (fs.existsSync(indexJsonPath)) {
@@ -154,6 +269,19 @@ export function handleLocalServerConnection(
                                     if (indexData.requestedPermissions) {
                                         requestedPerms = indexData.requestedPermissions;
                                     }
+                                    requestedDb = Boolean(
+                                        requestedPerms.allowDatabase ||
+                                        requestedPerms.database ||
+                                        indexData.requestedDatabase
+                                    );
+                                    if (Array.isArray(indexData.requestedCollections)) {
+                                        requestedCollections = indexData.requestedCollections;
+                                    } else if (Array.isArray(indexData.requestedPermissions?.collections)) {
+                                        requestedCollections = indexData.requestedPermissions.collections;
+                                    }
+                                    if (requestedCollections.length > 0) {
+                                        requestedDb = true;
+                                    }
                                 } catch {}
                             }
                             
@@ -165,20 +293,32 @@ export function handleLocalServerConnection(
                             const envGranted = !requestedPerms.allowEnv || (
                                 Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.every((v: string) => appGranted.allowEnv.includes(v))
                             );
+                            const dbGranted = !requestedDb || appGranted.allowDatabase || (requestedCollections.length > 0 && requestedCollections.every(c => appGranted.collections.includes(c) || appGranted.collections.includes('*')));
+                            const portForwardingGranted = !requestedPerms.allowPortForwarding || appGranted.allowPortForwarding;
 
-                            if (!foldersGranted || !runGranted || !envGranted) {
+                            if (!foldersGranted || !runGranted || !envGranted || !dbGranted || !portForwardingGranted) {
                                 console.log(`App ${appId} requires permissions. Requesting from frontend...`);
+                                const reqPayload = {
+                                    type: 'permission_request',
+                                    appId,
+                                    appName,
+                                    folders: requestedFolders,
+                                    requestedPermissions: requestedPerms,
+                                    requestedCollections: requestedCollections,
+                                    allowDatabase: requestedDb
+                                };
+                                let targetMap = pendingPermissionRequests.get(identifier);
+                                if (!targetMap) {
+                                    targetMap = new Map();
+                                    pendingPermissionRequests.set(identifier, targetMap);
+                                }
+                                targetMap.set(appId, reqPayload);
+
                                 const clients = frontendClients.get(identifier);
                                 if (clients) {
                                     clients.forEach(client => {
                                         if (client.readyState === WebSocket.OPEN) {
-                                            client.send(JSON.stringify({
-                                                type: 'permission_request',
-                                                appId,
-                                                appName,
-                                                folders: requestedFolders,
-                                                requestedPermissions: requestedPerms
-                                            }));
+                                            client.send(JSON.stringify(reqPayload));
                                         }
                                     });
                                 }
@@ -203,16 +343,24 @@ export function handleLocalServerConnection(
                                 }
                             }
 
-                            if (Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.length > 0 && appGranted.allowEnv) {
-                                const allowedEnvVars = requestedPerms.allowEnv.filter((v: string) => appGranted.allowEnv.includes(v));
-                                if (allowedEnvVars.length > 0) {
-                                    extraFlags.push(`--allow-env=PORT,${allowedEnvVars.join(',')}`);
+                            if (requestedPerms.allowEnv && appGranted.allowEnv) {
+                                if (Array.isArray(requestedPerms.allowEnv) && requestedPerms.allowEnv.length > 0) {
+                                    const allowedEnvVars = requestedPerms.allowEnv.filter((v: string) => Array.isArray(appGranted.allowEnv) ? appGranted.allowEnv.includes(v) : true);
+                                    if (allowedEnvVars.length > 0) {
+                                        extraFlags.push(`--allow-env=PORT,${allowedEnvVars.join(',')}`);
+                                    } else {
+                                        extraFlags.push('--allow-env');
+                                    }
+                                } else {
+                                    extraFlags.push('--allow-env');
                                 }
                             }
 
                             if (requestedPerms.allowNet && appGranted.allowNet) {
                                 if (Array.isArray(requestedPerms.allowNet) && requestedPerms.allowNet.length > 0) {
                                     extraFlags.push(`--allow-net=${requestedPerms.allowNet.join(',')}`);
+                                } else {
+                                    extraFlags.push('--allow-net');
                                 }
                             }
                             
@@ -241,13 +389,41 @@ export function handleLocalServerConnection(
         });
 
         ws.on('close', () => {
+            clearInterval(pingWatchdog);
             console.log(`Local server disconnected: ${identifier}`);
             if (controlConnections.get(identifier) === ws) {
                 controlConnections.delete(identifier);
-                serverDevices.delete(identifier);
                 serverApplications.delete(identifier);
             }
+            setTargetStatus(identifier, {
+                online: false,
+                blocked: true,
+                reason: 'Local server disconnected'
+            });
+            const removedDomain = magicDnsRegistry.unregisterDevice(deviceId);
+            if (removedDomain) {
+                connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'REMOVE', domain: removedDomain, deviceId });
+            }
         });
+    }
+}
+
+/**
+ * Helper to handle device handshake and register DNS record.
+ */
+export function handleDeviceHandshake(deviceId: string, deviceName: string, assignedIp: string): string {
+    const domain = magicDnsRegistry.registerDevice(deviceId, deviceName, assignedIp);
+    connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'ADD', domain, ip: assignedIp });
+    return domain;
+}
+
+/**
+ * Helper to handle device disconnect and unregister DNS record.
+ */
+export function handleDeviceDisconnect(deviceId: string): void {
+    const domain = magicDnsRegistry.unregisterDevice(deviceId);
+    if (domain) {
+        connectionManager.broadcast({ type: 'DNS_UPDATE', action: 'REMOVE', domain, deviceId });
     }
 }
 
@@ -297,7 +473,7 @@ export function handleClientConnection(
 /**
  * Handles incoming frontend desktop connections for real-time events.
  */
-export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
+export function handleDesktopConnection(ws: WebSocket, targetId: string, decodedPayload?: any): void {
     let clients = frontendClients.get(targetId);
     if (!clients) {
         clients = new Set();
@@ -305,31 +481,75 @@ export function handleDesktopConnection(ws: WebSocket, targetId: string): void {
     }
     clients.add(ws);
 
-    // Send the current list immediately if available
-    const devices = serverDevices.get(targetId);
-    if (devices) {
-        ws.send(JSON.stringify({ type: 'server_list', devices }));
+    // Send immediate target server status to newly connected desktop
+    const currentStatus = getTargetStatus(targetId);
+    if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'server_status',
+            target: targetId,
+            online: currentStatus.online,
+            blocked: currentStatus.blocked,
+            reason: currentStatus.reason
+        }));
+    }
+
+    // Replay any pending permission requests for this target to the newly connected desktop
+    const targetPending = pendingPermissionRequests.get(targetId);
+    if (targetPending && targetPending.size > 0) {
+        targetPending.forEach(reqPayload => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(reqPayload));
+            }
+        });
     }
     
     ws.on('message', async (data: any) => {
         try {
             const message = JSON.parse(data.toString());
+            if (message.type === 'get_server_status') {
+                const status = getTargetStatus(targetId);
+                ws.send(JSON.stringify({
+                    type: 'server_status',
+                    target: targetId,
+                    online: status.online,
+                    blocked: status.blocked,
+                    reason: status.reason
+                }));
+                return;
+            }
             if (message.type === 'permission_response' && message.appId) {
+                // Clear pending permission request
+                const pMap = pendingPermissionRequests.get(targetId);
+                if (pMap) {
+                    pMap.delete(message.appId);
+                }
+
                 if (message.granted) {
+                    if (decodedPayload?.role !== 'admin' && decodedPayload?.userId !== 'admin') {
+                        console.warn(`[Security] Unauthorized non-admin user ${decodedPayload?.userId} attempted to grant permissions for app ${message.appId}`);
+                        ws.send(JSON.stringify({ type: 'permission_error', error: 'Only administrators can approve elevated permissions' }));
+                        return;
+                    }
                     console.log(`Permission granted for app ${message.appId}`);
                     const perms = getGrantedPermissions();
                     perms[message.appId] = message.permissions || {
                         folders: (message.folders || []).map((f: any) => typeof f === 'string' ? f : f.path),
                         allowRun: Boolean(message.allowRun),
                         allowEnv: message.allowEnv || [],
-                        allowNet: Boolean(message.allowNet)
+                        allowNet: Boolean(message.allowNet),
+                        allowDatabase: Boolean(message.allowDatabase || message.database || message.permissions?.allowDatabase || message.permissions?.database),
+                        collections: Array.isArray(message.collections) ? message.collections : (message.permissions?.collections || [])
                     };
                     saveGrantedPermissions(perms);
                     
-                    // Request the local server to resync the app which will trigger start
+                    // Send grant_permissions to local server so it saves perms and starts local sandbox
                     const controlWs = controlConnections.get(targetId);
                     if (controlWs && controlWs.readyState === WebSocket.OPEN) {
-                        controlWs.send(JSON.stringify({ type: 'sync_app', appId: message.appId }));
+                        controlWs.send(JSON.stringify({
+                            type: 'grant_permissions',
+                            appId: message.appId,
+                            permissions: perms[message.appId]
+                        }));
                     }
                 } else {
                     console.log(`Permission denied for app ${message.appId}`);

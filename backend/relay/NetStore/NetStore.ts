@@ -11,14 +11,13 @@ export function getApplicationJson(targetId?: string, userId?: string): any[] {
             allApps.push(...apps);
         }
     }
-    
-    // Filter apps by userId if provided. 
-    // Uninstalled apps from the GitHub catalog might not have a userId, so we include them if they aren't installed (installed: false)
+
+    let filteredApps = allApps;
     if (userId) {
-        return allApps.filter(app => !app.installed || app.userId === userId);
+        filteredApps = allApps.filter(app => !app.installed || app.userId === userId);
     }
-    
-    return allApps;
+
+    return filteredApps;
 }
 
 // Send application JSON to HTTP response

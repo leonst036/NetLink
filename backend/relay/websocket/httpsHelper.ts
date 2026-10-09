@@ -3,23 +3,23 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/**
- * Ensures that SSL certificates exist, generating self-signed ones if missing.
- */
 function ensureCertificates(keyPath: string, certPath: string): void {
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
-        console.log('SSL certificate or key not found for relay. Attempting to generate self-signed certificates using openssl...');
         try {
-            execSync(`openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -sha256 -days 365 -nodes -subj "/CN=localhost"`, { stdio: 'inherit' });
-            console.log('Self-signed certificates for relay generated successfully.');
+            execFileSync('openssl', [
+                'req', '-x509', '-newkey', 'rsa:2048',
+                '-keyout', keyPath,
+                '-out', certPath,
+                '-sha256', '-days', '365', '-nodes',
+                '-subj', '/CN=localhost'
+            ], { stdio: 'inherit' });
         } catch (error: any) {
-            console.error('Failed to generate self-signed certificates using openssl. Please ensure openssl is installed or generate them manually.');
-            console.error(error.message);
+            console.error('Failed to generate SSL certificates:', error.message);
             throw new Error('SSL certificates missing and could not be auto-generated.');
         }
     }

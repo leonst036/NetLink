@@ -41,5 +41,6 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "exclude": ["NetStore/Applications", "dist"]
+  "exclude": ["dist", "node_modules", "NetStore/Applications"]
 }
+

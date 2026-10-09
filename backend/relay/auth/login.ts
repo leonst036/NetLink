@@ -1,11 +1,18 @@
 import http from 'http';
-import { GenerateToken } from './tokenManager.js';
+import { GenerateToken, getJwtSecret } from './tokenManager.js';
 import { getMongoClient, StoreToken } from '../database/MongoManager.js';
 
-function getRequestBody(req: http.IncomingMessage): Promise<string> {
+function getRequestBody(req: http.IncomingMessage, maxBytes = 1024 * 1024): Promise<string> {
     return new Promise((resolve, reject) => {
         let body = '';
+        let received = 0;
         req.on('data', chunk => {
+            received += chunk.length;
+            if (received > maxBytes) {
+                req.destroy();
+                reject(new Error('Payload too large'));
+                return;
+            }
             body += chunk.toString();
         });
         req.on('end', () => {
@@ -75,10 +82,6 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
         isAuthenticated = true;
         userRole = 'admin';
         userPermissions = ['manage_users', 'manage_logins', 'access_terminal', 'access_vnc', 'access_sftp', 'scan_network'];
-    } else if (username === 'testuser2' && password === 'password123') {
-        isAuthenticated = true;
-        userRole = 'user';
-        userPermissions = [];
     } else {
         const client = getMongoClient();
         if (client) {
@@ -89,9 +92,8 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
                     isAuthenticated = true;
                     userRole = user.role || 'user';
                     userPermissions = user.permissions || [];
-                    
-                    // Save target to user if provided
-                    if (target) {
+
+                    if (target && user.role === 'admin') {
                         await client.db("NetLink").collection("users").updateOne(
                             { _id: user._id },
                             { $addToSet: { targets: target } }
@@ -111,7 +113,7 @@ export async function handleLogin(req: http.IncomingMessage, res: http.ServerRes
     }
 
     try {
-        const secretKey = process.env.JWT_SECRET || 'default_secret';
+        const secretKey = getJwtSecret();
         const payload = {
             userId: username,
             role: userRole,

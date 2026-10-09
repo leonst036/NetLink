@@ -6,10 +6,12 @@ import { controlConnections } from '../../websocket/connectionManager.js';
 import { sendApplicationJson } from '../../NetStore/NetStore.js';
 import { extractTokenFromRequest, authenticateToken } from '../../auth/authenticator.js';
 import { getMongoClient } from '../../database/MongoManager.js';
+import { FetchApplicationCatalog } from '../../NetStore/FetchApplications.js';
+import { RELAY_APPS_DIR } from '../../paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const RELAY_APPS_DIR = path.join(__dirname, '..', '..', 'NetStore', 'Applications');
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || null;
 
 // Route handler for NetStore applications
 export async function handleNetStoreApplicationsRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
@@ -49,15 +51,25 @@ export async function handleInstallApplicationRoute(parsedUrl: URL, req: http.In
         req.on('end', () => {
             try {
                 const data = JSON.parse(body);
-                const { appId, target, branch, githubToken, runInBackground } = data;
+                const { appId, target, branch, githubToken, runInBackground, customStoreUrl } = data;
+                let effectiveTarget = target;
+                if (!effectiveTarget) {
+                    if (controlConnections.size === 1) {
+                        effectiveTarget = controlConnections.keys().next().value;
+                    } else if (controlConnections.has("local-server")) {
+                        effectiveTarget = "local-server";
+                    } else if (controlConnections.size > 0) {
+                        effectiveTarget = Array.from(controlConnections.keys())[0];
+                    }
+                }
 
-                if (!appId || !target) {
+                if (!appId || !effectiveTarget || !/^[a-zA-Z0-9_-]+$/.test(appId) || !/^[a-zA-Z0-9_-]+$/.test(userId)) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Missing appId or target' }));
+                    res.end(JSON.stringify({ error: 'Missing or invalid appId, userId, or target' }));
                     return;
                 }
 
-                const targetWs = controlConnections.get(target);
+                const targetWs = controlConnections.get(effectiveTarget);
                 if (!targetWs || targetWs.readyState !== 1 /* WebSocket.OPEN */) {
                     res.writeHead(404, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Target local server not found or offline' }));
@@ -71,11 +83,33 @@ export async function handleInstallApplicationRoute(parsedUrl: URL, req: http.In
                     userId: userId,
                     branch: branch || 'NetStore',
                     githubToken: githubToken || process.env.GITHUB_TOKEN || process.env.GH_TOKEN,
-                    runInBackground: Boolean(runInBackground)
+                    runInBackground: Boolean(runInBackground),
+                    customStoreUrl: customStoreUrl || undefined
                 }));
 
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, message: 'Installation command sent' }));
+                const requestHandler = (msg: string) => {
+                    try {
+                        const data = JSON.parse(msg);
+                        if (data.type === 'install_success' && data.appId === appId) {
+                            targetWs.removeListener('message', requestHandler);
+                            clearTimeout(timeout);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: true, message: 'Installation completed' }));
+                        } else if (data.type === 'install_error' && data.appId === appId) {
+                            targetWs.removeListener('message', requestHandler);
+                            clearTimeout(timeout);
+                            res.writeHead(500, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: data.error }));
+                        }
+                    } catch (err) { }
+                };
+                targetWs.on('message', requestHandler);
+
+                const timeout = setTimeout(() => {
+                    targetWs.removeListener('message', requestHandler);
+                    res.writeHead(202, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, message: 'Installation command sent (timeout)' }));
+                }, 15000);
 
             } catch (e) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -105,18 +139,28 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
         req.on('data', chunk => {
             body += chunk.toString();
         });
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
                 const { appId, target } = data;
+                let effectiveTarget = target;
+                if (!effectiveTarget) {
+                    if (controlConnections.size === 1) {
+                        effectiveTarget = controlConnections.keys().next().value;
+                    } else if (controlConnections.has("local-server")) {
+                        effectiveTarget = "local-server";
+                    } else if (controlConnections.size > 0) {
+                        effectiveTarget = Array.from(controlConnections.keys())[0];
+                    }
+                }
 
-                if (!appId || !target) {
+                if (!appId || !effectiveTarget || !/^[a-zA-Z0-9_-]+$/.test(appId) || !/^[a-zA-Z0-9_-]+$/.test(userId)) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Missing appId or target' }));
+                    res.end(JSON.stringify({ error: 'Missing or invalid appId, userId, or target' }));
                     return;
                 }
 
-                const targetWs = controlConnections.get(target);
+                const targetWs = controlConnections.get(effectiveTarget);
                 if (!targetWs || targetWs.readyState !== 1 /* WebSocket.OPEN */) {
                     res.writeHead(404, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Target local server not found or offline' }));
@@ -130,6 +174,19 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
                     fs.rmSync(targetAppDir, { recursive: true, force: true });
                 }
 
+                // Clear granted permissions for app on uninstall
+                try {
+                    const { getGrantedPermissions, saveGrantedPermissions } = await import('../../websocket/connectionHandlers.js');
+                    const perms = getGrantedPermissions();
+                    if (perms[appId]) {
+                        delete perms[appId];
+                        saveGrantedPermissions(perms);
+                        console.log(`Cleared granted permissions for uninstalled app ${appId}`);
+                    }
+                } catch (e) {
+                    console.error('Failed to clear permissions on uninstall:', e);
+                }
+
                 // Send command to local server
                 targetWs.send(JSON.stringify({
                     type: 'uninstall_application',
@@ -137,8 +194,29 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
                     userId: userId
                 }));
 
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, message: 'Uninstallation command sent' }));
+                const requestHandler = (msg: string) => {
+                    try {
+                        const data = JSON.parse(msg);
+                        if (data.type === 'uninstall_success' && data.appId === appId) {
+                            targetWs.removeListener('message', requestHandler);
+                            clearTimeout(timeout);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: true, message: 'Uninstallation completed' }));
+                        } else if (data.type === 'uninstall_error' && data.appId === appId) {
+                            targetWs.removeListener('message', requestHandler);
+                            clearTimeout(timeout);
+                            res.writeHead(500, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: data.error }));
+                        }
+                    } catch (err) { }
+                };
+                targetWs.on('message', requestHandler);
+
+                const timeout = setTimeout(() => {
+                    targetWs.removeListener('message', requestHandler);
+                    res.writeHead(202, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, message: 'Uninstallation command sent (timeout)' }));
+                }, 15000);
 
             } catch (e) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -151,3 +229,23 @@ export async function handleUninstallApplicationRoute(parsedUrl: URL, req: http.
     }
 }
 
+export async function handleFetchApplicationCatalogRoute(parsedUrl: URL, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    try {
+        const branch = parsedUrl.searchParams.get('branch') || 'main';
+
+        const applications = await FetchApplicationCatalog(GITHUB_TOKEN, branch);
+
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify(applications));
+    } catch (error: any) {
+        console.error('Error fetching application catalog:', error);
+        res.writeHead(500, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({ error: 'Failed to fetch application catalog' }));
+    }
+}
